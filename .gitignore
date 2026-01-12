@@ -1,0 +1,91 @@
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*$py.class
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# Python build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ========================
+# FastAPI / Uvicorn
+# ========================
+*.log
+*.pid
+
+# ========================
+# Environment & Config
+# ========================
+*.env
+.env.*
+!example.env
+
+# Secret keys
+secret_key.txt
+
+# ========================
+# Editor & OS Files
+# ========================
+# VSCode
+.vscode/
+.history/
+
+# PyCharm
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# ========================
+# Byte-Compiled / Caches
+# ========================
+.mypy_cache/
+.pytest_cache/
+__pypackages__/
+.cache/
+
+# ========================
+# Docker
+# ========================
+# Ignore local bind-mounts
+uploads/
+data/
+tmp/
+
+# Docker files created at runtime
+*.pid
+*.seed
+*.log
+
+# Exclude compiled Docker layers
+docker-data/
+docker-cache/
+
+# ========================
+# Node (if you add frontend)
+# ========================
+node_modules/
+
+# ========================
+# Misc
+# ========================
+*.sqlite3
+*.db
+
+# Local dev files
+*.local
+*.backup
+

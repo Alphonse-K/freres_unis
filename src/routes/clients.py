@@ -1,0 +1,273 @@
+# src/routes/clients.py
+from fastapi import APIRouter, Depends, status, Query
+from sqlalchemy.orm import Session
+
+from src.core.database import get_db
+from src.schemas.users import PaginationParams, PaginatedResponse
+from src.models.clients import ClientApproval, ClientPayment
+from src.schemas.clients import (
+    ClientResponse,
+    ClientUpdate,
+    ClientApprovalCreate,
+    ClientApprovalUpdate,
+    ClientApprovalResponse,
+    ClientInvoiceCreate,
+    ClientInvoiceResponse,
+    ClientPaymentCreate,
+    ClientPaymentResponse,
+    ClientReturnCreate,
+    ClientReturnResponse,
+    ClientReturnFilter,
+
+)
+from src.services.client_return_service import ClientReturnService
+
+from src.services.client_service import ClientService
+from src.services.client_approval_service import ClientApprovalService
+from src.services.client_invoice_service import ClientInvoiceService
+from src.services.client_payment_service import ClientPaymentService
+from src.core.auth_dependencies import require_role, get_current_user
+
+client_router = APIRouter(
+    prefix="/clients",
+    tags=["Clients"]
+)
+
+
+@client_router.post(
+    "/approvals",
+    response_model=ClientApprovalResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def submit_client_approval(
+    data: ClientApprovalCreate,
+    db: Session = Depends(get_db),
+):
+    return ClientApprovalService.submit(db, data)
+
+
+@client_router.patch(
+    "/approvals/{approval_id}",
+    response_model=ClientResponse,
+    dependencies=[Depends(require_role(["ADMIN", "RH"]))]
+)
+def review_client_approval(
+    approval_id: int,
+    review: ClientApprovalUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return ClientApprovalService.review(
+        db=db,
+        approval_id=approval_id,
+        review=review,
+        reviewer_id=current_user.id,
+    )
+
+@client_router.get(
+    "/approvals",
+    response_model=list[ClientApprovalResponse],
+    dependencies=[Depends(require_role(["ADMIN", "COMPLIANCE"]))]
+)
+def list_client_approvals(
+    db: Session = Depends(get_db),
+):
+    return db.query(ClientApproval).order_by(
+        ClientApproval.submitted_at.desc()
+    ).all()
+
+
+@client_router.get(
+    "/{client_id}",
+    response_model=ClientResponse,
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "RH", "MAKER"]))]
+)
+def get_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+):
+    return ClientService.get(db, client_id)
+
+
+@client_router.get(
+    "",
+    response_model=PaginatedResponse[ClientResponse],
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "RH", "MAKER"]))]
+)
+def list_clients(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+):
+    total, items = ClientService.list(db, pagination)
+    return {
+        "total": total,
+        "page": pagination.page,
+        "page_size": pagination.page_size,
+        "items": items,
+    }
+
+@client_router.patch(
+    "/{client_id}",
+    response_model=ClientResponse,
+    dependencies=[Depends(require_role(["ADMIN", "RH"]))]
+)
+def update_client(
+    client_id: int,
+    data: ClientUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return ClientService.update(
+        db=db,
+        client_id=client_id,
+        data=data,
+        actor_id=current_user.id,
+    )
+
+@client_router.patch(
+    "/{client_id}/status",
+    response_model=ClientResponse,
+    dependencies=[Depends(require_role(["ADMIN", "RH"]))]
+)
+def change_client_status(
+    client_id: int,
+    status,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return ClientService.change_status(
+        db=db,
+        client_id=client_id,
+        status=status,
+        actor_id=current_user.id,
+    )
+
+@client_router.post(
+    "/{client_id}/invoices",
+    response_model=ClientInvoiceResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role(["ADMIN", "FINANCE"]))]
+)
+def create_client_invoice(
+    client_id: int,
+    data: ClientInvoiceCreate,
+    db: Session = Depends(get_db),
+):
+    return ClientInvoiceService.create(db, data)
+
+@client_router.get(
+    "/{client_id}/invoices",
+    response_model=list[ClientInvoiceResponse],
+    dependencies=[Depends(require_role(["ADMIN", "FINANCE", "RH"]))]
+)
+def list_client_invoices(
+    client_id: int,
+    db: Session = Depends(get_db),
+):
+    return ClientInvoiceService.list_by_client(db, client_id)
+
+@client_router.post(
+    "/{client_id}/payments",
+    response_model=ClientPaymentResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role(["ADMIN", "FINANCE", "CASHIER"]))]
+)
+def create_client_payment(
+    client_id: int,
+    data: ClientPaymentCreate,
+    db: Session = Depends(get_db),
+):
+    return ClientPaymentService.create(db, data)
+
+@client_router.get(
+    "/{client_id}/payments",
+    response_model=list[ClientPaymentResponse],
+    dependencies=[Depends(require_role(["ADMIN", "FINANCE", "SUPPORT"]))]
+)
+def list_client_payments(
+    client_id: int,
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(ClientPayment)
+        .filter_by(client_id=client_id)
+        .order_by(ClientPayment.payment_date.desc())
+        .all()
+    )
+
+@client_router.post(
+    "/client-returns",
+    response_model=ClientReturnResponse,
+)
+def create_client_return(
+    payload: ClientReturnCreate,
+    db: Session = Depends(get_db),
+):
+    return ClientReturnService.create_return(db, payload)
+
+
+@client_router.get(
+    "/client-returns",
+    response_model=PaginatedResponse[ClientReturnResponse],
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "MANAGER"]))],
+)
+def list_client_returns(
+    filters: ClientReturnFilter = Depends(),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, le=100),
+    db: Session = Depends(get_db),
+):
+    offset = (page - 1) * page_size
+    total, items = ClientReturnService.list_returns(
+        db, filters, offset, page_size
+    )
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": items,
+    }
+
+@client_router.get(
+    "/client-returns/{return_id}/client-returns",
+    response_model=ClientReturnResponse,
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "MANAGER"]))],
+)
+def get_client_return(
+    return_id: int,
+    db: Session = Depends(get_db),
+):
+    return ClientReturnService.get_return(db, return_id)
+
+@client_router.post(
+    "/client-returns/{return_id}/approve",
+    response_model=ClientReturnResponse,
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER"]))],
+)
+def approve_client_return(
+    return_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return ClientReturnService.approve_return(
+        db=db,
+        return_id=return_id,
+        approver_id=current_user.id,
+    )
+
+@client_router.post(
+    "/client-returns/{return_id}/reject",
+    response_model=ClientReturnResponse,
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER"]))],
+)
+def reject_client_return(
+    return_id: int,
+    reason: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return ClientReturnService.reject_return(
+        db, return_id, current_user.id, reason
+    )
+
