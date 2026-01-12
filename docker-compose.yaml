@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
-    container_name: web
+    container_name: web_freres_unis
     env_file: .env
     depends_on:
       - db
