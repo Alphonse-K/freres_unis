@@ -40,3 +40,9 @@ class Warehouse(Base):
         back_populates="warehouse",
         cascade="all, delete-orphan"
     )
+
+    procurements = relationship(
+        "Procurement",
+        back_populates="warehouse",
+        cascade="all, delete-orphan"
+    )

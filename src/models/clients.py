@@ -257,5 +257,5 @@ class ClientReturnItem(Base):
     unit_price = Column(Numeric(12, 2), nullable=False)
     line_total = Column(Numeric(12, 2), nullable=False)
 
-    return_ = relationship("ClientReturn", back_populates="items")
+    client_return = relationship("ClientReturn", back_populates="items")
     order_item = relationship("OrderItem")

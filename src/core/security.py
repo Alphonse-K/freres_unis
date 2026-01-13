@@ -12,6 +12,7 @@ import os
 import logging
 from sqlalchemy.orm import Session
 from src.models.security import JWTBlacklist
+from src.models.users import UserStatus
 from src.core.config import settings
 
 
@@ -40,17 +41,26 @@ class SecurityUtils:
     # ---------------- Password ----------------
     @staticmethod
     def hash_password(password: str) -> str:
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(password.encode(), salt)
-        return hashed.decode()
+        # Pre-hash with SHA-256 (32 bytes)
+        sha256_digest = hashlib.sha256(password.encode("utf-8")).digest()
 
+        # Bcrypt the fixed-length digest
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(sha256_digest, salt)
+
+        return hashed.decode("utf-8")
+    
     @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
+    def verify_password(password: str, hashed_password: str) -> bool:
         try:
-            return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+            sha256_digest = hashlib.sha256(password.encode("utf-8")).digest()
+            return bcrypt.checkpw(
+                sha256_digest,
+                hashed_password.encode("utf-8")
+            )
         except Exception:
             return False
-
+        
     @staticmethod
     def validate_password_strength(password: str) -> tuple[bool, str]:
         if len(password) < 8: return False, "Password must be at least 8 characters"
@@ -172,41 +182,72 @@ class SecurityUtils:
         return hmac.compare_digest(SecurityUtils.generate_hmac_signature(secret, message), signature)
     
 
+    # @staticmethod
+    # def enforce_login_policies(account) -> None:
+    #     now = datetime.now(timezone.utc)
+
+    #     # Active flag
+    #     if hasattr(account, "is_active") and not account.is_active:
+    #         raise HTTPException(403, "Account disabled")
+
+    #     # Status enum
+    #     # if hasattr(account, "status") and str(account.status) != "ACTIVE":
+    #     if hasattr(account, "status") and account.status.name != "ACTIVE":
+    #         raise HTTPException(403, "Account not active")
+
+    #     # Suspension handling
+    #     if hasattr(account, "suspended_until") and account.suspended_until:
+    #         if now < account.suspended_until:
+    #             remaining = int((account.suspended_until - now).total_seconds() / 60)
+    #             raise HTTPException(
+    #                 status_code=403,
+    #                 detail=f"Account suspended. Try again in {remaining} minutes."
+    #             )
+    #         else:
+    #             account.suspended_until = None
+    #             if hasattr(account, "failed_attempts"):
+    #                 account.failed_attempts = 0
+
+    #     # Allowed login window
+    #     if (
+    #         hasattr(account, "allowed_login_start")
+    #         and hasattr(account, "allowed_login_end")
+    #         and account.allowed_login_start
+    #         and account.allowed_login_end
+    #     ):
+    #         start = account.allowed_login_start
+    #         end = account.allowed_login_end
+    #         current = now.time()
+
+    #         if start <= end:
+    #             allowed = start <= current <= end
+    #         else:
+    #             allowed = current >= start or current <= end
+
+    #         if not allowed:
+    #             raise HTTPException(403, "Login not allowed at this time")
     @staticmethod
     def enforce_login_policies(account) -> None:
         now = datetime.now(timezone.utc)
 
-        # Active flag
-        if hasattr(account, "is_active") and not account.is_active:
-            raise HTTPException(403, "Account disabled")
 
-        # Status enum
-        if hasattr(account, "status") and str(account.status) != "ACTIVE":
+        if account.status is not UserStatus.ACTIVE:
             raise HTTPException(403, "Account not active")
 
-        # Suspension handling
-        if hasattr(account, "suspended_until") and account.suspended_until:
+        if account.suspended_until:
             if now < account.suspended_until:
                 remaining = int((account.suspended_until - now).total_seconds() / 60)
                 raise HTTPException(
                     status_code=403,
                     detail=f"Account suspended. Try again in {remaining} minutes."
                 )
-            else:
-                account.suspended_until = None
-                if hasattr(account, "failed_attempts"):
-                    account.failed_attempts = 0
+            account.suspended_until = None
+            account.failed_attempts = 0
 
-        # Allowed login window
-        if (
-            hasattr(account, "allowed_login_start")
-            and hasattr(account, "allowed_login_end")
-            and account.allowed_login_start
-            and account.allowed_login_end
-        ):
+        if account.allowed_login_start and account.allowed_login_end:
+            current = now.time()
             start = account.allowed_login_start
             end = account.allowed_login_end
-            current = now.time()
 
             if start <= end:
                 allowed = start <= current <= end
@@ -215,6 +256,39 @@ class SecurityUtils:
 
             if not allowed:
                 raise HTTPException(403, "Login not allowed at this time")
+
+    @staticmethod
+    def update_login_metadata(
+        user,
+        ip: str | None,
+        user_agent: str | None,
+        db: Session
+    ) -> None:
+        """
+        Update security-related login metadata after a successful authentication.
+        """
+
+        now = datetime.now(timezone.utc)
+
+        # Reset security counters
+        user.failed_attempts = 0
+        user.suspended_until = None
+
+        # Login metadata
+        user.last_login = now
+        user.last_login_ip = ip
+        user.last_login_user_agent = (
+            user_agent[:255] if user_agent else None
+        )
+
+        try:
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to update login metadata for user %s", user.id)
+            raise
 
     # -------------- FAILED LOGIN HANDLING --------------
     @staticmethod

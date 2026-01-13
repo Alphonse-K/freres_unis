@@ -13,7 +13,7 @@ class UserBase(BaseModel):
     phone: Optional[str] = Field(None, max_length=15)
     role: UserRole = UserRole.USER
     status: UserStatus = UserStatus.ACTIVE
-    employee_id: str = Field(..., min_length=3, max_digits=100)
+    # employee_id: str = Field(..., min_length=3, max_digits=100)
     failed_attempts: int = 0
     suspended_until: Optional[datetime] = None
     allowed_login_start: Optional[time] = Field(None, description="User activity starting time")
@@ -49,7 +49,6 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=50)
     role: Optional[UserRole] = None
     status: Optional[UserStatus] = None
-    employee_id: Optional[int] = None
     suspended_until: Optional[datetime] = None
     allowed_login_start: Optional[time] = None
     allowed_login_end: Optional[time] = None

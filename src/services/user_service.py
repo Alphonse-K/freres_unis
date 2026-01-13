@@ -35,7 +35,6 @@ class UserService:
             phone=user_data.phone,
             role=user_data.role,
             status=user_data.status,
-            employee_id=user_data.employee_id,
             failed_attempts=user_data.failed_attempts,
             suspended_until=user_data.suspended_until,
             allowed_login_start=user_data.allowed_login_start,

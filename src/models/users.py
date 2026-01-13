@@ -50,7 +50,7 @@ class User(Base):
         nullable=False,
         default=UserStatus.ACTIVE
     )
-    employee_id = Column(Integer, ForeignKey("employees.id"))
+    # employee_id = Column(Integer, ForeignKey("employees.id"))
 
     # Security & Logging
     failed_attempts = Column(Integer, default=0)
@@ -69,11 +69,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    employee = relationship("Employee")
+    # employee = relationship("Employee")
     otp_codes = relationship("OTPCode", back_populates="user")
-    blacklisted_tokens = relationship("JWTBlacklist", back_populates="user")
+    # blacklisted_tokens = relationship("JWTBlacklist", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
-
 
 
     def __repr__(self):
