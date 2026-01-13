@@ -13,7 +13,7 @@ user_router = APIRouter(prefix="/users", tags=["System User"])
 @user_router.post(
     "/create",
     response_model=UserOut,
-    # dependencies=[Depends(require_role(["ADMIN"]))]
+    dependencies=[Depends(require_role(["ADMIN"]))]
 )
 def create_user(
     user_data: UserCreate,
