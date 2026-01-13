@@ -18,9 +18,9 @@ class EmailService:
             msg['Subject'] = subject
             msg.attach(MIMEText(html_content, 'html'))
 
-            with SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
+            with SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as smtp:
                 smtp.starttls()
-                smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
         except SMTPException as e:
             logger.error(f"Failed to send email to {to_email}: {str(e)}")

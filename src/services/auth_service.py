@@ -34,7 +34,7 @@ class AuthService:
                     if user:
                         if SecurityUtils.verify_password(secret, user.password_hash):
                             SecurityUtils.enforce_login_policies(user)
-                            SecurityUtils.update_login_metadata(user, ip, ua, db)
+                            # SecurityUtils.update_login_metadata(user, ip, ua, db)
                             return user
 
                         SecurityUtils.register_failed_attempt(user, db)

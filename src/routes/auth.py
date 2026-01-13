@@ -32,12 +32,13 @@ def login_password(
     account = AuthService.authenticate(
         db, identifier, data.password, "password", ip, ua
     )
-
+    print("account", account)
     if not account:
         raise HTTPException(401, "Invalid credentials")
 
     # SYSTEM USER → OTP FLOW
     if isinstance(account, User):
+        print("Account is an instance of user")
         if AuthService.is_otp_required(account, ip, ua):
             AuthService.generate_otp(db, account, "login")
             return {
@@ -89,10 +90,12 @@ def login_pin(
     }
 
     # UPDATE last login metadata
-    account.last_login = datetime.now(timezone.utc)
-    account.last_login_ip = device_info["ip_address"]
-    account.last_login_user_agent = device_info["user_agent"]
-    db.commit()
+    # account.last_login = datetime.now(timezone.utc)
+    # account.last_login_ip = device_info["ip_address"]
+    # account.last_login_user_agent = device_info["user_agent"]
+    # db.commit()
+
+    SecurityUtils.update_login_metadata(account, ip, ua, db)
 
     # Create tokens
     tokens = AuthService.create_tokens(db, account, device_info)

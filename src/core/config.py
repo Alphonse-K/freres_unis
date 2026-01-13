@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = "noreply@cashmoov.net"
     EMAIL_FROM_NAME: str = "CashMoov"
-
+    
     # -----------------------------
     # App Environment
     # -----------------------------
