@@ -132,6 +132,8 @@ class POSUser(Base):
     id_photo_recto = Column(String(255))
     id_photo_verso = Column(String(255))
 
+    require_password_change = Column(Boolean, default=True)
+
     allowed_login_start = Column(Time, nullable=True)  # e.g. 08:00
     allowed_login_end = Column(Time, nullable=True)    # e.g. 18:00
 

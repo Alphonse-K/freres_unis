@@ -155,7 +155,7 @@ class AuthService:
         if JWTUtils.is_blacklisted(db, payload.get("jti")): return None
         user_id = payload.get("sub")
         if not user_id: return None
-        return db.query(User).filter(User.id==int(user_id), User.is_active==True).first()
+        return db.query(User).filter(User.id==int(user_id)).first()
 
     @staticmethod
     def validate_api_key(db: Session, api_key: str, api_secret: str) -> Optional[APIKey]:
