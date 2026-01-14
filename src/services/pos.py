@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from typing import List, Tuple
 from src.models.pos import POS, POSUser
 from src.schemas.pos import POSCreate, POSUpdate, POSUserCreate, POSUserUpdate
 from src.core.security import SecurityUtils
@@ -43,6 +44,29 @@ class POSService:
         if not pos:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "POS not found")
         return pos
+
+    @staticmethod
+    def list_pos(
+        db: Session,
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[POS], int]:
+        """
+        List POS with pagination.
+        """
+        query = db.query(POS)
+
+        total = query.count()
+
+        items = (
+            query
+            .order_by(POS.id.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        return items, total    
 
 
 class POSUserService:

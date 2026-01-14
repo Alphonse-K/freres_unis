@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.orm import Session
-from src.schemas.security import APIKeyCreate, APIKeyOut, OTPVerify, RefreshTokenRequest, TokenPairResponse
+from src.schemas.security import APIKeyCreate, APIKeyOut, OTPVerify, RefreshTokenRequest, TokenPairResponse, ChangePasswordRequest
 from src.models.users import User
 from src.models.clients import Client
 from src.models.pos import POSUser
@@ -89,12 +89,6 @@ def login_pin(
         "ip_address": ip
     }
 
-    # UPDATE last login metadata
-    # account.last_login = datetime.now(timezone.utc)
-    # account.last_login_ip = device_info["ip_address"]
-    # account.last_login_user_agent = device_info["user_agent"]
-    # db.commit()
-
     SecurityUtils.update_login_metadata(account, ip, ua, db)
 
     # Create tokens
@@ -176,6 +170,42 @@ def refresh_tokens(
         "user": UserSchema.model_validate(user)
     }
 
+@auth_router.post(
+    "/change-password",
+    status_code=status.HTTP_200_OK
+)
+def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Change the authenticated user's password.
+    """
+
+    ip_address = request.client.host if request.client else ""
+
+    success = AuthService.change_password(
+        db=db,
+        user_id=current_user.id,
+        old_password=payload.old_password,
+        new_password=payload.new_password,
+        confirm_password=payload.confirm_password,
+        ip_address=ip_address,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password change failed"
+        )
+
+    return {
+        "success": True,
+        "message": "Password changed successfully"
+    }
+
 @auth_router.post("/logout", response_model=LogoutResponse)
 def logout(
     request: Request,
@@ -204,6 +234,7 @@ def logout_all(
     AuthService.logout_all_devices(db, current_account, access_token)
     
     return {"message": "Logged out from all devices successfully"}
+
 
 # API Key Management Routes
 @auth_router.post("/api-keys", response_model=APIKeyOut)

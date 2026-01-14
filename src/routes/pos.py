@@ -18,7 +18,6 @@ pos_router = APIRouter(prefix="/pos", tags=["POS"])
 def create_pos(data: POSCreate, db: Session = Depends(get_db)):
     return POSService.create_pos(db, data)
 
-
 @pos_router.patch(
     "/{pos_id}",
     response_model=POSOut,
@@ -27,7 +26,6 @@ def create_pos(data: POSCreate, db: Session = Depends(get_db)):
 def update_pos(pos_id: int, data: POSUpdate, db: Session = Depends(get_db)):
     return POSService.update_pos(db, pos_id, data)
 
-
 @pos_router.get(
     "/{pos_id}",
     response_model=POSOut,
@@ -35,6 +33,26 @@ def update_pos(pos_id: int, data: POSUpdate, db: Session = Depends(get_db)):
 )
 def get_pos(pos_id: int, db: Session = Depends(get_db)):
     return POSService.get_pos(db, pos_id)
+
+from fastapi import Query
+
+
+@pos_router.get(
+    "/list",
+    response_model=dict,
+    dependencies=[Depends(require_role(["ADMIN"]))]
+)
+def list_pos(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100)
+):
+    items, total = POSService.list_pos(db, skip=skip, limit=limit)
+
+    return {
+        "total": total,
+        "items": items
+    }
 
 @pos_router.post(
     "/{pos_id}/users",
