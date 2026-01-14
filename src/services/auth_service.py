@@ -224,7 +224,6 @@ class AuthService:
         """
         user = db.query(User).filter(
             User.id == user_id,
-            User.is_active == True
         ).first()
 
         if not user:
