@@ -1,10 +1,10 @@
 # src/routes/clients.py
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, HTTPException, Form, UploadFile, File
 from sqlalchemy.orm import Session
-
+from typing import Optional
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse
-from src.models.clients import ClientApproval, ClientPayment
+from src.models.clients import ClientApproval, ClientPayment, Client, ClientStatus
 from src.schemas.clients import (
     ClientResponse,
     ClientUpdate,
@@ -18,7 +18,7 @@ from src.schemas.clients import (
     ClientReturnCreate,
     ClientReturnResponse,
     ClientReturnFilter,
-
+    ClientActivationSetPassword
 )
 from src.services.client_return_service import ClientReturnService
 
@@ -26,6 +26,7 @@ from src.services.client_service import ClientService
 from src.services.client_approval_service import ClientApprovalService
 from src.services.client_invoice_service import ClientInvoiceService
 from src.services.client_payment_service import ClientPaymentService
+from src.core.security import SecurityUtils
 from src.core.auth_dependencies import require_role, get_current_user
 
 client_router = APIRouter(
@@ -34,22 +35,77 @@ client_router = APIRouter(
 )
 
 
+# -----------------------------
+# SUBMIT CLIENT APPROVAL (WITH FILES)
+# -----------------------------
 @client_router.post(
     "/approvals",
     response_model=ClientApprovalResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
 def submit_client_approval(
-    data: ClientApprovalCreate,
+    type: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    username: str = Form(...),
+    phone: str = Form(...),
+    email: Optional[str] = Form(None),
+    id_type_id: int = Form(...),
+    id_number: str = Form(...),
+    employee_company: Optional[str] = Form(None),
+    employee_id_number: Optional[str] = Form(None),
+    company_address: Optional[str] = Form(None),
+    face_photo: UploadFile = File(...),
+    id_photo_recto: UploadFile = File(...),
+    id_photo_verso: UploadFile = File(...),
+    badge_photo: Optional[UploadFile] = File(None),
+    magnetic_card_photo: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-    return ClientApprovalService.submit(db, data)
+    data = {
+        "type": type,
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "phone": phone,
+        "email": email,
+        "id_type_id": id_type_id,
+        "id_number": id_number,
+        "employee_company": employee_company,
+        "employee_id_number": employee_id_number,
+        "company_address": company_address,
+    }
 
+    files = {
+        "face_photo": face_photo,
+        "id_photo_recto": id_photo_recto,
+        "id_photo_verso": id_photo_verso,
+        "badge_photo": badge_photo,
+        "magnetic_card_photo": magnetic_card_photo,
+    }
 
+    return ClientApprovalService.submit_with_files(db=db, data=data, files=files)
+
+# -----------------------------
+# LIST CLIENT APPROVALS
+# -----------------------------
+@client_router.get(
+    "/approvals",
+    response_model=list[ClientApprovalResponse],
+    dependencies=[Depends(require_role(["ADMIN", "COMPLIANCE"]))],
+)
+def list_client_approvals(db: Session = Depends(get_db)):
+    return db.query(ClientApproval).order_by(
+        ClientApproval.submitted_at.desc()
+    ).all()
+
+# -----------------------------
+# REVIEW CLIENT APPROVAL
+# -----------------------------
 @client_router.patch(
     "/approvals/{approval_id}",
-    response_model=ClientResponse,
-    dependencies=[Depends(require_role(["ADMIN", "RH"]))]
+    response_model=ClientApprovalResponse,
+    dependencies=[Depends(require_role(["ADMIN", "RH"]))],
 )
 def review_client_approval(
     approval_id: int,
@@ -63,19 +119,6 @@ def review_client_approval(
         review=review,
         reviewer_id=current_user.id,
     )
-
-@client_router.get(
-    "/approvals",
-    response_model=list[ClientApprovalResponse],
-    dependencies=[Depends(require_role(["ADMIN", "COMPLIANCE"]))]
-)
-def list_client_approvals(
-    db: Session = Depends(get_db),
-):
-    return db.query(ClientApproval).order_by(
-        ClientApproval.submitted_at.desc()
-    ).all()
-
 
 @client_router.get(
     "/{client_id}",
@@ -141,6 +184,24 @@ def change_client_status(
         status=status,
         actor_id=current_user.id,
     )
+
+@client_router.post("/clients/{client_id}/activate")
+def activate_client(
+    client_id: int,
+    data: ClientActivationSetPassword,
+    db: Session = Depends(get_db),
+):
+    client = db.query(Client).filter_by(id=client_id).first()
+    if not client:
+        raise HTTPException(404, "Client not found")
+
+    client.password_hash = SecurityUtils.hash_password(data.password)
+    client.pin_hash = SecurityUtils.hash_password(data.pin)
+    client.status = ClientStatus.ACTIVE
+
+    db.commit()
+    return {"status": "Client activated successfully !"}
+
 
 @client_router.post(
     "/{client_id}/invoices",

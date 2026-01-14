@@ -70,15 +70,15 @@ class Client(Base):
     phone = Column(String(40), unique=True, nullable=False)
     email = Column(String(255))
 
-    status = Column(PgEnum(ClientStatus), default=ClientStatus.ACTIVE)
+    status = Column(PgEnum(ClientStatus), default=ClientStatus.INACTIVE)
 
     opening_balance = Column(Numeric(14, 2), default=0)
     anticipated_balance = Column(Numeric(14, 2), default=0)
     current_balance = Column(Numeric(14, 2), default=0)
 
     # Credentials (copied from approval)
-    password_hash = Column(String(255), nullable=False)
-    pin_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
+    pin_hash = Column(String(255), nullable=True)
 
     # Identification
     id_type_id = Column(Integer, ForeignKey("id_types.id"), nullable=False)
@@ -126,10 +126,6 @@ class ClientApproval(Base):
     email = Column(String(255))
     username = Column(String(120), nullable=False)
 
-    # Credentials (HASHED)
-    password_hash = Column(String(255), nullable=False)
-    pin_hash = Column(String(255), nullable=False)
-
     # Identification
     id_type_id = Column(Integer, ForeignKey("id_types.id"), nullable=False)
     id_number = Column(String(100), nullable=False)
@@ -156,7 +152,11 @@ class ClientApproval(Base):
     reviewed_by_id = Column(Integer, ForeignKey("users.id"))
 
     # Link to created client (only after approval)
-    client_id = Column(Integer, ForeignKey("clients.id"), unique=True)
+    client_id = Column(
+        Integer,
+        ForeignKey("clients.id", ondelete="SET NULL"),
+        unique=True
+    )
 
     # relationships
     id_type = relationship("IDType")

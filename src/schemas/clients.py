@@ -44,22 +44,21 @@ class ClientResponse(ClientBase):
 
 
 # ---- APPROVAL FLOW ----
-
 class ClientApprovalBase(BaseModel):
-    type: ClientType = Field(..., description="Requested client category")
-    first_name: str = Field(..., max_length=120)
-    last_name: str = Field(..., max_length=120)
-    username: str = Field(..., max_length=120)
-    phone: str = Field(..., max_length=40)
-    email: Optional[str] = Field(None, max_length=255)
-    id_type_id: int = Field(...)
-    id_number: str = Field(..., max_length=100)
+    type: ClientType
+    first_name: str
+    last_name: str
+    username: str
+    phone: str
+    email: Optional[str]
+    id_type_id: int
+    id_number: str
 
-    face_photo: str = Field(...)
-    badge_photo: Optional[str] = Field(None)
-    id_photo_recto: str = Field(...)
-    id_photo_verso: str = Field(...)
-    magnetic_card_photo: Optional[str] = Field(None)
+    face_photo: str
+    badge_photo: Optional[str]
+    id_photo_recto: str
+    id_photo_verso: str
+    magnetic_card_photo: Optional[str]
 
     employee_company: Optional[str] = None
     employee_id_number: Optional[str] = None
@@ -69,8 +68,7 @@ class ClientApprovalBase(BaseModel):
 
 
 class ClientApprovalCreate(ClientApprovalBase):
-    password_hash: str = Field(...)
-    pin_hash: str = Field(...)
+    pass
 
 
 class ClientApprovalUpdate(BaseModel):
@@ -90,9 +88,12 @@ class ClientApprovalResponse(ClientApprovalBase):
     reviewed_by_id: Optional[int]
     client_id: Optional[int]
 
+class ClientActivationSetPassword(BaseModel):
+    password: str = Field(..., min_length=8)
+    pin: str = Field(..., min_length=4, max_length=6)
+
 
 # ---- INVOICES ----
-
 class ClientInvoiceBase(BaseModel):
     invoice_number: str = Field(..., max_length=100)
     invoice_date: datetime = Field(...)

@@ -1,14 +1,34 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from src.schemas.pos import POSCreate, POSUpdate, POSOut, POSUserCreate, POSUserUpdate, POSUserOut
 from src.services.pos import POSService
 from src.core.database import get_db
 from src.core.auth_dependencies import require_role
 from src.services.pos import POSUserService
+from src.schemas.users import PaginatedResponse, PaginationParams
 
 
 pos_router = APIRouter(prefix="/pos", tags=["POS"])
 
+
+@pos_router.get(
+    "/list",
+    response_model=PaginatedResponse[POSOut],
+    dependencies=[Depends(require_role(["ADMIN"]))]
+)
+def list_pos(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+):
+    # Use pagination.offset for query offset
+    items, total = POSService.list_pos(db, skip=pagination.offset, limit=pagination.page_size)
+
+    return PaginatedResponse[POSOut](
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        items=items
+    )
 
 @pos_router.post(
     "/create",
@@ -33,26 +53,6 @@ def update_pos(pos_id: int, data: POSUpdate, db: Session = Depends(get_db)):
 )
 def get_pos(pos_id: int, db: Session = Depends(get_db)):
     return POSService.get_pos(db, pos_id)
-
-from fastapi import Query
-
-
-@pos_router.get(
-    "/list",
-    response_model=dict,
-    dependencies=[Depends(require_role(["ADMIN"]))]
-)
-def list_pos(
-    db: Session = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100)
-):
-    items, total = POSService.list_pos(db, skip=skip, limit=limit)
-
-    return {
-        "total": total,
-        "items": items
-    }
 
 @pos_router.post(
     "/{pos_id}/users",
