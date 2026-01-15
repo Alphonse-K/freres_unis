@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 import uuid
 from jose import JWTError, jwt
 import os
+import enum
 import logging
 from sqlalchemy.orm import Session
 from src.models.security import JWTBlacklist
@@ -182,80 +183,99 @@ class SecurityUtils:
         return hmac.compare_digest(SecurityUtils.generate_hmac_signature(secret, message), signature)
     
 
-    # @staticmethod
-    # def enforce_login_policies(account) -> None:
-    #     now = datetime.now(timezone.utc)
+#     @staticmethod
+#     def enforce_login_policies(account) -> None:
+#         now = datetime.now(timezone.utc)
 
-    #     # Active flag
-    #     if hasattr(account, "is_active") and not account.is_active:
-    #         raise HTTPException(403, "Account disabled")
 
-    #     # Status enum
-    #     # if hasattr(account, "status") and str(account.status) != "ACTIVE":
-    #     if hasattr(account, "status") and account.status.name != "ACTIVE":
-    #         raise HTTPException(403, "Account not active")
+#         if account.status is not UserStatus.ACTIVE:
+#             raise HTTPException(403, "Account not active")
 
-    #     # Suspension handling
-    #     if hasattr(account, "suspended_until") and account.suspended_until:
-    #         if now < account.suspended_until:
-    #             remaining = int((account.suspended_until - now).total_seconds() / 60)
-    #             raise HTTPException(
-    #                 status_code=403,
-    #                 detail=f"Account suspended. Try again in {remaining} minutes."
-    #             )
-    #         else:
-    #             account.suspended_until = None
-    #             if hasattr(account, "failed_attempts"):
-    #                 account.failed_attempts = 0
+#         if account.suspended_until:
+#             if now < account.suspended_until:
+#                 remaining = int((account.suspended_until - now).total_seconds() / 60)
+#                 raise HTTPException(
+#                     status_code=403,
+#                     detail=f"Account suspended. Try again in {remaining} minutes."
+#                 )
+#             account.suspended_until = None
+#             account.failed_attempts = 0
 
-    #     # Allowed login window
-    #     if (
-    #         hasattr(account, "allowed_login_start")
-    #         and hasattr(account, "allowed_login_end")
-    #         and account.allowed_login_start
-    #         and account.allowed_login_end
-    #     ):
-    #         start = account.allowed_login_start
-    #         end = account.allowed_login_end
-    #         current = now.time()
+#         if account.allowed_login_start and account.allowed_login_end:
+#             current = now.time()
+#             start = account.allowed_login_start
+#             end = account.allowed_login_end
 
-    #         if start <= end:
-    #             allowed = start <= current <= end
-    #         else:
-    #             allowed = current >= start or current <= end
+#             if start <= end:
+#                 allowed = start <= current <= end
+#             else:
+#                 allowed = current >= start or current <= end
 
-    #         if not allowed:
-    #             raise HTTPException(403, "Login not allowed at this time")
+#             if not allowed:
+#                 raise HTTPException(403, "Login not allowed at this time")
+# from fastapi import HTTPException
+# from datetime import datetime, timezone
+
+# class AuthService:
+
     @staticmethod
     def enforce_login_policies(account) -> None:
         now = datetime.now(timezone.utc)
 
+        # -----------------
+        # Check active status
+        # -----------------
+        # User
+        if hasattr(account, "status"):
+            if isinstance(account.status, enum.Enum):
+                if account.status.name != "ACTIVE" and account.status.value != "active":
+                    raise HTTPException(403, "Account not active")
+            else:
+                # fallback if status is a string
+                if account.status != "active":
+                    raise HTTPException(403, "Account not active")
 
-        if account.status is not UserStatus.ACTIVE:
-            raise HTTPException(403, "Account not active")
+        # POSUser
+        if hasattr(account, "is_active"):
+            if not account.is_active:
+                raise HTTPException(403, "Account not active")
 
-        if account.suspended_until:
+        # Client
+        if hasattr(account, "status") and isinstance(account.status, enum.Enum):
+            if account.status.name not in ("APPROVED", "ACTIVE"):
+                raise HTTPException(403, "Account not active")
+
+        # -----------------
+        # Check suspension
+        # -----------------
+        if hasattr(account, "suspended_until") and account.suspended_until:
             if now < account.suspended_until:
                 remaining = int((account.suspended_until - now).total_seconds() / 60)
                 raise HTTPException(
-                    status_code=403,
-                    detail=f"Account suspended. Try again in {remaining} minutes."
+                    403,
+                    f"Account suspended. Try again in {remaining} minutes."
                 )
+            # reset suspension
             account.suspended_until = None
-            account.failed_attempts = 0
+            if hasattr(account, "failed_attempts"):
+                account.failed_attempts = 0
 
-        if account.allowed_login_start and account.allowed_login_end:
-            current = now.time()
-            start = account.allowed_login_start
-            end = account.allowed_login_end
+        # -----------------
+        # Check login time restrictions
+        # -----------------
+        if hasattr(account, "allowed_login_start") and hasattr(account, "allowed_login_end"):
+            start = getattr(account, "allowed_login_start")
+            end = getattr(account, "allowed_login_end")
+            if start and end:
+                current = now.time()
+                if start <= end:
+                    allowed = start <= current <= end
+                else:
+                    allowed = current >= start or current <= end
 
-            if start <= end:
-                allowed = start <= current <= end
-            else:
-                allowed = current >= start or current <= end
+                if not allowed:
+                    raise HTTPException(403, "Login not allowed at this time")
 
-            if not allowed:
-                raise HTTPException(403, "Login not allowed at this time")
 
     @staticmethod
     def update_login_metadata(

@@ -2,7 +2,7 @@
 import logging
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from fastapi import HTTPException, Request
 
 from src.models.security import JWTBlacklist, RefreshToken, OTPCode, APIKey
@@ -137,16 +137,54 @@ class AuthService:
         return user
 
     # ---------------- Token Management ----------------
+    # @staticmethod
+    # def create_tokens(db: Session, user: User, device_info: Dict[str, Any] = None) -> Dict[str, Any]:
+    #     token_data = {"sub": str(user.id), "email": user.email, "role": user.role}
+    #     access_token, expires_at, jti = SecurityUtils.create_access_token(token_data)
+    #     refresh_token, refresh_expires_at = SecurityUtils.create_refresh_token(token_data)
+    #     hashed_refresh = SecurityUtils.hash_refresh_token(refresh_token)
+    #     refresh_record = RefreshToken(user_id=user.id, token=hashed_refresh, device_info=device_info, expires_at=refresh_expires_at)
+    #     db.add(refresh_record)
+    #     db.commit()
+    #     return {"access_token": access_token, "refresh_token": refresh_token, "expires_at": expires_at, "jti": jti}
+
     @staticmethod
-    def create_tokens(db: Session, user: User, device_info: Dict[str, Any] = None) -> Dict[str, Any]:
-        token_data = {"sub": str(user.id), "email": user.email, "role": user.role}
+    def create_tokens(
+        db: Session,
+        account: Union[User, POSUser, Client],
+        device_info: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+
+        # token payload
+        token_data = {
+            "sub": str(account.id),
+            "role": getattr(account, "role", None),
+            "type": account.__class__.__name__.lower(),  # "user", "posuser", "client"
+        }
+
         access_token, expires_at, jti = SecurityUtils.create_access_token(token_data)
         refresh_token, refresh_expires_at = SecurityUtils.create_refresh_token(token_data)
         hashed_refresh = SecurityUtils.hash_refresh_token(refresh_token)
-        refresh_record = RefreshToken(user_id=user.id, token=hashed_refresh, device_info=device_info, expires_at=refresh_expires_at)
+
+        # polymorphic refresh token
+        refresh_record = RefreshToken(
+            account_type=account.__class__.__name__.lower(),  # "user", "posuser", "client"
+            account_id=account.id,
+            token=hashed_refresh,
+            device_info=device_info,
+            expires_at=refresh_expires_at,
+        )
+
         db.add(refresh_record)
         db.commit()
-        return {"access_token": access_token, "refresh_token": refresh_token, "expires_at": expires_at, "jti": jti}
+        db.refresh(refresh_record)
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_at": expires_at,
+            "jti": jti
+        }
 
     @staticmethod
     def validate_access_token(db: Session, token: str) -> Optional[User]:

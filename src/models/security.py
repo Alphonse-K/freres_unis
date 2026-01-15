@@ -67,15 +67,17 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Polymorphic fields
+    account_type = Column(String, nullable=False)  # "user", "pos_user", "client"
+    account_id = Column(Integer, nullable=False)   # id of the user/pos_user/client
+    
     token = Column(String(64), unique=True, index=True, nullable=False)
     device_info = Column(JSON)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    user = relationship("User", back_populates="refresh_tokens")
-    
     __table_args__ = (
-        Index('ix_refresh_tokens_user_active', 'user_id', 'is_active'),
+        Index('ix_refresh_tokens_account_active', 'account_type', 'account_id', 'is_active'),
     )
