@@ -15,6 +15,9 @@ class POSService:
     # ------------------------
     @staticmethod
     def create_pos(db: Session, data: POSCreate) -> POS:
+        pos_business_name = db.query(POS).filter(POS.pos_business_name == data.pos_business_name).first()
+        if pos_business_name:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="POS names must be unique !")
         pos = POS(**data.model_dump())
         db.add(pos)
         db.commit()
