@@ -18,16 +18,19 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    """Upgrade schema."""
-    # Add column as nullable first
+def upgrade():
     op.add_column('pos', sa.Column('phone', sa.String(40), nullable=True))
-    
-    # Populate existing rows with a placeholder
-    op.execute("UPDATE pos SET phone = '0000000000' WHERE phone IS NULL")
-    
-    # Alter the column to NOT NULL
+
+    op.execute("""
+        UPDATE pos
+        SET phone = 'POS-' || id
+        WHERE phone IS NULL
+           OR phone = '0000000000'
+    """)
+
+    op.create_unique_constraint('pos_phone_key', 'pos', ['phone'])
     op.alter_column('pos', 'phone', nullable=False)
+
 
 def downgrade() -> None:
     """Downgrade schema."""
