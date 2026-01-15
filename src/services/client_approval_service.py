@@ -88,4 +88,4 @@ class ClientApprovalService:
 
         db.commit()
         db.refresh(approval)  # ensure all fields are up-to-date
-        return approval.client
+        return approval
