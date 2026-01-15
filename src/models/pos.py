@@ -78,6 +78,8 @@ class POS(Base):
     id = Column(Integer, primary_key=True)
     type = Column(Enum(PosType), nullable=False)
     pos_business_name= Column(String(255), nullable=False)
+    phone = Column(String(40), unique=True, nullable=False)
+
 
     balance = Column(Numeric(12, 2), default=0)
     status = Column(Enum(PosStatus), default=PosStatus.CREATED)
@@ -138,10 +140,15 @@ class POSUser(Base):
     allowed_login_end = Column(Time, nullable=True)    # e.g. 18:00
 
     role = Column(
-            Enum(POSUserRole, name="user_role_enum"),
-            nullable=False,
-            default=POSUserRole.CASHIER
+        Enum(
+            POSUserRole,
+            name="pos_user_role_enum",
+            values_callable=lambda e: [i.value for i in e],
+        ),
+        nullable=False,
+        default=POSUserRole.CASHIER,
     )
+
 
     # relationship
     pos = relationship("POS", back_populates="users")

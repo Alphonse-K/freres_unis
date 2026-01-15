@@ -122,6 +122,7 @@ class POSBase(BaseModel):
     pos_business_name: str
     balance: Optional[Decimal] = 0
     status: Optional[PosStatus] = PosStatus.CREATED
+    phone: Optional[str]
 
 
 class POSCreate(POSBase):

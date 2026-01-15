@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Tuple
 from src.models.pos import POS, POSUser
-from src.schemas.pos import POSCreate, POSUpdate, POSUserCreate, POSUserUpdate
+from src.schemas.pos import POSCreate, POSUpdate, POSUserCreate, POSUserUpdate, POSUserRole
 from src.core.security import SecurityUtils
 import logging
 
@@ -81,9 +81,12 @@ class POSUserService:
         if db.query(POSUser).filter(POSUser.username == data.username).first():
             raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, "POS user username already exists")
 
+        payload = data.model_dump(exclude={"password_hash", "pin_hash", "role"})
+
         user = POSUser(
             pos_id=pos_id,
-            **data.model_dump(exclude={"password_hash", "pin_hash"}),
+            **payload,
+            role=data.role or POSUserRole.CASHIER,
             password_hash=SecurityUtils.hash_password(data.password_hash),
             pin_hash=SecurityUtils.hash_password(data.pin_hash),
         )
