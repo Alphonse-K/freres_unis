@@ -124,14 +124,26 @@ class AddressUpdate(BaseModel):
     provider_id: Optional[int] = None
 
 
+class FlatCountryOut(BaseModel):
+    id: int
+    code: str
+    name: str
+
+class FlatRegionOut(BaseModel):
+    id: int
+    name: str
+
+class FlatCityOut(BaseModel):
+    id: int
+    name: str
+
 class AddressOut(AddressBase):
     id: int
-    country: Optional[CountryOut] = None
-    region: Optional[RegionOut] = None
-    city: Optional[CityOut] = None
+    country: Optional[FlatCountryOut] = None
+    region: Optional[FlatRegionOut] = None
+    city: Optional[FlatCityOut] = None
 
     model_config = ConfigDict(from_attributes=True)
-
 
 # -------------------------------
 # Pydantic v2: rebuild models to resolve forward references
