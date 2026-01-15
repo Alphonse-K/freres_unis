@@ -83,6 +83,12 @@ class POSUserService:
 
         if db.query(POSUser).filter(POSUser.username == data.username).first():
             raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, "POS user username already exists")
+        
+        if db.query(POSUser).filter(POSUser.phone == data.phone).first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="POS user phone already exists"
+            )
 
         payload = data.model_dump(exclude={"password_hash", "pin_hash", "role"})
 
