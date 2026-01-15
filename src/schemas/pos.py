@@ -96,7 +96,6 @@ class POSUserCreate(POSUserBase):
 class POSUserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    phone: Optional[str] = None
     email: Optional[str] = None
     role: Optional[POSUserRole] = None
     is_active: Optional[bool] = None
