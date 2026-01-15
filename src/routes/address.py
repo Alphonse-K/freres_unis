@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from typing import Optional
 from src.core.database import get_db
 from src.schemas.location import (
     CountryCreate, CountryUpdate, CountryOut,
@@ -63,20 +63,32 @@ def create_city(payload: CityCreate, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# USER ADDRESSES
+# ADDRESS ENDPOINTS
 # -------------------------------
-@address_router.post("/users/{user_id}/addresses", response_model=AddressOut)
-def create_user_address(
-    user_id: int,
+@address_router.post("/addresses", response_model=AddressOut)
+def create_address(
     payload: AddressCreate,
     db: Session = Depends(get_db)
 ):
-    return AddressService.create_for_user(db, user_id, payload)
+    """
+    Create an address. Owner can be assigned later via user_id, client_id, pos_id, employee_id, or provider_id.
+    """
+    return AddressService.create(db, payload)
 
 
-@address_router.get("/users/{user_id}/addresses", response_model=list[AddressOut])
-def list_user_addresses(user_id: int, db: Session = Depends(get_db)):
-    return AddressService.list_for_user(db, user_id)
+@address_router.get("/addresses", response_model=list[AddressOut])
+def list_addresses(
+    user_id: Optional[int] = None,
+    client_id: Optional[int] = None,
+    employee_id: Optional[int] = None,
+    pos_id: Optional[int] = None,
+    provider_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    List addresses optionally filtered by owner.
+    """
+    return AddressService.list(db, user_id, client_id, employee_id, pos_id, provider_id)
 
 
 @address_router.patch("/addresses/{address_id}", response_model=AddressOut)

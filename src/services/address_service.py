@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-
+from typing import Optional
 from src.models.locations import Country, Region, City, Address
 from src.schemas.location import (
     CountryCreate, CountryUpdate,
@@ -94,20 +94,20 @@ class CityService:
 class AddressService:
 
     @staticmethod
-    def create_for_user(
+    def create(
         db: Session,
-        user_id: int,
         data: AddressCreate
     ) -> Address:
+        payload = data.model_dump(exclude_unset=True)
 
-        payload = data.model_dump()
-        payload["user_id"] = user_id
-
-        if payload.get("is_default"):
-            db.query(Address).filter(
-                Address.user_id == user_id,
-                Address.is_default.is_(True)
-            ).update({"is_default": False})
+        # Handle default address logic for any owner
+        for owner_field in ["user_id", "client_id", "employee_id", "pos_id", "provider_id"]:
+            owner_id = payload.get(owner_field)
+            if owner_id and payload.get("is_default"):
+                db.query(Address).filter(
+                    getattr(Address, owner_field) == owner_id,
+                    Address.is_default.is_(True)
+                ).update({"is_default": False})
 
         address = Address(**payload)
         db.add(address)
@@ -116,9 +116,27 @@ class AddressService:
         return address
 
     @staticmethod
-    def list_for_user(db: Session, user_id: int):
-        return db.query(Address).filter_by(user_id=user_id).all()
-
+    def list(
+        db: Session,
+        user_id: Optional[int] = None,
+        client_id: Optional[int] = None,
+        employee_id: Optional[int] = None,
+        pos_id: Optional[int] = None,
+        provider_id: Optional[int] = None
+    ):
+        query = db.query(Address)
+        if user_id:
+            query = query.filter(Address.user_id == user_id)
+        if client_id:
+            query = query.filter(Address.client_id == client_id)
+        if employee_id:
+            query = query.filter(Address.employee_id == employee_id)
+        if pos_id:
+            query = query.filter(Address.pos_id == pos_id)
+        if provider_id:
+            query = query.filter(Address.provider_id == provider_id)
+        return query.all()
+    
     @staticmethod
     def update(
         db: Session,
@@ -130,12 +148,18 @@ class AddressService:
         if not address:
             raise HTTPException(status_code=404, detail="Address not found")
 
-        if data.is_default:
-            db.query(Address).filter(
-                Address.user_id == address.user_id,
-                Address.is_default.is_(True)
-            ).update({"is_default": False})
+        # Determine the owner type of this address
+        owner_fields = ["user_id", "client_id", "employee_id", "pos_id", "provider_id"]
+        for owner_field in owner_fields:
+            owner_id = getattr(address, owner_field)
+            if owner_id and data.is_default:
+                # Reset other default addresses for this owner
+                db.query(Address).filter(
+                    getattr(Address, owner_field) == owner_id,
+                    Address.is_default.is_(True)
+                ).update({"is_default": False})
 
+        # Apply the updates
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(address, field, value)
 
