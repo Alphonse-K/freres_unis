@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Index, Boolean, ForeignKey, DateTime, func, JSON
+from sqlalchemy import Column, String, Integer, Index, Boolean, ForeignKey, DateTime, func, JSON, Text
 from sqlalchemy.orm import relationship
 from src.core.database import Base 
 
@@ -22,24 +22,29 @@ class JWTBlacklist(Base):
     )
 
 
+# models/security.py
 class OTPCode(Base):
     __tablename__ = "otp_codes"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Polymorphic fields - SAME as RefreshToken!
+    account_type = Column(String(20), nullable=False)  # "user", "pos", "client"
+    account_id = Column(Integer, nullable=False)
+    
     code = Column(String(6), nullable=False)
-    purpose = Column(String(20), nullable=False)
+    purpose = Column(String(20), nullable=False)  # "login", "password_reset", "email_verify"
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_used = Column(Boolean, default=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    user = relationship("User", back_populates="otp_codes")
-    
+    # Indexes for fast lookup
     __table_args__ = (
-        Index('ix_otp_codes_user_purpose', 'user_id', 'purpose'),
-        Index('ix_otp_codes_expires', 'expires_at'),
+        Index('ix_otp_account_purpose', 'account_type', 'account_id', 'purpose'),
+        Index('ix_otp_code_unused', 'code', 'is_used', 'expires_at'),
     )
-
+    
 
 class APIKey(Base):
     __tablename__ = "api_keys"
@@ -47,7 +52,7 @@ class APIKey(Base):
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
     name = Column(String(100), nullable=False)
-    key = Column(String(64), unique=True, index=True, nullable=False)
+    key = Column(Text, unique=True, index=True, nullable=False)
     secret = Column(String(128), nullable=False)
     is_active = Column(Boolean, default=True)
     permissions = Column(JSON, nullable=True)
@@ -72,7 +77,7 @@ class RefreshToken(Base):
     account_type = Column(String, nullable=False)  # "user", "pos_user", "client"
     account_id = Column(Integer, nullable=False)   # id of the user/pos_user/client
     
-    token = Column(String(64), unique=True, index=True, nullable=False)
+    token = Column(Text, unique=True, index=True, nullable=False)
     device_info = Column(JSON)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_active = Column(Boolean, default=True)

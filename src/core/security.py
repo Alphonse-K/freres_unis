@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from typing import Dict, Any, Optional
 import uuid
 from jose import JWTError, jwt
-import os
+import base64
 import enum
 import logging
 from sqlalchemy.orm import Session
@@ -40,28 +40,41 @@ API_SECRET_LENGTH = settings.API_SECRET_LENGTH
 class SecurityUtils:
 
     # ---------------- Password ----------------
-    @staticmethod
-    def hash_password(password: str) -> str:
-        # Pre-hash with SHA-256 (32 bytes)
-        sha256_digest = hashlib.sha256(password.encode("utf-8")).digest()
-
-        # Bcrypt the fixed-length digest
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(sha256_digest, salt)
-
-        return hashed.decode("utf-8")
     
     @staticmethod
-    def verify_password(password: str, hashed_password: str) -> bool:
-        try:
-            sha256_digest = hashlib.sha256(password.encode("utf-8")).digest()
-            return bcrypt.checkpw(
-                sha256_digest,
-                hashed_password.encode("utf-8")
-            )
-        except Exception:
-            return False
+    def hash_password(password: str) -> str:
+        """
+        SHA256 + bcrypt password hashing.
+        Returns safe ASCII string (fits String(255))
+        """
+        sha = hashlib.sha256(password.encode("utf-8")).digest()
+        hashed = bcrypt.hashpw(sha, bcrypt.gensalt())
+        return hashed.decode()  # safe, bcrypt bytes are ASCII
+    
         
+    @staticmethod
+    def verify_password(password: str, stored_hash: str) -> bool:
+        
+        # Try SHA256 + bcrypt first
+        sha = hashlib.sha256(password.encode()).digest()
+        
+        try:
+            if bcrypt.checkpw(sha, stored_hash.encode()):
+                return True
+        except Exception as e:
+            print(f"DEBUG: SHA256+bcrypt check failed: {e}")
+        
+        # Try legacy bcrypt
+        try:
+            if bcrypt.checkpw(password.encode(), stored_hash.encode()):
+                print("DEBUG: Legacy bcrypt verification successful")
+                return True
+        except Exception as e:
+            print(f"DEBUG: Legacy bcrypt check failed: {e}")
+        
+        print("DEBUG: All password verification methods failed")
+        return False    
+    
     @staticmethod
     def validate_password_strength(password: str) -> tuple[bool, str]:
         if len(password) < 8: return False, "Password must be at least 8 characters"
@@ -213,10 +226,6 @@ class SecurityUtils:
 
 #             if not allowed:
 #                 raise HTTPException(403, "Login not allowed at this time")
-# from fastapi import HTTPException
-# from datetime import datetime, timezone
-
-# class AuthService:
 
     @staticmethod
     def enforce_login_policies(account) -> None:
@@ -228,11 +237,11 @@ class SecurityUtils:
         # User
         if hasattr(account, "status"):
             if isinstance(account.status, enum.Enum):
-                if account.status.name != "ACTIVE" and account.status.value != "active":
+                if account.status.name.upper() != "ACTIVE" and account.status.value.upper() != "ACTIVE":
                     raise HTTPException(403, "Account not active")
             else:
                 # fallback if status is a string
-                if account.status != "active":
+                if str(account.status).upper() != "ACTIVE":
                     raise HTTPException(403, "Account not active")
 
         # POSUser

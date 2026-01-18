@@ -33,7 +33,7 @@ def list_pos(
 @pos_router.post(
     "/create",
     response_model=POSOut,
-    dependencies=[Depends(require_role(["ADMIN"]))]
+    # dependencies=[Depends(require_role(["ADMIN"]))]
 )
 def create_pos(data: POSCreate, db: Session = Depends(get_db)):
     return POSService.create_pos(db, data)
@@ -57,7 +57,7 @@ def get_pos(pos_id: int, db: Session = Depends(get_db)):
 @pos_router.post(
     "/{pos_id}/users",
     response_model=POSUserOut,
-    dependencies=[Depends(require_role(["ADMIN", "MANAGER"]))]
+    # dependencies=[Depends(require_role(["ADMIN", "MANAGER"]))]
 )
 def create_pos_user(
     pos_id: int,

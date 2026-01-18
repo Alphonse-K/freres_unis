@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, status, Query, HTTPException, Form, Uplo
 from sqlalchemy.orm import Session
 from typing import Optional
 from src.core.database import get_db
-from src.schemas.users import PaginationParams, PaginatedResponse
+from src.schemas.users import PaginationParams, PaginatedResponse, UserRole
 from src.models.clients import ClientApproval, ClientPayment, Client, ClientStatus
 from src.schemas.clients import (
     ClientResponse,
@@ -27,7 +27,7 @@ from src.services.client_approval_service import ClientApprovalService
 from src.services.client_invoice_service import ClientInvoiceService
 from src.services.client_payment_service import ClientPaymentService
 from src.core.security import SecurityUtils
-from src.core.auth_dependencies import require_role, get_current_user
+from src.core.auth_dependencies import require_role, get_current_user, get_current_account
 
 client_router = APIRouter(
     prefix="/clients",
@@ -102,22 +102,55 @@ def list_client_approvals(db: Session = Depends(get_db)):
 # -----------------------------
 # REVIEW CLIENT APPROVAL
 # -----------------------------
+# @client_router.patch(
+#     "/approvals/{approval_id}",
+#     response_model=ClientApprovalResponse,
+#     dependencies=[Depends(require_role(["ADMIN", "RH"]))],
+# )
+# def review_client_approval(
+#     approval_id: int,
+#     review: ClientApprovalUpdate,
+#     db: Session = Depends(get_db),
+#     current_user=Depends(get_current_user),
+# ):
+#     return ClientApprovalService.review(
+#         db=db,
+#         approval_id=approval_id,
+#         review=review,
+#         reviewer_id=current_user.id,
+#     )
 @client_router.patch(
     "/approvals/{approval_id}",
     response_model=ClientApprovalResponse,
-    dependencies=[Depends(require_role(["ADMIN", "RH"]))],
+    dependencies=[Depends(require_role([UserRole.ADMIN, UserRole.RH]))],
+    status_code=status.HTTP_200_OK,
 )
 def review_client_approval(
     approval_id: int,
     review: ClientApprovalUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_account: dict = Depends(get_current_account),
 ):
+    """
+    Review a client approval (approve / reject).
+    Only system users (admin or RH) can do this.
+    """
+
+    account_type = current_account["account_type"]
+    account = current_account["account"]
+
+    # Only 'user' accounts can review approvals
+    if account_type != "user":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only system users can review client approvals"
+        )
+
     return ClientApprovalService.review(
         db=db,
         approval_id=approval_id,
         review=review,
-        reviewer_id=current_user.id,
+        reviewer_id=account.id,
     )
 
 @client_router.get(

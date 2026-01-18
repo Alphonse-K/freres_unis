@@ -56,3 +56,5 @@ class EmailService:
         <p>If you did not perform this action, contact support immediately.</p>
         """
         EmailService.send_email(to_email, subject, html)
+
+

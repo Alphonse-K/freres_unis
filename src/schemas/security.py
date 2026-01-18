@@ -112,3 +112,38 @@ class ChangePasswordRequest(BaseModel):
     old_password: str = Field(..., min_length=8)
     new_password: str = Field(..., min_length=8)
     confirm_password: str = Field(..., min_length=8)
+
+
+class ChangePinRequest(BaseModel):
+    old_pin: str = Field(..., min_length=4, max_length=4)
+    new_pin: str = Field(..., min_length=4, max_length=4)
+    confirm_pin: str = Field(..., min_length=4, max_length=4)
+
+
+# schemas/client_auth.py
+class AdminSetClientPassword(BaseModel):
+    new_password: str = Field(..., min_length=8)
+    notes: Optional[str] 
+
+class AdminSetClientPin(BaseModel):
+    new_pin: str
+    notes: Optional[str] = None
+
+class AdminResetClientPassword(BaseModel):
+    generate_random: bool = True
+    new_password: Optional[str] = Field(None, min_length=8) 
+    
+    @field_validator('new_password')
+    def validate_password(cls, v, values):
+        if not values.get('generate_random', True) and (not v or len(v) < 8):
+            raise ValueError('Password must be at least 8 characters when provided')
+        return v
+
+class ClientSelfResetRequest(BaseModel):
+    identifier: str  # phone or email
+    otp: str
+    new_password: str
+    confirm_password: str
+
+class ClientRequestReset(BaseModel):
+    identifier: str  # phone or email

@@ -2,7 +2,7 @@
 from datetime import datetime, time
 from decimal import Decimal
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from enum import Enum
 
 
@@ -229,3 +229,12 @@ class POSExpenseOut(POSExpenseBase):
     pos_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class POSUserSchema(BaseModel):
+    id: int
+    email: Optional[EmailStr] = None
+    username: str
+    role: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+

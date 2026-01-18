@@ -10,6 +10,7 @@ DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(
     DATABASE_URL,
+    # connect_args={"options": "-csearch_path=public"},
     echo=settings.SQL_ECHO
 )
 

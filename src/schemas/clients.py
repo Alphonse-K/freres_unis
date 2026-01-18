@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator, EmailStr
 from src.models.clients import ClientType, ClientStatus, MagneticCardStatus, ApprovalStatus, ClientInvoiceStatus, PaymentMethod
 
 
@@ -215,3 +215,15 @@ class ClientReturnFilter(BaseModel):
     max_amount: Optional[Decimal] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+
+
+# src/schemas/user.py
+class ClientSchema(BaseModel):
+    id: int
+    phone: str
+    email: Optional[str] = None  # accept None or invalid emails
+    username: Optional[str] = None
+    status: str
+    model_config = ConfigDict(from_attributes=True)
+
+

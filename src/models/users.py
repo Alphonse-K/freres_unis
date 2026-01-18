@@ -8,14 +8,22 @@ from src.core.database import Base
 import enum
 
 
+# class UserRole(str, enum.Enum):
+#     ADMIN = "admin"
+#     CHECKER = "checker"
+#     MAKER = "maker"
+#     USER = "user"
+#     PARTNERD = "partner"
+#     RH = "rh"
+#     FINANCE = "finance"
 class UserRole(str, enum.Enum):
-    ADMIN = "admin"
-    CHECKER = "checker"
-    MAKER = "maker"
-    USER = "user"
-    PARTNERD = "partner"
-    RH = "rh"
-    FINANCE = "finance"
+    ADMIN = "ADMIN"
+    CHECKER = "CHECKER"
+    MAKER = "MAKER"
+    USER = "USER"
+    PARTNERD = "PARTNERD"
+    RH = "RH"
+    FINANCE = "FINANCE"
 
 
 class UserStatus(str, enum.Enum):
@@ -26,10 +34,8 @@ class UserStatus(str, enum.Enum):
     DELETED = "deleted"
 
 
-
 class User(Base):
     __tablename__ = "users"
-
     id = Column(Integer, primary_key=True)
     first_name = Column(String(120))
     last_name = Column(String(120))
@@ -50,7 +56,6 @@ class User(Base):
         nullable=False,
         default=UserStatus.ACTIVE
     )
-    # employee_id = Column(Integer, ForeignKey("employees.id"))
 
     # Security & Logging
     failed_attempts = Column(Integer, default=0)
@@ -70,11 +75,13 @@ class User(Base):
         cascade="all, delete-orphan"
     )
     # employee = relationship("Employee")
-    otp_codes = relationship("OTPCode", back_populates="user")
+    # otp_codes = relationship("OTPCode", back_populates="user")
     # blacklisted_tokens = relationship("JWTBlacklist", back_populates="user")
-    refresh_tokens = relationship("RefreshToken", back_populates="user")
+    # refresh_tokens = relationship("RefreshToken", back_populates="user")
 
 
     def __repr__(self):
         return f"<User {self.username} ({self.role})>"
+
+
 

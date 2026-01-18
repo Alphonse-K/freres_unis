@@ -86,9 +86,10 @@ class UserSchema(BaseModel):
     id: int
     email: EmailStr = Field(None)
     username: str
-    role: UserRole
+    role: str
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class LogoutResponse(BaseModel):
@@ -121,5 +122,6 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     items: List[T]
+
 
 
