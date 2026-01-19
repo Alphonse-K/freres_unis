@@ -598,13 +598,24 @@ def revoke_api_key(
     return {"message": "API key revoked successfully"}
 
 # Utility endpoints
+# @auth_router.get("/me", response_model=UserOut)
+# def get_current_user_info(current_user: User = Depends(get_current_user)):
+#     """
+#     Get current user information
+#     """
+#     return UserOut.model_validate(current_user)
+# CORRECT - should be:
 @auth_router.get("/me", response_model=UserOut)
-def get_current_user_info(current_user: User = Depends(get_current_user)):
-    """
-    Get current user information
-    """
-    return current_user
-
+async def get_current_user_info(current_user_info = Depends(get_current_user)):
+    # Extract the actual User object from the dict
+    if isinstance(current_user_info, dict) and 'account' in current_user_info:
+        user_obj = current_user_info['account']
+        return UserOut.model_validate(user_obj)
+    elif hasattr(current_user_info, '__class__') and current_user_info.__class__.__name__ == 'User':
+        # It's already a User object
+        return UserOut.model_validate(current_user_info)
+    else:
+        raise HTTPException(status_code=500, detail="Invalid user object")
 
 def serialize_account(account):
     if isinstance(account, User):
