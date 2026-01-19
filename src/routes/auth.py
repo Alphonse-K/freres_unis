@@ -12,7 +12,7 @@ from src.services.auth_service import AuthService
 from src.core.security import SecurityUtils
 from src.core.auth_dependencies import get_db, get_current_user, require_role, get_current_account
 from datetime import timezone, datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 import logging
 
 
@@ -538,36 +538,6 @@ def logout_all(
     return {"message": "Logged out from all devices successfully"}
 
 
-# routes/admin/client_auth.py
-# @auth_router.post("/clients/{client_id}/auth/set-password", status_code=200)
-# def set_client_password(
-#     client_id: int,
-#     payload: AdminSetClientPassword,
-#     request: Request,
-#     db: Session = Depends(get_db),
-#     current_admin: dict = Depends(get_current_account),
-# ):
-#     """Admin sets password for a client"""
-    
-#     admin = current_admin["account"]
-#     ip = request.client.host if request.client else ""
-#     ua = request.headers.get("user-agent")
-    
-#     success, message = AuthService.admin_set_password(
-#         db=db,
-#         client_id=client_id,
-#         new_password=payload.new_password,
-#         admin_id=admin.id,
-#         ip_address=ip,
-#         user_agent=ua,
-#         notes=payload.notes,
-#     )
-    
-#     if not success:
-#         raise HTTPException(400, detail=message)
-    
-#     return {"success": True, "message": message, "set-password": payload.new_password}
-
 @auth_router.get("/api-keys")
 def list_api_keys(
     company_id: int ,
@@ -605,17 +575,86 @@ def revoke_api_key(
 #     """
 #     return UserOut.model_validate(current_user)
 # CORRECT - should be:
-@auth_router.get("/me", response_model=UserOut)
-async def get_current_user_info(current_user_info = Depends(get_current_user)):
-    # Extract the actual User object from the dict
-    if isinstance(current_user_info, dict) and 'account' in current_user_info:
-        user_obj = current_user_info['account']
-        return UserOut.model_validate(user_obj)
-    elif hasattr(current_user_info, '__class__') and current_user_info.__class__.__name__ == 'User':
-        # It's already a User object
-        return UserOut.model_validate(current_user_info)
+@auth_router.get("/me")
+async def get_current_user_info(
+    current_user_info: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Handle User, POSUser, and Client accounts.
+    Extract the account object from the dict and return appropriate data.
+    """
+    account_type = current_user_info.get("account_type")
+    account = current_user_info.get("account")
+    
+    if not account or not account_type:
+        raise HTTPException(status_code=401, detail="Invalid authentication data")
+    
+    # For ALL account types, extract the account object and use it
+    if account_type == "user":
+        # Use your existing UserOut schema for User objects
+        from src.schemas.users import UserOut
+        return UserOut.model_validate(account)
+    
+    elif account_type == "pos":
+        # Handle POSUser
+        return {
+            "account_type": "pos",
+            "id": account.id,
+            "first_name": getattr(account, 'first_name', None),
+            "last_name": getattr(account, 'last_name', None),
+            "username": getattr(account, 'username', None),
+            "email": getattr(account, 'email', None),
+            "phone": getattr(account, 'phone', None),
+            "status": getattr(account, 'status', None),
+            "type": getattr(account, 'type', None),
+            "is_active": getattr(account, 'is_active', True),
+            "created_at": getattr(account, 'created_at', None),
+            "updated_at": getattr(account, 'updated_at', None),
+            "last_login": getattr(account, 'last_login', None)
+        }
+    
+    elif account_type == "client":
+        # Handle Client - this is your "partner_client"
+        # Since Client has user-like attributes, you can either:
+        # Option 1: Return Client-specific fields
+        return {
+            "account_type": "client",
+            "id": account.id,
+            "first_name": getattr(account, 'first_name', None),
+            "last_name": getattr(account, 'last_name', None),
+            "username": getattr(account, 'username', None),
+            "email": getattr(account, 'email', None),
+            "phone": getattr(account, 'phone', None),
+            "status": getattr(account, 'status', None),
+            "type": getattr(account, 'type', None),
+            "id_number": getattr(account, 'id_number', None),
+            "current_balance": getattr(account, 'current_balance', 0),
+            "created_at": getattr(account, 'created_at', None),
+            "updated_at": getattr(account, 'updated_at', None),
+            "last_login": getattr(account, 'last_login', None)
+        }
+    
     else:
-        raise HTTPException(status_code=500, detail="Invalid user object")
+        raise HTTPException(status_code=400, detail=f"Unknown account type: {account_type}")
+    
+# # Add a debug endpoint
+# @auth_router.get("/me/debug")
+# async def debug_current_user(
+#     current_user_info: Dict[str, Any] = Depends(get_current_user)
+# ):
+#     """Debug endpoint to see what get_current_user returns."""
+#     account_type = current_user_info.get("account_type")
+#     account = current_user_info.get("account")
+    
+#     return {
+#         "account_type": account_type,
+#         "account_class": account.__class__.__name__ if account else None,
+#         "account_attributes": dir(account) if account else [],
+#         "account_dict": account.__dict__ if hasattr(account, '__dict__') else str(account),
+#         "has_email": hasattr(account, 'email') if account else False,
+#         "has_phone": hasattr(account, 'phone') if account else False,
+#         "has_api_key": hasattr(account, 'api_key') if account else False
+#     }
 
 def serialize_account(account):
     if isinstance(account, User):
