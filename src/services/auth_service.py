@@ -731,13 +731,13 @@ class AuthService:
         # Deactivate refresh tokens for this device if you track device_info
         # For now, deactivate all active refresh tokens for simplicity
         db.query(RefreshToken).filter(
-            RefreshToken.user_id == account.id,
+            RefreshToken.account_id == account.id,
             RefreshToken.is_active == True
         ).update({"is_active": False})
         db.commit()
 
     @staticmethod
-    def logout_all_devices(db: Session, account, access_token: str):
+    def logout_all_devices(db: Session, account, access_token: str = None):
         """
         Logout from all devices by blacklisting access token and deactivating all refresh tokens.
         """
@@ -746,7 +746,7 @@ class AuthService:
         SecurityUtils.blacklist_token(db, access_token, account.id, account_type)
 
         db.query(RefreshToken).filter(
-            RefreshToken.user_id == account.id,
+            RefreshToken.account_id == account.id,
             RefreshToken.is_active == True
         ).update({"is_active": False})
 
@@ -1155,110 +1155,6 @@ class AuthService:
             logger.error(f"Password reset request failed: {str(e)}")
             return False, "Failed to process request"
         
-    # @staticmethod
-    # def request_password_reset(
-    #     db: Session,
-    #     email: str,
-    #     ip_address: str = "",
-    #     user_agent: str = None,
-    # ) -> tuple[bool, str, Optional[str]]:
-    #     """
-    #     Request password reset - send OTP to email
-    #     Returns: (success, message, debug_otp)
-    #     """
-    #     print(f"=== REQUEST PASSWORD RESET ===")
-    #     print(f"Email: {email}")
-        
-    #     email = email.strip().lower()
-        
-    #     # Find account (User or POSUser)
-    #     account = None
-    #     if "@" in email:
-    #         account = db.query(User).filter(User.email.ilike(email)).first()
-    #         if not account:
-    #             account = db.query(POSUser).filter(POSUser.email.ilike(email)).first()
-        
-    #     if not account:
-    #         # Security: Don't reveal account doesn't exist
-    #         print("DEBUG: No account found (security response)")
-    #         return True, "If an account exists, reset instructions have been sent", None
-        
-    #     # Generate OTP using your existing OTPService
-    #     otp = OTPService.generate_otp(db, account, "password_reset")
-        
-    #     # Log the request
-    #     AuditService.log_action(
-    #         db=db,
-    #         actor_type=type(account).__name__.lower(),
-    #         actor_id=account.id,
-    #         target_type=type(account).__name__.lower(),
-    #         target_id=account.id,
-    #         action="password_reset_requested",
-    #         details={"email": email},
-    #         ip_address=ip_address,
-    #         user_agent=user_agent,
-    #     )
-        
-    #     print(f"DEBUG: OTP sent to {email}: {otp}")
-        
-    #     # # Send confirmation email
-    #     # EmailService.send_otp_email(email, otp, account.username, "password reset")
-
-    #     return True, "OTP sent to your email", otp
-    
-    # @staticmethod
-    # def verify_and_reset_password(
-    #     db: Session,
-    #     email: str,
-    #     otp: str,
-    #     new_password: str,
-    #     ip_address: str = "",
-    #     user_agent: str = None,
-    # ) -> tuple[bool, str]:
-    #     """
-    #     Verify OTP and reset password
-    #     """
-    #     print(f"=== VERIFY AND RESET PASSWORD ===")
-    #     print(f"Email: {email}, OTP: {otp}")
-        
-    #     email = email.strip().lower()
-        
-    #     # Basic validation
-    #     if len(new_password) < 8:
-    #         return False, "Password must be at least 8 characters"
-        
-    #     # Verify OTP using your existing OTPService
-    #     account = OTPService.verify_otp(db, email, otp, "password_reset")
-        
-    #     if not account:
-    #         return False, "Invalid or expired OTP"
-        
-    #     # Reset password
-    #     account.password_hash = SecurityUtils.hash_password(new_password)
-        
-    #     # Update metadata
-    #     if hasattr(account, "last_password_change"):
-    #         account.last_password_change = datetime.now(timezone.utc)
-        
-    #     if hasattr(account, "require_password_change"):
-    #         account.require_password_change = False
-        
-    #     # Log the reset
-    #     AuditService.log_action(
-    #         db=db,
-    #         actor_type=type(account).__name__.lower(),
-    #         actor_id=account.id,
-    #         target_type=type(account).__name__.lower(),
-    #         target_id=account.id,
-    #         action="password_reset_completed",
-    #         details={},
-    #         ip_address=ip_address,
-    #         user_agent=user_agent,
-    #     )
-        
-    #     db.commit()
-                
-    #     return True, "Password reset successfully"
 
     @staticmethod
     def request_password_reset(

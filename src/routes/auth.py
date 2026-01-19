@@ -508,12 +508,44 @@ def create_api_key(
     result = AuthService.create_api_key(db, current_user.company_id, create_data)
     return result
 
+# @auth_router.post("/logout", response_model=LogoutResponse)
+# def logout(
+#     request: Request,
+#     current_account: User | Client | POSUser = Depends(get_current_account),
+#     db: Session = Depends(get_db)
+# ):
+#     auth_header = request.headers.get("authorization")
+#     if not auth_header or not auth_header.startswith("Bearer "):
+#         raise HTTPException(400, "Invalid authorization header")
+    
+#     token = auth_header.replace("Bearer ", "")
+#     AuthService.logout_user(db, current_account, token)
+    
+#     return {"message": "Logged out successfully"}
+
+
+# @auth_router.post("/logout-all", response_model=LogoutResponse)
+# def logout_all(
+#     current_account: User | Client | POSUser = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Log out from all machine
+#     """
+
+#     access_token = ""  # optionally pass last used access token
+#     AuthService.logout_all_devices(db, current_account, access_token)
+    
+#     return {"message": "Logged out from all devices successfully"}
 @auth_router.post("/logout", response_model=LogoutResponse)
 def logout(
     request: Request,
-    current_account: User | Client | POSUser = Depends(get_current_user),
+    current_account_info: dict = Depends(get_current_account),  # CHANGED HERE
     db: Session = Depends(get_db)
 ):
+    # Extract account object from the dict
+    current_account = current_account_info['account']
+    
     auth_header = request.headers.get("authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(400, "Invalid authorization header")
@@ -523,20 +555,32 @@ def logout(
     
     return {"message": "Logged out successfully"}
 
+
 @auth_router.post("/logout-all", response_model=LogoutResponse)
 def logout_all(
-    current_account: User | Client | POSUser = Depends(get_current_user),
+    request: Request,  # Add this parameter
+    current_account_info: dict = Depends(get_current_account),
     db: Session = Depends(get_db)
 ):
     """
-    Log out from all machine
+    Log out from all machines
     """
-
-    access_token = ""  # optionally pass last used access token
-    AuthService.logout_all_devices(db, current_account, access_token)
+    # Extract account object from the dict
+    current_account = current_account_info['account']
+    
+    # Get token from request header (optional)
+    access_token = ""
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        access_token = auth_header.replace("Bearer ", "")
+    
+    # Pass token only if it exists
+    if access_token:
+        AuthService.logout_all_devices(db, current_account, access_token)
+    else:
+        AuthService.logout_all_devices(db, current_account)  # No token parameter
     
     return {"message": "Logged out from all devices successfully"}
-
 
 @auth_router.get("/api-keys")
 def list_api_keys(
