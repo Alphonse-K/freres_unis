@@ -65,7 +65,7 @@ async def get_client_documents(
     ]
     
     # BASE_URL = "http://localhost:8000"  # In production, use your domain
-    BASE_URL = "http://78.47.72.137:8000"  # In production, use your domain
+    BASE_URL = "http://78.47.72.137:8030"  # In production, use your domain
 
     documents = {}
     
@@ -186,7 +186,7 @@ async def get_client_document(
         clean_path = f"uploads/{file_path}"
     
     # BASE_URL = "http://localhost:8000"  # Change to your actual domain
-    BASE_URL = "http://78.47.72.137:8000"  # Change to your actual domain
+    BASE_URL = "http://78.47.72.137:8030"  # Change to your actual domain
 
     
     return {
