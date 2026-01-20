@@ -27,12 +27,25 @@ class ClientApprovalService:
         from pathlib import Path
         import uuid
 
+        # def save_file(file: UploadFile, subdir: str) -> str:
+        #     ext = file.filename.split(".")[-1]
+        #     filename = f"{uuid.uuid4()}.{ext}"
+        #     path = Path("uploads/clients") / subdir
+        #     path.mkdir(parents=True, exist_ok=True)
+        #     full_path = path / filename
+        #     with open(full_path, "wb") as f:
+        #         f.write(file.file.read())
+        #     return str(full_path)
         def save_file(file: UploadFile, subdir: str) -> str:
             ext = file.filename.split(".")[-1]
             filename = f"{uuid.uuid4()}.{ext}"
             path = Path("uploads/clients") / subdir
             path.mkdir(parents=True, exist_ok=True)
             full_path = path / filename
+            
+            # ADD THIS DEBUG LINE:
+            print(f"DEBUG: Saving file to: {full_path.absolute()}")
+            
             with open(full_path, "wb") as f:
                 f.write(file.file.read())
             return str(full_path)
