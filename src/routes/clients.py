@@ -102,23 +102,6 @@ def list_client_approvals(db: Session = Depends(get_db)):
 # -----------------------------
 # REVIEW CLIENT APPROVAL
 # -----------------------------
-# @client_router.patch(
-#     "/approvals/{approval_id}",
-#     response_model=ClientApprovalResponse,
-#     dependencies=[Depends(require_role(["ADMIN", "RH"]))],
-# )
-# def review_client_approval(
-#     approval_id: int,
-#     review: ClientApprovalUpdate,
-#     db: Session = Depends(get_db),
-#     current_user=Depends(get_current_user),
-# ):
-#     return ClientApprovalService.review(
-#         db=db,
-#         approval_id=approval_id,
-#         review=review,
-#         reviewer_id=current_user.id,
-#     )
 @client_router.patch(
     "/approvals/{approval_id}",
     response_model=ClientApprovalResponse,
