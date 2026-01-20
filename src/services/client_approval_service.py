@@ -27,29 +27,40 @@ class ClientApprovalService:
         from pathlib import Path
         import uuid
 
-        # def save_file(file: UploadFile, subdir: str) -> str:
-        #     ext = file.filename.split(".")[-1]
-        #     filename = f"{uuid.uuid4()}.{ext}"
-        #     path = Path("uploads/clients") / subdir
-        #     path.mkdir(parents=True, exist_ok=True)
-        #     full_path = path / filename
-        #     with open(full_path, "wb") as f:
-        #         f.write(file.file.read())
-        #     return str(full_path)
         def save_file(file: UploadFile, subdir: str) -> str:
+            import os
+            from pathlib import Path
+            
             ext = file.filename.split(".")[-1]
             filename = f"{uuid.uuid4()}.{ext}"
-            path = Path("uploads/clients") / subdir
-            path.mkdir(parents=True, exist_ok=True)
-            full_path = path / filename
             
-            # ADD THIS DEBUG LINE:
-            print(f"DEBUG: Saving file to: {full_path.absolute()}")
+            # Use absolute path
+            BASE_DIR = "/app"
+            uploads_dir = os.path.join(BASE_DIR, "uploads", "clients", subdir)
             
+            # Create directory
+            os.makedirs(uploads_dir, exist_ok=True)
+            
+            # Fix ownership if running as non-root
+            try:
+                os.chown(uploads_dir, 999, 999)  # UID 999 = appuser
+            except:
+                pass  # Ignore if we can't change ownership
+            
+            full_path = os.path.join(uploads_dir, filename)
+            
+            # Save file
             with open(full_path, "wb") as f:
                 f.write(file.file.read())
-            return str(full_path)
-
+            
+            # Try to fix file ownership too
+            try:
+                os.chown(full_path, 999, 999)
+            except:
+                pass
+            
+            return f"uploads/clients/{subdir}/{filename}"
+        
         approval = ClientApproval(
             **data,
             face_photo=save_file(files["face_photo"], "face"),
