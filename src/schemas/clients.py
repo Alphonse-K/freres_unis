@@ -89,9 +89,73 @@ class ClientApprovalResponse(ClientApprovalBase):
     client_id: Optional[int]
 
 class ClientActivationSetPassword(BaseModel):
-    password: str = Field(..., min_length=8)
-    pin: str = Field(..., min_length=4, max_length=6)
+    password: str = Field(..., min_length=8, max_length=12)
+    pin: str = Field(..., min_length=4, max_length=4)
 
+from pydantic import BaseModel, Field, field_validator
+import re
+
+class ClientActivationSetPassword(BaseModel):
+    password: str = Field(..., min_length=8, max_length=12)
+    pin: str = Field(..., min_length=4, max_length=4)
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        """Validate password strength"""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        if len(v) > 12:
+            raise ValueError('Password must be at most 12 characters long')
+        
+        # Check for at least one uppercase letter
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        
+        # Check for at least one lowercase letter
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        
+        # Check for at least one digit
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one number')
+        
+        # Check for at least one special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must contain at least one special character')
+        
+        # Check for no spaces
+        if ' ' in v:
+            raise ValueError('Password cannot contain spaces')
+        
+        return v
+    
+    @field_validator('pin')
+    @classmethod
+    def validate_pin(cls, v):
+        """Validate PIN is 4 digits only"""
+        if not v.isdigit():
+            raise ValueError('PIN must contain only digits')
+        
+        if len(v) != 4:
+            raise ValueError('PIN must be exactly 4 digits')
+        
+        # # Optional: Check for common/weak PINs
+        # weak_pins = ['0000', '1111', '1234', '2222', '3333', '4444', 
+        #             '5555', '6666', '7777', '8888', '9999', '4321']
+        # if v in weak_pins:
+        #     raise ValueError('PIN is too common, please choose a different one')
+        
+        # # Optional: Check for sequential numbers
+        # if v in ['1234', '2345', '3456', '4567', '5678', '6789', '7890']:
+        #     raise ValueError('Sequential PINs are not allowed')
+        
+        # Optional: Check for repeated numbers
+        if len(set(v)) == 1:  # All digits are the same
+            raise ValueError('PIN cannot be all the same digit')
+        
+        return v
+    
 
 # ---- INVOICES ----
 class ClientInvoiceBase(BaseModel):

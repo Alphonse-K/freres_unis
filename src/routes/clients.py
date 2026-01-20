@@ -201,23 +201,37 @@ def change_client_status(
         actor_id=current_user.id,
     )
 
-@client_router.post("/clients/{client_id}/activate")
+@client_router.post("/clients/{phone}/activate")
 def activate_client(
-    client_id: int,
+    phone: str,
     data: ClientActivationSetPassword,
     db: Session = Depends(get_db),
 ):
-    client = db.query(Client).filter_by(id=client_id).first()
+    client = db.query(Client).filter_by(phone=phone).first()
     if not client:
         raise HTTPException(404, "Client not found")
+    
+    # Check if client is already active
+    if client.status == ClientStatus.ACTIVE:
+        raise HTTPException(
+            status_code=400, 
+            detail="Client is already active"
+        )
+    
+    if client.status == ClientStatus.INACTIVE:  # If you have a PENDING status
+        client.password_hash = SecurityUtils.hash_password(data.password)
+        client.pin_hash = SecurityUtils.hash_password(data.pin)
+        client.status = ClientStatus.ACTIVE
 
-    client.password_hash = SecurityUtils.hash_password(data.password)
-    client.pin_hash = SecurityUtils.hash_password(data.pin)
-    client.status = ClientStatus.ACTIVE
-
-    db.commit()
-    return {"status": "Client activated successfully !"}
-
+        db.commit()
+        return {"status": "Client activated successfully !"}
+    
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot activate client with status: {client.status}"
+        )
+    
 
 @client_router.post(
     "/{client_id}/invoices",
