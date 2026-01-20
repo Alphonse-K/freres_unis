@@ -31,7 +31,7 @@ AllowedDocType = Literal["face", "badge", "id-recto", "id-verso", "magnetic-card
     response_description="Dictionary of all available documents with URLs"
 )
 async def get_client_documents(
-    client_id: int = FastAPIPath(..., description="Client ID", example=2),
+    client_id: int = FastAPIPath(..., description="Client ID", examples=2),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -129,11 +129,11 @@ async def get_client_documents(
     }
 )
 async def get_client_document(
-    client_id: int = FastAPIPath(..., description="Client ID", example=2),
+    client_id: int = FastAPIPath(..., description="Client ID", examples=2),
     doc_type: AllowedDocType = FastAPIPath(
         ...,
         description="Document type. Options: face, badge, id-recto, id-verso, magnetic-card",
-        example="face"
+        examples="face"
     ),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
