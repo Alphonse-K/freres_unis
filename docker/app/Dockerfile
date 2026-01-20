@@ -27,6 +27,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY --chown=appuser:appuser src/ /app/src/
 
+RUN chown -R 999:999 /app/uploads
+
 # Switch to non-root user
 USER appuser
 
