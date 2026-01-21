@@ -9,7 +9,6 @@ class ClientBase(BaseModel):
     type: ClientType = Field(..., description="Client category")
     first_name: str = Field(..., max_length=120)
     last_name: str = Field(..., max_length=120)
-    username: str = Field(..., max_length=120)
     phone: str = Field(..., max_length=40)
     email: Optional[str] = Field(None, max_length=255)
     opening_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
@@ -48,7 +47,6 @@ class ClientApprovalBase(BaseModel):
     type: ClientType
     first_name: str
     last_name: str
-    username: str
     phone: str
     email: Optional[str]
     id_type_id: int
@@ -286,7 +284,6 @@ class ClientSchema(BaseModel):
     id: int
     phone: str
     email: Optional[str] = None  # accept None or invalid emails
-    username: Optional[str] = None
     status: str
     model_config = ConfigDict(from_attributes=True)
 

@@ -185,7 +185,6 @@ async def get_client_document(
     else:
         clean_path = f"uploads/{file_path}"
     
-    # BASE_URL = "http://localhost:8000"  # Change to your actual domain
     BASE_URL = "http://78.47.72.137:8030"  # Change to your actual domain
 
     

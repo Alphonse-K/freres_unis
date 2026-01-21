@@ -14,7 +14,7 @@ pos_router = APIRouter(prefix="/pos", tags=["POS"])
 @pos_router.get(
     "/list",
     response_model=PaginatedResponse[POSOut],
-    dependencies=[Depends(require_role(["ADMIN"]))]
+    dependencies=[Depends(require_role(["ADMIN", "USER"], ["CLIENT", "SUPER_CLIENT"]))]
 )
 def list_pos(
     pagination: PaginationParams = Depends(),
@@ -33,7 +33,7 @@ def list_pos(
 @pos_router.post(
     "/create",
     response_model=POSOut,
-    # dependencies=[Depends(require_role(["ADMIN"]))]
+    dependencies=[Depends(require_role(["ADMIN"]))]
 )
 def create_pos(data: POSCreate, db: Session = Depends(get_db)):
     return POSService.create_pos(db, data)
@@ -49,7 +49,7 @@ def update_pos(pos_id: int, data: POSUpdate, db: Session = Depends(get_db)):
 @pos_router.get(
     "/{pos_id}",
     response_model=POSOut,
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER"]))]
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "USER"], ["CLIENT", "SUPER_CLIENT"]))]
 )
 def get_pos(pos_id: int, db: Session = Depends(get_db)):
     return POSService.get_pos(db, pos_id)
@@ -57,7 +57,7 @@ def get_pos(pos_id: int, db: Session = Depends(get_db)):
 @pos_router.post(
     "/{pos_id}/users",
     response_model=POSUserOut,
-    # dependencies=[Depends(require_role(["ADMIN", "MANAGER"]))]
+    dependencies=[Depends(require_role(["ADMIN", "MANAGER"]))]
 )
 def create_pos_user(
     pos_id: int,

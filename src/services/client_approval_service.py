@@ -99,7 +99,6 @@ class ClientApprovalService:
                 type=approval.type,
                 first_name=approval.first_name,
                 last_name=approval.last_name,
-                username=approval.username,
                 phone=approval.phone,
                 email=approval.email,
                 id_type_id=approval.id_type_id,

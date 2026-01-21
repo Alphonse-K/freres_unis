@@ -7,8 +7,10 @@ from src.services.auth_service import AuthService
 from src.core.database import get_db
 from src.models.security import APIKey
 from src.models.users import UserRole, User
-from src.models.clients import Client
-from src.models.pos import POSUser
+# from src.models.clients import Client
+# from src.models.pos import POSUser
+from src.models.clients import ClientRole
+
 
 
 security = HTTPBearer(auto_error=False)
@@ -59,6 +61,7 @@ def get_api_key(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key or secret")
     return api_key
 
+
 def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
@@ -66,36 +69,51 @@ def get_optional_user(
     if not credentials: return None
     return AuthService.validate_access_token(db, credentials.credentials)
 
-# def require_role(required_roles: list[str]):
-#     def role_checker(current_user: User = Depends(get_current_user)):
-#         if current_user.role not in required_roles and current_user.role != UserRole.ADMIN:
-#             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-#         return current_user
-#     return role_checker
-def require_role(required_roles: list[UserRole]):
+
+def require_role(allowed_user_roles: list[UserRole], allowed_client_roles: list[ClientRole] = None):
+    """
+    Flexible dependency that can check both user and client roles
+    
+    Examples:
+    - require_role([UserRole.ADMIN])  # Only admin users
+    - require_role([UserRole.USER], [ClientRole.SUPER_CLIENT])  # User role OR Super Client
+    - require_role(allowed_client_roles=[ClientRole.CLIENT])  # Any client
+    """
     def role_checker(
         current_account: dict = Depends(get_current_account)
     ):
         account_type = current_account["account_type"]
         account = current_account["account"]
-
-        if account_type != "user":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only users can access this resource"
-            )
-
-        if account.role == UserRole.ADMIN:
+        
+        # Handle CLIENTS
+        if account_type == "client":
+            if not allowed_client_roles:
+                raise HTTPException(403, "Clients not allowed for this route")
+            
+            if account.role.name not in allowed_client_roles:
+                raise HTTPException(
+                    403, 
+                    f"Client role '{account.role.name}' not authorized. Required: {[r for r in allowed_client_roles]}"
+                )
             return account
-
-        if account.role not in required_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions"
-            )
-
-        return account
-
+        
+        # Handle USERS
+        if account_type == "user":
+            if account.role == UserRole.ADMIN:
+                return account
+            
+            if not allowed_user_roles:
+                raise HTTPException(403, "Users not allowed for this route")
+            
+            if account.role not in allowed_user_roles:
+                raise HTTPException(
+                    403,
+                    f"User role '{account.role.value}' not authorized. Required: {[r.value for r in allowed_user_roles]}"
+                )
+            return account
+        
+        raise HTTPException(403, "Unknown account type")
+    
     return role_checker
 
 def require_permission(required_permission: str):

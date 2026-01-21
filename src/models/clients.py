@@ -26,6 +26,11 @@ class ClientStatus(str, enum.Enum):
     DELETED = "deleted"
 
 
+class ClientRole(str, enum.Enum):
+    CLIENT = "client",
+    SUPER_CLIENT = "super_client"
+
+
 class MagneticCardStatus(str, enum.Enum):
     TAKEN = "taken"
     HELD = "held"
@@ -66,11 +71,16 @@ class Client(Base):
     first_name = Column(String(120), nullable=False)
     last_name = Column(String(120), nullable=False)
 
-    username = Column(String(120), unique=True, nullable=False)
     phone = Column(String(40), unique=True, nullable=False)
     email = Column(String(255))
 
     status = Column(PgEnum(ClientStatus), default=ClientStatus.INACTIVE)
+
+    role = Column(
+        PgEnum(ClientRole, name="client_role_enum", create_constraint=True),
+        nullable=False,
+        default=ClientRole.CLIENT   
+    )
 
     opening_balance = Column(Numeric(14, 2), default=0)
     anticipated_balance = Column(Numeric(14, 2), default=0)

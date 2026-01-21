@@ -227,34 +227,6 @@ class AuthService:
         # Otherwise no OTP required
         return False
 
-    # @staticmethod
-    # def generate_otp(db: Session, user: User, otp_type: str = "login") -> str:
-    #     from src.core.otp import OTPUtils
-    #     code = OTPUtils.generate_otp()
-    #     expires_at = OTPUtils.get_expiry()
-    #     db.query(OTPCode).filter(OTPCode.user_id==user.id, OTPCode.purpose==otp_type, OTPCode.is_used==False).delete()
-    #     otp_record = OTPCode(user_id=user.id, code=code, purpose=otp_type, expires_at=expires_at)
-    #     db.add(otp_record)
-    #     db.commit()
-    #     try: EmailService.send_otp_email(user.email, user.username, code, otp_type)
-    #     except Exception as e: logger.error(f"OTP email failed: {str(e)}")
-    #     return code
-
-    # @staticmethod
-    # def verify_otp(db: Session, verify_data: OTPVerify, otp_type: str = "login") -> Optional[User]:
-    #     otp_record = db.query(OTPCode).join(User).filter(
-    #         User.email==verify_data.email,
-    #         OTPCode.code==verify_data.otp_code,
-    #         OTPCode.purpose==otp_type,
-    #         OTPCode.is_used==False,
-    #         OTPCode.expires_at > datetime.now(timezone.utc)
-    #     ).first()
-    #     if not otp_record: return None
-    #     otp_record.is_used = True
-    #     user = otp_record.user
-    #     user.last_login = datetime.now(timezone.utc)
-    #     db.commit()
-    #     return user
     @staticmethod
     def generate_otp(
         db: Session,
@@ -920,29 +892,25 @@ class AuthService:
     @staticmethod
     def admin_reset_password(
         db: Session,
-        client_id: int,
+        phone: str,
         admin_id: int,
         ip_address: str = "",
         user_agent: str = None,
         generate_random: bool = True,
-        new_password: str = None,
     ) -> tuple[bool, str, Optional[str]]:
         """Admin resets client password (can generate random or use provided)"""
         
         try:
-            client = db.query(Client).filter(Client.id == client_id).first()
+            client = db.query(Client).filter(Client.phone == phone).first()
             if not client:
                 return False, "Client not found", None
-            
+            # new_password = ""
             # Generate or use provided password
             if generate_random:
                 import secrets
                 import string
                 alphabet = string.ascii_letters + string.digits + "!@#$%"
                 new_password = ''.join(secrets.choice(alphabet) for _ in range(12))
-            
-            elif not new_password or len(new_password) < 8:
-                return False, "Password must be at least 8 characters", None
             
             # Set password
             client.password_hash = SecurityUtils.hash_password(new_password)
@@ -953,7 +921,7 @@ class AuthService:
                 actor_type='admin',
                 actor_id=admin_id,
                 target_type='client',
-                target_id=client_id,
+                target_id=phone,
                 action='reset_password',
                 details={
                     'password_generated': generate_random,
@@ -976,7 +944,7 @@ class AuthService:
     @staticmethod
     def admin_set_pin(
         db: Session,
-        client_id: int,
+        phone: str,
         new_pin: str,
         admin_id: int,
         ip_address: str = "",
@@ -986,7 +954,7 @@ class AuthService:
         """Admin sets PIN for a client"""
         
         try:
-            client = db.query(Client).filter(Client.id == client_id).first()
+            client = db.query(Client).filter(Client.phone == phone).first()
             if not client:
                 return False, "Client not found"
             
@@ -1008,7 +976,7 @@ class AuthService:
                 actor_type='admin',
                 actor_id=admin_id,
                 target_type='client',
-                target_id=client_id,
+                target_id=phone,
                 action='set_pin',
                 details={
                     'is_initial_setup': is_initial_setup,
