@@ -636,7 +636,6 @@ async def get_current_user_info(
             "id": account.id,
             "first_name": getattr(account, 'first_name', None),
             "last_name": getattr(account, 'last_name', None),
-            "username": getattr(account, 'username', None),
             "email": getattr(account, 'email', None),
             "phone": getattr(account, 'phone', None),
             "status": getattr(account, 'status', None),
@@ -651,25 +650,6 @@ async def get_current_user_info(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown account type: {account_type}")
     
-# # Add a debug endpoint
-# @auth_router.get("/me/debug")
-# async def debug_current_user(
-#     current_user_info: Dict[str, Any] = Depends(get_current_user)
-# ):
-#     """Debug endpoint to see what get_current_user returns."""
-#     account_type = current_user_info.get("account_type")
-#     account = current_user_info.get("account")
-    
-#     return {
-#         "account_type": account_type,
-#         "account_class": account.__class__.__name__ if account else None,
-#         "account_attributes": dir(account) if account else [],
-#         "account_dict": account.__dict__ if hasattr(account, '__dict__') else str(account),
-#         "has_email": hasattr(account, 'email') if account else False,
-#         "has_phone": hasattr(account, 'phone') if account else False,
-#         "has_api_key": hasattr(account, 'api_key') if account else False
-#     }
-
 def serialize_account(account):
     if isinstance(account, User):
         return UserSchema.model_validate(account)
