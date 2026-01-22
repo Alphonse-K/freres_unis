@@ -86,9 +86,11 @@ class ClientApprovalResponse(ClientApprovalBase):
     reviewed_by_id: Optional[int]
     client_id: Optional[int]
 
+
 class ClientActivationSetPassword(BaseModel):
     password: str = Field(..., min_length=8, max_length=12)
     pin: str = Field(..., min_length=4, max_length=4)
+
 
 from pydantic import BaseModel, Field, field_validator
 import re
