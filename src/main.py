@@ -7,6 +7,11 @@ from src.routes.clients import client_router
 from src.routes.pos import pos_router
 from src.routes.address import address_router
 from src.routes.id_types_routes import id_type_router
+from src.routes.pos_inventory import inventory_router
+from src.routes.pos_sales import sales_router
+from src.routes.pos_expenses import expenses_router
+from src.routes.procurements import procurement_router
+from src.routes.provider import provider_router
 import src.models  
 # main.py or wherever you set up routers
 from src.routes import files
@@ -28,6 +33,11 @@ app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(user_router, prefix=API_PREFIX)
 app.include_router(client_router, prefix=API_PREFIX)
 app.include_router(pos_router, prefix=API_PREFIX)
+app.include_router(inventory_router, prefix=API_PREFIX)
+app.include_router(sales_router, prefix=API_PREFIX)
+app.include_router(expenses_router, prefix=API_PREFIX)
+app.include_router(procurement_router, prefix=API_PREFIX)
+app.include_router(provider_router, prefix=API_PREFIX)
 app.include_router(address_router, prefix=API_PREFIX)
 app.include_router(id_type_router, prefix=API_PREFIX)
 app.include_router(files.router, prefix=API_PREFIX)

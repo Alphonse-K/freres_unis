@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from src.schemas.pos import POSCreate, POSUpdate, POSOut, POSUserCreate, POSUserUpdate, POSUserOut
+from src.schemas.pos import POSCreate, POSUpdate, POSOut, POSUserCreate, POSUserUpdate, POSUserOut, POSStats
 from src.services.pos import POSService
 from src.core.database import get_db
 from src.core.auth_dependencies import require_role
@@ -53,6 +53,14 @@ def update_pos(pos_id: int, data: POSUpdate, db: Session = Depends(get_db)):
 )
 def get_pos(pos_id: int, db: Session = Depends(get_db)):
     return POSService.get_pos(db, pos_id)
+
+@pos_router.get(
+    "/stats/{pos_id}",
+    response_model=POSStats,
+    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "USER", "MANAGER", "RH"]))]
+)
+def get_pos_stats(pos_id: int, db: Session = Depends(get_db)):
+    return POSService.get_pos_stats(db, pos_id)
 
 @pos_router.post(
     "/{pos_id}/users",

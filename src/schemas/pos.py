@@ -1,9 +1,13 @@
 # src/schemas/pos.py
-from datetime import datetime, time
+from datetime import datetime, time, date
 from decimal import Decimal
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
+from src.schemas.inventory import WarehouseOut
 from enum import Enum
+import re
+
+# from src.models.pos import SaleStatus, PaymentMethod, POSExpenseCategory, POSExpenseStatus
 
 
 # --- ENUMS ---
@@ -118,10 +122,18 @@ class POSUserOut(POSUserBase):
 
 class POSBase(BaseModel):
     type: PosType
-    pos_business_name: str
-    balance: Optional[Decimal] = 0
+    pos_business_name: str = Field(..., max_length=255)
+    phone: str = Field(..., max_length=40)
+    balance: Optional[Decimal] = Field(0, ge=0)
     status: Optional[PosStatus] = PosStatus.CREATED
-    phone: Optional[str]
+    warehouse_id: Optional[int] = Field(None, description="Associated warehouse ID")
+    
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        # Simple phone validation - adjust as needed
+        if not re.match(r'^\+?[0-9\s\-\(\)]{10,}$', v):
+            raise ValueError('Invalid phone number format')
+        return v
 
 
 class POSCreate(POSBase):
@@ -130,71 +142,43 @@ class POSCreate(POSBase):
 
 class POSUpdate(BaseModel):
     type: Optional[PosType] = None
-    pos_business_name: Optional[str] = None
-    balance: Optional[Decimal] = None
+    pos_business_name: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=40)
+    balance: Optional[Decimal] = Field(None, ge=0)
     status: Optional[PosStatus] = None
+    warehouse_id: Optional[int] = Field(None, description="Change associated warehouse")
+    
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        if v is not None:
+            if not re.match(r'^\+?[0-9\s\-\(\)]{10,}$', v):
+                raise ValueError('Invalid phone number format')
+        return v
 
 
 class POSOut(POSBase):
     id: int
-    users: List[POSUserOut] = []
+    warehouse: Optional[WarehouseOut] = None
+    users: List["POSUserOut"] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
-# -------------------------------
-# SALE SCHEMAS
-# -------------------------------
-
-class SaleItemBase(BaseModel):
-    product_variant_id: int
-    qty: Decimal
-    unit_price: Decimal
-
-
-class SaleItemCreate(SaleItemBase):
-    pass
-
-
-class SaleItemUpdate(BaseModel):
-    qty: Optional[Decimal] = None
-    unit_price: Optional[Decimal] = None
-
-
-class SaleItemOut(SaleItemBase):
-    id: int
-    sale_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class SaleBase(BaseModel):
+class POSStats(BaseModel):
     pos_id: int
-    created_by_id: int
-    customer_id: Optional[int] = None
-    total_amount: Decimal
-    payment_mode: PaymentMethod
-    status: Optional[SaleStatus] = SaleStatus.COMPLETED
-    date: datetime
-
-
-class SaleCreate(SaleBase):
-    items: List[SaleItemCreate]
-
-
-class SaleUpdate(BaseModel):
-    total_amount: Optional[Decimal] = None
-    payment_mode: Optional[PaymentMethod] = None
-    status: Optional[SaleStatus] = None
-    items: Optional[List[SaleItemUpdate]] = None
-
-
-class SaleOut(SaleBase):
-    id: int
-    items: List[SaleItemOut] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
+    pos_name: str
+    total_sales: int
+    total_revenue: float
+    total_expenses: float
+    net_balance: float
+    active_users: int
+    low_stock_items: int
+    pending_procurements: int
+    warehouse_id: Optional[int]
+    status: str
+    last_updated: Optional[datetime]
 
 # -------------------------------
 # POS EXPENSE SCHEMAS
@@ -238,3 +222,254 @@ class POSUserSchema(BaseModel):
     role: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
+
+# -------------------------------
+# CUSTOMER INFO SCHEMAS
+# -------------------------------
+class CustomerInfoBase(BaseModel):
+    first_name: Optional[str] = Field(None, max_length=120)
+    last_name: Optional[str] = Field(None, max_length=120)
+    phone: Optional[str] = Field(None, max_length=40)
+
+
+class CustomerInfoCreate(CustomerInfoBase):
+    pass
+
+
+class CustomerInfoOut(CustomerInfoBase):
+    id: int
+    sale_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -------------------------------
+# SALE ITEM SCHEMAS
+# -------------------------------
+class SaleItemBase(BaseModel):
+    product_variant_id: int
+    qty: Decimal = Field(..., gt=0)
+    unit_price: Decimal = Field(..., gt=0)
+
+
+class SaleItemCreate(SaleItemBase):
+    pass
+
+
+class SaleItemOut(SaleItemBase):
+    id: int
+    sale_id: int
+    product_variant: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -------------------------------
+# SALE SCHEMAS
+# -------------------------------
+class SaleBase(BaseModel):
+    pos_id: int
+    created_by_id: int
+    customer_id: Optional[int] = None
+    payment_mode: PaymentMethod
+    transaction_date: Optional[datetime] = None
+    tax_rate: Optional[Decimal] = Decimal('0')
+    discount_amount: Optional[Decimal] = Decimal('0')
+    notes: Optional[str] = None
+
+
+class SaleCreate(SaleBase):
+    items: List[SaleItemCreate]
+    customer_info: Optional[CustomerInfoCreate] = None
+
+
+class SaleItemUpdate(BaseModel):
+    qty: Optional[Decimal] = None
+    unit_price: Optional[Decimal] = None
+
+
+class SaleUpdate(BaseModel):
+    total_amount: Optional[Decimal] = None
+    payment_mode: Optional[PaymentMethod] = None
+    status: Optional[SaleStatus] = None
+    items: Optional[List[SaleItemUpdate]] = None
+
+class SaleOut(SaleBase):
+    id: int
+    subtotal_amount: Decimal
+    tax_amount: Decimal
+    total_amount: Decimal
+    status: SaleStatus
+    created_at: datetime
+    items: List[SaleItemOut] = []
+    customer: Optional[dict] = None
+    counter_customer: Optional[CustomerInfoOut] = None
+    pos: Optional[dict] = None
+    created_by: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -------------------------------
+# SALE RETURN SCHEMAS
+# -------------------------------
+class ReturnItem(BaseModel):
+    product_variant_id: int
+    quantity: Decimal = Field(..., gt=0)
+
+
+class SaleReturnBase(BaseModel):
+    sale_id: int
+    date: Optional[datetime] = None
+    reason: str = Field(..., max_length=255)
+
+
+class SaleReturnCreate(SaleReturnBase):
+    items: List[ReturnItem]
+
+
+class SaleReturnOut(SaleReturnBase):
+    id: int
+    created_at: datetime
+    sale: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -------------------------------
+# SALE REPORT SCHEMAS
+# -------------------------------
+class SaleSummary(BaseModel):
+    total_sales: int
+    total_revenue: float
+    average_sale_value: float
+    payment_methods: List[dict] = []
+    recent_sales: List[dict] = []
+
+
+class DailySalesReport(BaseModel):
+    date: date
+    total_sales: int
+    total_revenue: float
+    top_products: List[dict] = []
+    sales: List[dict] = []
+
+
+class SalesTrendItem(BaseModel):
+    date: date
+    sales_count: int
+    total_amount: float
+
+
+class TopProductReport(BaseModel):
+    product_variant_id: int
+    variant_name: str
+    product_id: int
+    total_quantity: float
+    total_value: float
+
+
+# -------------------------------
+# EXPENSE SCHEMAS
+# -------------------------------
+class POSExpenseBase(BaseModel):
+    pos_id: int
+    category: POSExpenseCategory
+    amount: Decimal = Field(..., gt=0)
+    description: Optional[str] = Field(None, max_length=255)
+    expense_date: Optional[datetime] = None
+    status: Optional[POSExpenseStatus] = POSExpenseStatus.DRAFT
+    approved_by_id: Optional[int] = None
+
+
+class POSExpenseCreate(POSExpenseBase):
+    created_by_id: int
+
+
+class POSExpenseUpdate(BaseModel):
+    category: Optional[POSExpenseCategory] = None
+    amount: Optional[Decimal] = None
+    description: Optional[str] = None
+    expense_date: Optional[datetime] = None
+    status: Optional[POSExpenseStatus] = None
+    approved_by_id: Optional[int] = None
+
+
+class POSExpenseOut(POSExpenseBase):
+    id: int
+    reference: str
+    created_by_id: int
+    created_at: datetime
+    pos: Optional[dict] = None
+    created_by: Optional[dict] = None
+    approved_by: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -------------------------------
+# EXPENSE FILTER SCHEMAS
+# -------------------------------
+class POSExpenseFilter(BaseModel):
+    pos_id: Optional[int] = None
+    category: Optional[POSExpenseCategory] = None
+    status: Optional[POSExpenseStatus] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    created_by_id: Optional[int] = None
+    approved_by_id: Optional[int] = None
+    skip: int = 0
+    limit: int = 50
+
+
+# -------------------------------
+# EXPENSE REPORT SCHEMAS
+# -------------------------------
+class ExpenseSummary(BaseModel):
+    total_expenses: int
+    total_amount: float
+    by_status: List[dict] = []
+    by_category: List[dict] = []
+    recent_expenses: List[dict] = []
+
+
+class ExpensesTrendItem(BaseModel):
+    date: date
+    expenses_count: int
+    total_amount: float
+
+
+class CategoryBreakdown(BaseModel):
+    total_expenses: int
+    total_amount: float
+    breakdown: List[dict] = []
+    top_category: Optional[str] = None
+    period: dict = {}
+
+
+class MonthlyExpenseReport(BaseModel):
+    month: int
+    year: int
+    start_date: date
+    end_date: date
+    total_expenses: int
+    total_amount: float
+    weekly_breakdown: List[dict] = []
+    daily_average: float
+
+
+class ExpenseComparison(BaseModel):
+    current_period: dict
+    previous_period: dict
+    comparison: dict
+
+
+# -------------------------------
+# EXPENSE ACTION SCHEMAS
+# -------------------------------
+class ExpenseApproveRequest(BaseModel):
+    approver_id: int
+
+
+class ExpenseRejectRequest(BaseModel):
+    reason: Optional[str] = None

@@ -1,9 +1,9 @@
 # src/models/providers.py
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, Date, Text, Enum as PgEnum, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, Date, DateTime, Text, Enum as PgEnum, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-
 from src.core.database import Base
+from datetime import datetime, timezone
 import enum
 
 
@@ -38,6 +38,7 @@ class Provider(Base):
     anticipated_balance = Column(Numeric(14, 2), default=0)
     current_balance = Column(Numeric(14, 2), default=0)
     created_at = Column(Date(), server_default=func.now())
+    updated_at = Column(Date(), onupdate=func.now())
 
     # --- Relationships ---
     addresses = relationship(
@@ -45,54 +46,78 @@ class Provider(Base):
         back_populates="provider",
         cascade="all, delete-orphan"
     )
-
     purchase_invoices = relationship("PurchaseInvoice", back_populates="provider")
     purchase_returns = relationship("PurchaseReturn", back_populates="provider")
     payments = relationship("ProviderPayment", back_populates="provider")
 
 
 class PurchaseInvoice(Base):
-    __tablename__ = "purchase_invoices"
-
+    __tablename__ = "purchase_invoices"    
     id = Column(Integer, primary_key=True)
-
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
-
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)    
+    # Link to Procurement (for tracking)
+    procurement_id = Column(Integer, ForeignKey("procurements.id"), nullable=True)    
     invoice_number = Column(String(100), nullable=False)
-    invoice_date = Column(Date(), nullable=False)
-    posting_date = Column(Date(), nullable=False)
-
+    invoice_date = Column(DateTime(timezone=True), nullable=False)  
+    posting_date = Column(DateTime(timezone=True), nullable=False)  
+    due_date = Column(DateTime(timezone=True), nullable=True)     
     total_amount = Column(Numeric(14, 2), nullable=False)
-    paid_amount = Column(Numeric(14, 2), default=0)
-
+    paid_amount = Column(Numeric(14, 2), default=0)    
     status = Column(
         PgEnum(PurchaseInvoiceStatus),
         default=PurchaseInvoiceStatus.DRAFT,
         nullable=False
-    )
-
-    notes = Column(String(255))
-
-    # relationships
+    )    
+    # Document references
+    po_reference = Column(String(50), nullable=True)  # Purchase Order reference
+    delivery_note_ref = Column(String(50), nullable=True)  
+    notes = Column(String(255))    
+    # Audit
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())    
+    # Relationships
     provider = relationship("Provider", back_populates="purchase_invoices")
     returns = relationship("PurchaseReturn", back_populates="purchase_invoice")
+    procurement = relationship("Procurement", back_populates="purchase_invoice", uselist=False)
+    
+    # Helper properties
+    @property
+    def due_amount(self):
+        return self.total_amount - self.paid_amount
+    
+    @property
+    def is_fully_paid(self):
+        return self.paid_amount >= self.total_amount
+    
+    @property
+    def is_overdue(self):
+        if self.due_date and self.due_amount > 0:
+            return datetime.now(timezone.utc) > self.due_date
+        return False
+    
+    @property
+    def age_days(self):
+        """Days since invoice date"""
+        if self.invoice_date:
+            delta = datetime.now(timezone.utc) - self.invoice_date
+            return delta.days
+        return 0
+    
+    def __repr__(self):
+        return f"<PurchaseInvoice {self.invoice_number} ({self.status.value})>"
 
 
 class PurchaseReturn(Base):
     __tablename__ = "purchase_returns"
-
     id = Column(Integer, primary_key=True)
-
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     purchase_invoice_id = Column(
         Integer,
         ForeignKey("purchase_invoices.id"),
         nullable=False
     )
-
     return_date = Column(Date(), nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
-
     reason = Column(String(255))
 
     # relationships
@@ -102,14 +127,10 @@ class PurchaseReturn(Base):
 
 class ProviderPayment(Base):
     __tablename__ = "provider_payments"
-
     id = Column(Integer, primary_key=True)
-
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
-
     payment_date = Column(Date(), nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
-
     payment_method = Column(PgEnum(PaymentMethod), nullable=False)  # cash, bank, mobile, etc.
     reference = Column(String(100))      # receipt / transaction id
     notes = Column(String(255))

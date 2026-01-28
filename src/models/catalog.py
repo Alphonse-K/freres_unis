@@ -49,7 +49,7 @@ class Product(Base):
 
     type = Column(Enum(ProductType), default=ProductType.UNIQUE)
 
-    image_url = Column(String(255))
+    image_url = Column(String(255), nullable=True)
 
     # Tax configuration
     tax_id = Column(Integer, ForeignKey("taxes.id"), nullable=True)
@@ -96,7 +96,7 @@ class ProductVariant(Base):
         "Inventory",
         back_populates="product_variant"
     )
-
+    
     # ---------------- PRICING HELPERS ----------------
 
     @property

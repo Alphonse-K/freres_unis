@@ -1,81 +1,61 @@
-# src/schemas/procurements.py
+# src/schemas/procurement.py
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
 from src.models.procurement import ProcurementStatus
 
 
-# -------------------------------
-# PROCUREMENT ITEM SCHEMAS
-# -------------------------------
-
-class ProcurementItemBase(BaseModel):
+class ProcurementItemCreate(BaseModel):
     product_variant_id: int
-    qty: Decimal
-    price: Decimal
-    returned_qty: Optional[Decimal] = 0
+    qty: Decimal = Field(gt=0)
+    price: Decimal = Field(gt=0)
 
 
-class ProcurementItemCreate(ProcurementItemBase):
-    pass
-
-
-class ProcurementItemUpdate(BaseModel):
-    qty: Optional[Decimal] = None
-    price: Optional[Decimal] = None
-    returned_qty: Optional[Decimal] = None
-
-
-class ProcurementItemOut(ProcurementItemBase):
-    id: int
-    procurement_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# -------------------------------
-# PROCUREMENT SCHEMAS
-# -------------------------------
-
-class ProcurementBase(BaseModel):
-    reference: str = Field(..., max_length=50)
+class ProcurementCreate(BaseModel):
     provider_id: int
-    pos_id: int
-    created_by_id: int
-
-    warehouse_id: Optional[int] = None
-    purchase_invoice_id: Optional[int] = None
-
-    total_amount: Decimal
-    date: datetime
-    status: Optional[ProcurementStatus] = ProcurementStatus.PENDING
-
-
-class ProcurementCreate(ProcurementBase):
     items: List[ProcurementItemCreate]
+    expected_delivery_date: Optional[datetime] = None
+    payment_terms: Optional[str] = None
+    shipping_terms: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class ProcurementUpdate(BaseModel):
-    reference: Optional[str] = Field(None, max_length=50)
-    provider_id: Optional[int] = None
-    pos_id: Optional[int] = None
-    created_by_id: Optional[int] = None
-    warehouse_id: Optional[int] = None
-    purchase_invoice_id: Optional[int] = None
-    total_amount: Optional[Decimal] = None
-    date: Optional[datetime] = None
     status: Optional[ProcurementStatus] = None
-    items: Optional[List[ProcurementItemUpdate]] = None  # optional updates to items
+    delivery_date: Optional[datetime] = None
+    delivery_notes: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
 
 
-class ProcurementOut(ProcurementBase):
+class ProcurementItemResponse(BaseModel):
     id: int
+    product_variant_id: int
+    product_name: Optional[str] = None
+    qty: Decimal
+    price: Decimal
+    total: Decimal
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProcurementResponse(BaseModel):
+    id: int
+    reference: str
+    provider_id: int
+    provider_name: Optional[str] = None
+    pos_id: int
+    pos_name: Optional[str] = None
+    po_date: datetime
+    expected_delivery_date: Optional[datetime]
+    total_amount: Decimal
+    status: ProcurementStatus
+    delivery_date: Optional[datetime]
+    payment_status: str
+    due_amount: Decimal
+    items: List[ProcurementItemResponse]
     created_at: datetime
-    items: List[ProcurementItemOut] = []
-
-    # Optional computed properties
-    due_amount: Optional[Decimal] = None
-    payment_status: Optional[str] = None
-
+    updated_at: Optional[datetime]
+    
     model_config = ConfigDict(from_attributes=True)

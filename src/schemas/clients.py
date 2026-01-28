@@ -95,6 +95,7 @@ class ClientActivationSetPassword(BaseModel):
 from pydantic import BaseModel, Field, field_validator
 import re
 
+
 class ClientActivationSetPassword(BaseModel):
     password: str = Field(..., min_length=8, max_length=12)
     pin: str = Field(..., min_length=4, max_length=4)
@@ -140,17 +141,6 @@ class ClientActivationSetPassword(BaseModel):
         if len(v) != 4:
             raise ValueError('PIN must be exactly 4 digits')
         
-        # # Optional: Check for common/weak PINs
-        # weak_pins = ['0000', '1111', '1234', '2222', '3333', '4444', 
-        #             '5555', '6666', '7777', '8888', '9999', '4321']
-        # if v in weak_pins:
-        #     raise ValueError('PIN is too common, please choose a different one')
-        
-        # # Optional: Check for sequential numbers
-        # if v in ['1234', '2345', '3456', '4567', '5678', '6789', '7890']:
-        #     raise ValueError('Sequential PINs are not allowed')
-        
-        # Optional: Check for repeated numbers
         if len(set(v)) == 1:  # All digits are the same
             raise ValueError('PIN cannot be all the same digit')
         
@@ -285,7 +275,7 @@ class ClientReturnFilter(BaseModel):
 class ClientSchema(BaseModel):
     id: int
     phone: str
-    email: Optional[str] = None  # accept None or invalid emails
+    email: Optional[str] = None
     status: str
     model_config = ConfigDict(from_attributes=True)
 

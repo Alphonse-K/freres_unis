@@ -1,118 +1,94 @@
-# src/schemas/providers.py
-from datetime import date
+# src/schemas/provider.py
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
 from src.models.providers import PurchaseInvoiceStatus, PaymentMethod
+from src.schemas.location import AddressCreate, AddressOut
 
-# -------------------------------
-# PROVIDER SCHEMAS
-# -------------------------------
 
 class ProviderBase(BaseModel):
-    name: str = Field(..., max_length=255)
+    name: str = Field(..., min_length=2, max_length=255)
     phone: Optional[str] = Field(None, max_length=40)
-    email: Optional[str] = Field(None, max_length=255)
-    is_active: Optional[bool] = True
-
-    opening_balance: Optional[Decimal] = 0
-    anticipated_balance: Optional[Decimal] = 0
-    current_balance: Optional[Decimal] = 0
+    email: Optional[EmailStr] = None
+    is_active: bool = True
 
 
 class ProviderCreate(ProviderBase):
-    pass  # no extra fields needed
+    opening_balance: Decimal = 0
+    addresses: Optional[List[AddressCreate]] = None
 
 
 class ProviderUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=255)
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
     phone: Optional[str] = Field(None, max_length=40)
-    email: Optional[str] = Field(None, max_length=255)
+    email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
 
-    opening_balance: Optional[Decimal] = None
-    anticipated_balance: Optional[Decimal] = None
-    current_balance: Optional[Decimal] = None
 
-
-class ProviderOut(ProviderBase):
+class ProviderResponse(ProviderBase):
     id: int
+    opening_balance: Decimal
+    current_balance: Decimal
+    anticipated_balance: Decimal
     created_at: date
-
+    updated_at: Optional[date]
+    addresses: List[AddressOut] = []
     model_config = ConfigDict(from_attributes=True)
 
 
-# -------------------------------
-# PURCHASE INVOICE SCHEMAS
-# -------------------------------
+class ProviderSummaryResponse(BaseModel):
+    id: int
+    name: str
+    total_invoices: Decimal
+    total_paid: Decimal
+    total_due: Decimal
+    invoice_count: int
+    last_purchase_date: Optional[datetime]
+    model_config = ConfigDict(from_attributes=True)
 
+
+# Purchase Invoice Schemas
 class PurchaseInvoiceBase(BaseModel):
-    invoice_number: str = Field(..., max_length=100)
-    invoice_date: date
-    posting_date: date
-    total_amount: Decimal
-    paid_amount: Optional[Decimal] = 0
-    status: Optional[PurchaseInvoiceStatus] = PurchaseInvoiceStatus.DRAFT
+    invoice_number: str
+    invoice_date: datetime
+    due_date: Optional[datetime] = None
+    total_amount: Decimal = Field(gt=0)
     notes: Optional[str] = None
 
 
 class PurchaseInvoiceCreate(PurchaseInvoiceBase):
     provider_id: int
+    procurement_id: Optional[int] = None
+    po_reference: Optional[str] = None
 
 
 class PurchaseInvoiceUpdate(BaseModel):
-    invoice_number: Optional[str] = Field(None, max_length=100)
-    invoice_date: Optional[date] = None
-    posting_date: Optional[date] = None
-    total_amount: Optional[Decimal] = None
-    paid_amount: Optional[Decimal] = None
     status: Optional[PurchaseInvoiceStatus] = None
+    paid_amount: Optional[Decimal] = None
     notes: Optional[str] = None
 
 
-class PurchaseInvoiceOut(PurchaseInvoiceBase):
+class PurchaseInvoiceResponse(PurchaseInvoiceBase):
     id: int
     provider_id: int
-
+    procurement_id: Optional[int]
+    po_reference: Optional[str]
+    posting_date: datetime
+    paid_amount: Decimal
+    status: PurchaseInvoiceStatus
+    due_amount: Decimal
+    is_overdue: bool
+    age_days: int
+    created_at: datetime
+    updated_at: Optional[datetime]  
     model_config = ConfigDict(from_attributes=True)
 
 
-# -------------------------------
-# PURCHASE RETURN SCHEMAS
-# -------------------------------
-
-class PurchaseReturnBase(BaseModel):
-    return_date: date
-    amount: Decimal
-    reason: Optional[str] = None
-
-
-class PurchaseReturnCreate(PurchaseReturnBase):
-    provider_id: int
-    purchase_invoice_id: int
-
-
-class PurchaseReturnUpdate(BaseModel):
-    return_date: Optional[date] = None
-    amount: Optional[Decimal] = None
-    reason: Optional[str] = None
-
-
-class PurchaseReturnOut(PurchaseReturnBase):
-    id: int
-    provider_id: int
-    purchase_invoice_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# -------------------------------
-# PROVIDER PAYMENT SCHEMAS
-# -------------------------------
-
+# Payment Schemas
 class ProviderPaymentBase(BaseModel):
     payment_date: date
-    amount: Decimal
+    amount: Decimal = Field(gt=0)
     payment_method: PaymentMethod
     reference: Optional[str] = None
     notes: Optional[str] = None
@@ -120,18 +96,35 @@ class ProviderPaymentBase(BaseModel):
 
 class ProviderPaymentCreate(ProviderPaymentBase):
     provider_id: int
+    purchase_invoice_id: Optional[int] = None
 
 
-class ProviderPaymentUpdate(BaseModel):
-    payment_date: Optional[date] = None
-    amount: Optional[Decimal] = None
-    payment_method: Optional[PaymentMethod] = None
-    reference: Optional[str] = None
-    notes: Optional[str] = None
-
-
-class ProviderPaymentOut(ProviderPaymentBase):
+class ProviderPaymentResponse(ProviderPaymentBase):
     id: int
     provider_id: int
-
+    purchase_invoice_id: Optional[int]
     model_config = ConfigDict(from_attributes=True)
+
+
+# ================================
+# ADDITIONAL SCHEMAS NEEDED
+# ================================
+
+# Add these to your src/schemas/provider.py file:
+class PurchaseReturnCreate(BaseModel):
+    purchase_invoice_id: int
+    return_date: date
+    amount: Decimal = Field(gt=0)
+    reason: str = Field(..., min_length=2, max_length=255)
+
+
+class PurchaseReturnResponse(BaseModel):
+    id: int
+    provider_id: int
+    purchase_invoice_id: int
+    return_date: date
+    amount: Decimal
+    reason: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
