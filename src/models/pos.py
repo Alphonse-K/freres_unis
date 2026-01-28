@@ -112,6 +112,7 @@ class POS(Base):
     )
     warehouse = relationship("Warehouse", back_populates="pos", uselist=False, foreign_keys=[warehouse_id])
 
+
 class POSUser(Base):
     __tablename__ = "pos_user"
     id = Column(Integer, primary_key=True)

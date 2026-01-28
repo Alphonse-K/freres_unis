@@ -19,7 +19,7 @@ class Procurement(Base):
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
-    purchase_invoice_id = Column(Integer, ForeignKey("purchase_invoices.id"), nullable=True)    
+    # purchase_invoice_id = Column(Integer, ForeignKey("purchase_invoices.id"), nullable=True)    
     po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
     expected_delivery_date = Column(DateTime(timezone=True), nullable=True)    
     total_amount = Column(Numeric(12, 2), nullable=False)    
@@ -50,7 +50,7 @@ class Procurement(Base):
     pos = relationship("POS", back_populates="procurements")
     created_by = relationship("POSUser", foreign_keys=[created_by_id])
     received_by = relationship("POSUser", foreign_keys=[received_by_id])
-    purchase_invoice = relationship("PurchaseInvoice", back_populates="procurement", uselist=False, foreign_keys=[purchase_invoice_id])
+    purchase_invoice = relationship("PurchaseInvoice", back_populates="procurement", uselist=False)
     items = relationship(
         "ProcurementItem",
         back_populates="procurement",
