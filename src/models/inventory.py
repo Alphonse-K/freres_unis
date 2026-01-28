@@ -44,4 +44,6 @@ class Warehouse(Base):
         back_populates="warehouse",
         cascade="all, delete-orphan"
     )
-    pos = relationship("POS", back_populates="warehouse", uselist=False, foreign_keys=[pos_id])
+    pos = relationship("POS", back_populates="warehouse", uselist=False)
+
+

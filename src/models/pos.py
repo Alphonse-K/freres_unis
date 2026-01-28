@@ -110,7 +110,7 @@ class POS(Base):
         back_populates="pos",
         cascade="all, delete-orphan"
     )
-    warehouse = relationship("Warehouse", back_populates="pos", uselist=False, foreign_keys=[warehouse_id])
+    warehouse = relationship("Warehouse", back_populates="pos", uselist=False)
 
 
 class POSUser(Base):
