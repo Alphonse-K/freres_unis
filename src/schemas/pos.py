@@ -169,16 +169,16 @@ class POSOut(POSBase):
 class POSStats(BaseModel):
     pos_id: int
     pos_name: str
-    total_sales: int
-    total_revenue: float
-    total_expenses: float
+    total_sales: Optional[int] = 0
+    total_revenue: Optional[float] = 0.0
+    total_expenses: Optional[float] = 0.0
     net_balance: float
-    active_users: int
-    low_stock_items: int
-    pending_procurements: int
+    active_users: Optional[int] = 0
+    low_stock_items: Optional[int] = 0
+    pending_procurements: Optional[int] = 0
     warehouse_id: Optional[int]
     status: str
-    last_updated: Optional[datetime]
+    last_updated: Optional[datetime] = None
 
 # -------------------------------
 # POS EXPENSE SCHEMAS

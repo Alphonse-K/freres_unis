@@ -336,7 +336,7 @@ class POSService:
         return pos
     
     @staticmethod
-    def get_pos_stats(pos_id: int, db: Session) -> Dict[str, Any]:
+    def get_pos_stats(db: Session, pos_id: int) -> Dict[str, Any]:
         """Get comprehensive statistics for a POS"""
         pos = POSService.get_pos(db, pos_id, include_warehouse=False)
         
