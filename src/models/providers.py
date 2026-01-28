@@ -78,7 +78,7 @@ class PurchaseInvoice(Base):
     # Relationships
     provider = relationship("Provider", back_populates="purchase_invoices")
     returns = relationship("PurchaseReturn", back_populates="purchase_invoice")
-    procurement = relationship("Procurement", back_populates="purchase_invoice", uselist=False)
+    procurement = relationship("Procurement", back_populates="purchase_invoice", uselist=False, foreign_keys=[procurement_id])
     
     # Helper properties
     @property

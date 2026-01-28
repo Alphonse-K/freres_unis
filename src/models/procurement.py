@@ -50,7 +50,7 @@ class Procurement(Base):
     pos = relationship("POS", back_populates="procurements")
     created_by = relationship("POSUser", foreign_keys=[created_by_id])
     received_by = relationship("POSUser", foreign_keys=[received_by_id])
-    purchase_invoice = relationship("PurchaseInvoice", back_populates="procurement", uselist=False)
+    purchase_invoice = relationship("PurchaseInvoice", back_populates="procurement", uselist=False, foreign_keys=[purchase_invoice_id])
     items = relationship(
         "ProcurementItem",
         back_populates="procurement",
