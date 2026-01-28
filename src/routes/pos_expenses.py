@@ -482,37 +482,3 @@ def list_expense_statuses(
         return statuses
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-# # ================================
-# # ERROR HANDLING
-# # ================================
-
-# @expenses_router.exception_handler(ExpenseNotFoundException)
-# async def expense_not_found_exception_handler(request, exc):
-#     """Handle expense not found exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @expenses_router.exception_handler(ExpenseValidationException)
-# async def expense_validation_exception_handler(request, exc):
-#     """Handle expense validation exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @expenses_router.exception_handler(ExpenseBusinessRuleException)
-# async def expense_business_rule_exception_handler(request, exc):
-#     """Handle expense business rule exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )

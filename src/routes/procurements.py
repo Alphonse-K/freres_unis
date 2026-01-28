@@ -235,22 +235,3 @@ def get_pos_procurement_summary(
         )
     
     return ProcurementService.get_procurement_summary(db, pos_id)
-
-
-
-# Add exception handlers to your route file
-# @procurement_router.exception_handler(NotFoundException)
-# async def not_found_handler(request, exc):
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-# @procurement_router.exception_handler(BusinessRuleException)
-# async def business_rule_handler(request, exc):
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )

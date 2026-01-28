@@ -451,37 +451,37 @@ def release_reserved_stock(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@inventory_router.post("/stock/transfer",
-    summary="Transfer stock",
-    description="Transfer stock between warehouses"
-)
-def transfer_stock(
-    data: StockTransferRequest,
-    current_account: dict = Depends(get_current_account),
-    db: Session = Depends(get_db)
-):
-    """
-    Transfer stock between warehouses.
+# @inventory_router.post("/stock/transfer",
+#     summary="Transfer stock",
+#     description="Transfer stock between warehouses"
+# )
+# def transfer_stock(
+#     data: StockTransferRequest,
+#     current_account: dict = Depends(get_current_account),
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Transfer stock between warehouses.
     
-    - **from_warehouse_id**: Source warehouse ID
-    - **to_warehouse_id**: Destination warehouse ID
-    - **product_variant_id**: Product variant ID
-    - **quantity**: Quantity to transfer (must be positive)
-    - **notes**: Optional notes
-    """
-    try:
-        return InventoryService.transfer_stock(
-            db, data.from_warehouse_id, data.to_warehouse_id,
-            data.product_variant_id, data.quantity, data.notes
-        )
-    except NotFoundException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except ValidationException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except InsufficientStockException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+#     - **from_warehouse_id**: Source warehouse ID
+#     - **to_warehouse_id**: Destination warehouse ID
+#     - **product_variant_id**: Product variant ID
+#     - **quantity**: Quantity to transfer (must be positive)
+#     - **notes**: Optional notes
+#     """
+#     try:
+#         return InventoryService.transfer_stock(
+#             db, data.from_warehouse_id, data.to_warehouse_id,
+#             data.product_variant_id, data.quantity, data.notes
+#         )
+#     except NotFoundException as e:
+#         raise HTTPException(status_code=e.status_code, detail=e.message)
+#     except ValidationException as e:
+#         raise HTTPException(status_code=e.status_code, detail=e.message)
+#     except InsufficientStockException as e:
+#         raise HTTPException(status_code=e.status_code, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @inventory_router.post("/stock/check",
@@ -715,47 +715,3 @@ def get_inventory_value_report(
         return InventoryService.get_inventory_value_report(db, warehouse_id)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-# ================================
-# ERROR HANDLING
-# ================================
-
-# @inventory_router.exception_handler(NotFoundException)
-# async def not_found_exception_handler(request, exc):
-#     """Handle not found exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @inventory_router.exception_handler(ValidationException)
-# async def validation_exception_handler(request, exc):
-#     """Handle validation exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @inventory_router.exception_handler(BusinessRuleException)
-# async def business_rule_exception_handler(request, exc):
-#     """Handle business rule exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @inventory_router.exception_handler(InsufficientStockException)
-# async def insufficient_stock_exception_handler(request, exc):
-#     """Handle insufficient stock exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )

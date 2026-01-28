@@ -764,20 +764,3 @@ def get_aging_analysis(
             })
     
     return aging_summary
-
-
-# ================================
-# ERROR HANDLING MIDDLEWARE (Optional)
-# ================================
-
-# @provider_router.exception_handler(HTTPException)
-# async def http_exception_handler(request, exc):
-#     """Custom HTTP exception handler for provider routes"""
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={
-#             "error": exc.detail,
-#             "path": request.url.path,
-#             "method": request.method
-#         }
-#     )

@@ -359,37 +359,3 @@ def get_customer_sales_history(
         return sales
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-# ================================
-# ERROR HANDLING
-# ================================
-
-# @sales_router.exception_handler(SaleNotFoundException)
-# async def sale_not_found_exception_handler(request, exc):
-#     """Handle sale not found exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @sales_router.exception_handler(SaleValidationException)
-# async def sale_validation_exception_handler(request, exc):
-#     """Handle sale validation exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
-
-
-# @sales_router.exception_handler(SaleBusinessRuleException)
-# async def sale_business_rule_exception_handler(request, exc):
-#     """Handle sale business rule exceptions"""
-#     from fastapi.responses import JSONResponse
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.message}
-#     )
