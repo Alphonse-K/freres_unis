@@ -128,12 +128,12 @@ class POSBase(BaseModel):
     status: Optional[PosStatus] = PosStatus.CREATED
     warehouse_id: Optional[int] = Field(None, description="Associated warehouse ID")
     
-    @field_validator('phone')
-    def validate_phone(cls, v):
-        # Simple phone validation - adjust as needed
-        if not re.match(r'^\+?[0-9\s\-\(\)]{10,}$', v):
-            raise ValueError('Invalid phone number format')
-        return v
+    # @field_validator('phone')
+    # def validate_phone(cls, v):
+    #     # Simple phone validation - adjust as needed
+    #     if not re.match(r'^\+?[0-9\s\-\(\)]{10,}$', v):
+    #         raise ValueError('Invalid phone number format')
+    #     return v
 
 
 class POSCreate(POSBase):
@@ -148,12 +148,12 @@ class POSUpdate(BaseModel):
     status: Optional[PosStatus] = None
     warehouse_id: Optional[int] = Field(None, description="Change associated warehouse")
     
-    @field_validator('phone')
-    def validate_phone(cls, v):
-        if v is not None:
-            if not re.match(r'^\+?[0-9\s\-\(\)]{10,}$', v):
-                raise ValueError('Invalid phone number format')
-        return v
+    # @field_validator('phone')
+    # def validate_phone(cls, v):
+    #     if v is not None:
+    #         if not re.match(r'^\+?[0-9\s\-\(\)]{10,}$', v):
+    #             raise ValueError('Invalid phone number format')
+    #     return v
 
 
 class POSOut(POSBase):
