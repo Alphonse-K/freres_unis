@@ -61,8 +61,9 @@ def list_procurements(
     - Supports pagination
     """
     # For regular POS users, restrict to their POS
-    if current_user.role != "manager":  # Add proper role check
-        pos_id = current_user.pos_id
+    current_user_role = current_user.get('payload').get('role')
+    if current_user_role not in ["ADMIN", "RH", "FINANCE"]:
+        pos_id = current_user.get('account').pos.id
     
     # Convert status string to enum
     status_enum = None
@@ -131,7 +132,7 @@ def update_procurement(
         )
     
     # Authorization
-    if current_user.role != "manager" and procurement.pos_id != current_user.pos_id:
+    if current_user.get('payload').get('role') != "manager" and procurement.pos_id != current_user.get('account').pos.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this procurement"
@@ -165,7 +166,7 @@ def mark_as_delivered(
         )
     
     # Authorization: Only manager or storekeeper can mark as delivered
-    if current_user.role not in ["manager", "storekeeper"]:
+    if current_user.get('payload').get('role') not in ["manager", "storekeeper"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only managers or storekeepers can mark procurements as delivered"

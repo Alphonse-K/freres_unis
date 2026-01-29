@@ -1,4 +1,5 @@
 # src/services/procurement_service.py
+from fastapi import HTTPException, status
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
@@ -178,12 +179,13 @@ class ProcurementService:
         """Update procurement information"""
         procurement = ProcurementService.get_procurement(db, procurement_id, include_details=False)
         if not procurement:
-            raise NotFoundException(f"Procurement {procurement_id} not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Procurement {procurement_id} not found")
         
         # Check if procurement can be modified
         if procurement.status in [ProcurementStatus.DELIVERED, ProcurementStatus.CANCELLED]:
-            raise BusinessRuleException(
-                f"Cannot update procurement with status {procurement.status.value}"
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot update procurement with status {procurement.status.value}"
             )
         
         try:

@@ -37,15 +37,57 @@ class ProviderResponse(ProviderBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ProviderSummaryResponse(BaseModel):
+# class ProviderSummaryResponse(BaseModel):
+#     id: int
+#     name: str
+#     total_invoices: Decimal
+#     total_paid: Decimal
+#     total_due: Decimal
+#     invoice_count: int
+#     last_purchase_date: Optional[datetime]
+#     model_config = ConfigDict(from_attributes=True)
+# =========================
+# PROVIDER SUMMARY SCHEMAS
+# =========================
+
+class ProviderSummaryProvider(BaseModel):
     id: int
     name: str
-    total_invoices: Decimal
-    total_paid: Decimal
-    total_due: Decimal
-    invoice_count: int
-    last_purchase_date: Optional[datetime]
+    current_balance: Decimal
+    is_active: bool
+    created_at: date
+
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProviderInvoiceStatistics(BaseModel):
+    total_invoices: int
+    pending_invoices: int
+    paid_invoices: int
+    partially_paid_invoices: int
+    overdue_invoices: int
+    total_invoice_amount: Decimal
+    total_paid_amount: Decimal
+    outstanding_balance: Decimal
+
+
+class ProviderAgingSummary(BaseModel):
+    bucket_0_30: Decimal = Field(alias="0_30")
+    bucket_31_60: Decimal = Field(alias="31_60")
+    bucket_61_90: Decimal = Field(alias="61_90")
+    bucket_90_plus: Decimal = Field(alias="90_plus")
+    total: Decimal
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ProviderSummaryResponse(BaseModel):
+    provider: ProviderSummaryProvider
+    statistics: ProviderInvoiceStatistics
+    aging: ProviderAgingSummary
+    recent_procurements: List[dict]
+    recent_payments: List[dict]
+    default_address: Optional[AddressOut]
 
 
 # Purchase Invoice Schemas

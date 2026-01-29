@@ -4,7 +4,10 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.core.database import Base
 from datetime import datetime, timezone
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import case
 import enum
+
 
 
 class PurchaseInvoiceStatus(enum.Enum):
@@ -79,29 +82,50 @@ class PurchaseInvoice(Base):
     provider = relationship("Provider", back_populates="purchase_invoices")
     returns = relationship("PurchaseReturn", back_populates="purchase_invoice")
     procurement = relationship("Procurement", back_populates="purchase_invoice", uselist=False, foreign_keys=[procurement_id])
+    payments = relationship(
+        "ProviderPayment",
+        back_populates="purchase_invoice",
+        cascade="all, delete-orphan"
+    )
     
-    # Helper properties
-    @property
+    # =========================
+    # Hybrid / Queryable helpers
+    # =========================
+
+    @hybrid_property
     def due_amount(self):
         return self.total_amount - self.paid_amount
-    
-    @property
+
+    @due_amount.expression
+    def due_amount(cls):
+        return cls.total_amount - cls.paid_amount
+
+
+    @hybrid_property
     def is_fully_paid(self):
         return self.paid_amount >= self.total_amount
-    
-    @property
+
+    @is_fully_paid.expression
+    def is_fully_paid(cls):
+        return cls.paid_amount >= cls.total_amount
+
+    @hybrid_property
     def is_overdue(self):
-        if self.due_date and self.due_amount > 0:
-            return datetime.now(timezone.utc) > self.due_date
-        return False
-    
-    @property
-    def age_days(self):
-        """Days since invoice date"""
-        if self.invoice_date:
-            delta = datetime.now(timezone.utc) - self.invoice_date
-            return delta.days
-        return 0
+        if self.due_date is None:
+            return False
+        return self.due_amount > 0 and datetime.now(timezone.utc) > self.due_date
+
+    @is_overdue.expression
+    def is_overdue(cls):
+        return case(
+            (
+                (cls.due_date.isnot(None)) &
+                ((cls.total_amount - cls.paid_amount) > 0) &
+                (cls.due_date < func.now()),
+                True
+            ),
+            else_=False
+        )
     
     def __repr__(self):
         return f"<PurchaseInvoice {self.invoice_number} ({self.status.value})>"
@@ -131,9 +155,19 @@ class ProviderPayment(Base):
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     payment_date = Column(Date(), nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
+    purchase_invoice_id = Column(
+        Integer,
+        ForeignKey("purchase_invoices.id"),
+        nullable=True
+    )
     payment_method = Column(PgEnum(PaymentMethod), nullable=False)  # cash, bank, mobile, etc.
     reference = Column(String(100))      # receipt / transaction id
     notes = Column(String(255))
 
     # relationships
     provider = relationship("Provider", back_populates="payments")
+    purchase_invoice = relationship(
+            "PurchaseInvoice",
+            back_populates="payments",
+            foreign_keys=[purchase_invoice_id]
+        )

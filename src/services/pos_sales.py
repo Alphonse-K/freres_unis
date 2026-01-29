@@ -330,63 +330,71 @@ class SaleService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None
     ) -> Dict[str, Any]:
-        """Get sales summary statistics"""
-        query = db.query(Sale)
-        
+        from sqlalchemy import func, desc
+        from src.models.pos import Sale, SaleStatus
+
+        base_query = db.query(Sale).filter(Sale.status == SaleStatus.COMPLETED)
+
         if pos_id:
-            query = query.filter(Sale.pos_id == pos_id)
-        
+            base_query = base_query.filter(Sale.pos_id == pos_id)
+
         if start_date:
-            query = query.filter(Sale.transaction_date >= start_date)
-        
+            base_query = base_query.filter(Sale.transaction_date >= start_date)
+
         if end_date:
-            query = query.filter(Sale.transaction_date <= end_date)
-        
-        # Total sales count
-        total_sales = query.count()
-        
+            base_query = base_query.filter(Sale.transaction_date <= end_date)
+
+        # Total sales
+        total_sales = base_query.count()
+
         # Total revenue
-        total_revenue_result = db.session.execute(
-            func.sum(Sale.total_amount).filter(
-                Sale.status == SaleStatus.COMPLETED,
-                Sale.pos_id == pos_id if pos_id else True,
-                Sale.transaction_date >= start_date if start_date else True,
-                Sale.transaction_date <= end_date if end_date else True
-            )
-        ).scalar() or Decimal('0')
-        
+        total_revenue = (
+            db.query(func.coalesce(func.sum(Sale.total_amount), 0))
+            .select_from(Sale)
+            .filter(Sale.status == SaleStatus.COMPLETED)
+            .filter(Sale.pos_id == pos_id if pos_id else True)
+            .filter(Sale.transaction_date >= start_date if start_date else True)
+            .filter(Sale.transaction_date <= end_date if end_date else True)
+            .scalar()
+        )
+
         # Average sale value
-        avg_sale_value = total_revenue_result / total_sales if total_sales > 0 else Decimal('0')
-        
-        # Sales by payment method
-        payment_methods = db.session.execute(
+        avg_sale_value = total_revenue / total_sales if total_sales > 0 else Decimal('0')
+
+        # Payment methods breakdown
+        payment_methods = (
             db.query(
                 Sale.payment_mode,
-                func.count(Sale.id).label('count'),
-                func.sum(Sale.total_amount).label('total')
-            ).filter(
-                Sale.status == SaleStatus.COMPLETED,
-                Sale.pos_id == pos_id if pos_id else True,
-                Sale.transaction_date >= start_date if start_date else True,
-                Sale.transaction_date <= end_date if end_date else True
-            ).group_by(Sale.payment_mode)
-        ).all()
-        
+                func.count(Sale.id),
+                func.coalesce(func.sum(Sale.total_amount), 0)
+            )
+            .filter(Sale.status == SaleStatus.COMPLETED)
+            .filter(Sale.pos_id == pos_id if pos_id else True)
+            .filter(Sale.transaction_date >= start_date if start_date else True)
+            .filter(Sale.transaction_date <= end_date if end_date else True)
+            .group_by(Sale.payment_mode)
+            .all()
+        )
+
         # Recent sales
-        recent_sales = query.filter(
-            Sale.status == SaleStatus.COMPLETED
-        ).order_by(desc(Sale.transaction_date)).limit(5).all()
-        
+        recent_sales = (
+            base_query
+            .order_by(desc(Sale.transaction_date))
+            .limit(5)
+            .all()
+        )
+
         return {
             "total_sales": total_sales,
-            "total_revenue": float(total_revenue_result),
+            "total_revenue": float(total_revenue),
             "average_sale_value": float(avg_sale_value),
             "payment_methods": [
                 {
                     "method": method.value,
                     "count": count,
-                    "total": float(total or Decimal('0'))
-                } for method, count, total in payment_methods
+                    "total": float(total)
+                }
+                for method, count, total in payment_methods
             ],
             "recent_sales": [
                 {
@@ -394,7 +402,8 @@ class SaleService:
                     "date": sale.transaction_date,
                     "amount": float(sale.total_amount),
                     "customer": sale.customer.name if sale.customer else "Walk-in"
-                } for sale in recent_sales
+                }
+                for sale in recent_sales
             ]
         }
     
@@ -545,7 +554,7 @@ class SaleService:
         total_revenue = sum(sale.total_amount for sale in sales)
         
         # Get top selling products
-        top_products = db.session.execute(
+        top_products = db.execute(
             db.query(
                 ProductVariant.product_id,
                 func.sum(SaleItem.qty).label('total_qty'),
@@ -601,7 +610,7 @@ class SaleService:
             current_date += timedelta(days=1)
         
         # Get daily sales
-        daily_sales = db.session.execute(
+        daily_sales = db.execute(
             db.query(
                 func.date(Sale.transaction_date).label('sale_date'),
                 func.count(Sale.id).label('sale_count'),

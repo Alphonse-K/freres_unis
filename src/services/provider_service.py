@@ -35,6 +35,10 @@ class ProviderService:
         """
         Create a new provider with addresses using geography system
         """
+        provider = db.query(Provider).filter(Provider.name==data.name).first()
+        if provider:
+            raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, detail=f"Provider with name {data.name} already exists!")
+        
         try:
             # Create provider
             provider = Provider(

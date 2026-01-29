@@ -1,6 +1,7 @@
 # src/services/inventory_service.py
 from datetime import datetime, date, timezone
 from decimal import Decimal
+from fastapi import HTTPException, status
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, asc, and_, or_, case, text, select
@@ -79,8 +80,6 @@ class InventoryService:
                 name=data.name,
                 location=data.location,
                 is_active=data.is_active if data.is_active is not None else True,
-                # created_at=datetime.now(timezone.utc),
-                # updated_at=datetime.now(timezone.utc)
             )
             
             db.add(warehouse)
@@ -96,14 +95,14 @@ class InventoryService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating warehouse: {str(e)}")
-            raise ValidationException(f"Error creating warehouse: {str(e)}")
+            raise HTTPException(status.HTTP_510_NOT_EXTENDED, detail=f"Error creating warehouse: {str(e)}")
     
     @staticmethod
     def update_warehouse(db: Session, warehouse_id: int, data: WarehouseUpdate) -> Warehouse:
         """Update warehouse information"""
         warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
         if not warehouse:
-            raise NotFoundException(f"Warehouse {warehouse_id} not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Warehouse {warehouse_id} not found")
         
         try:
             # Check name uniqueness if changing
@@ -113,7 +112,7 @@ class InventoryService:
                     Warehouse.id != warehouse_id
                 ).first()
                 if existing:
-                    raise ValidationException(f"Warehouse with name '{data.name}' already exists")
+                    raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, detail=f"Warehouse with name '{data.name}' already exists")
             
             # Update fields
             if data.name is not None:
@@ -136,7 +135,7 @@ class InventoryService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating warehouse {warehouse_id}: {str(e)}")
-            raise ValidationException(f"Error updating warehouse: {str(e)}")
+            raise HTTPException(status.HTTP_510_NOT_EXTENDED, detail=f"Error updating warehouse: {str(e)}")
     
     @staticmethod
     def get_warehouse(db: Session, warehouse_id: int) -> Warehouse:
@@ -149,16 +148,16 @@ class InventoryService:
         ).first()
         
         if not warehouse:
-            raise NotFoundException(f"Warehouse {warehouse_id} not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Warehouse {warehouse_id} not found")
         
         return warehouse
     
     @staticmethod
     def get_warehouse_by_pos(db: Session, pos_id: int) -> Warehouse:
         """Get warehouse associated with a POS"""
-        warehouse = db.query(Warehouse).filter(Warehouse.pos_id == pos_id).first()
+        warehouse = db.query(Warehouse).filter(Warehouse.pos.id == pos_id).first()
         if not warehouse:
-            raise NotFoundException(f"No warehouse associated with POS {pos_id}")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"No warehouse associated with POS {pos_id}")
         return warehouse
     
     @staticmethod
@@ -188,9 +187,9 @@ class InventoryService:
         
         if has_pos is not None:
             if has_pos:
-                query = query.filter(Warehouse.pos_id.isnot(None))
+                query = query.filter(Warehouse.pos.id.isnot(None))
             else:
-                query = query.filter(Warehouse.pos_id.is_(None))
+                query = query.filter(Warehouse.pos.id.is_(None))
         
         # Get total count
         total = query.count()

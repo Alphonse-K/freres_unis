@@ -14,68 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# class POSService:
 
-#     # ------------------------
-#     # POS
-#     # ------------------------
-#     @staticmethod
-#     def create_pos(db: Session, data: POSCreate) -> POS:
-#         pos_business_name = db.query(POS).filter(POS.pos_business_name == data.pos_business_name).first()
-#         if pos_business_name:
-#             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="POS names must be unique !")
-#         pos = POS(**data.model_dump())
-#         db.add(pos)
-#         db.commit()
-#         db.refresh(pos)
-
-#         logger.info("POS created", extra={"pos_id": pos.id})
-#         return pos
-
-#     @staticmethod
-#     def update_pos(db: Session, pos_id: int, data: POSUpdate) -> POS:
-#         pos = db.query(POS).filter(POS.id == pos_id).first()
-#         if not pos:
-#             raise HTTPException(status.HTTP_404_NOT_FOUND, "POS not found")
-
-#         for field, value in data.model_dump(exclude_unset=True).items():
-#             setattr(pos, field, value)
-
-#         db.commit()
-#         db.refresh(pos)
-
-#         logger.info("POS updated", extra={"pos_id": pos.id})
-#         return pos
-
-#     @staticmethod
-#     def get_pos(db: Session, pos_id: int) -> POS:
-#         pos = db.query(POS).filter(POS.id == pos_id).first()
-#         if not pos:
-#             raise HTTPException(status.HTTP_404_NOT_FOUND, "POS not found")
-#         return pos
-
-#     @staticmethod
-#     def list_pos(
-#         db: Session,
-#         skip: int = 0,
-#         limit: int = 20
-#     ) -> Tuple[List[POS], int]:
-#         """
-#         List POS with pagination.
-#         """
-#         query = db.query(POS)
-
-#         total = query.count()
-
-#         items = (
-#             query
-#             .order_by(POS.id.desc())
-#             .offset(skip)
-#             .limit(limit)
-#             .all()
-#         )
-
-#         return items, total    
 class POSService:
     
     # ================================
@@ -97,18 +36,20 @@ class POSService:
             # Check if phone already exists
             existing_phone = db.query(POS).filter(POS.phone == data.phone).first()
             if existing_phone:
-                raise ValidationException("Phone number already registered")
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Phone number already registered")
             
             # Validate warehouse if provided
             warehouse = None
             if data.warehouse_id:
                 warehouse = db.query(Warehouse).filter(Warehouse.id == data.warehouse_id).first()
                 if not warehouse:
-                    raise NotFoundException(f"Warehouse {data.warehouse_id} not found")
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Warehouse {data.warehouse_id} not found")
                 
                 # Check if warehouse is already assigned to another POS
-                if warehouse.pos_id:
-                    raise BusinessRuleException(f"Warehouse {data.warehouse_id} is already assigned to POS {warehouse.pos_id}")
+                if warehouse.pos is not None:
+                    raise HTTPException(
+                        status.HTTP_404_NOT_FOUND, 
+                        detail=f"Warehouse {warehouse.name} is already assigned to POS {warehouse.pos.pos_business_name}")
             
             # Create POS
             pos = POS(
@@ -119,17 +60,10 @@ class POSService:
                 status=data.status,
                 warehouse_id=data.warehouse_id,
                 created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
+                # updated_at=datetime.now(timezone.utc)
             )
             
-            db.add(pos)
-            db.flush()  # Get POS ID
-            
-            # If warehouse was provided, update its pos_id
-            if warehouse:
-                warehouse.pos_id = pos.id
-                warehouse.updated_at = datetime.now(timezone.utc)
-            
+            db.add(pos)            
             db.commit()
             db.refresh(pos)
             
@@ -141,6 +75,7 @@ class POSService:
             logger.error(f"Error creating POS: {str(e)}")
             raise
     
+
     @staticmethod
     def update_pos(db: Session, pos_id: int, data: POSUpdate) -> POS:
         """Update POS information"""
@@ -218,25 +153,29 @@ class POSService:
             logger.error(f"Error updating POS {pos_id}: {str(e)}")
             raise
     
+
     @staticmethod
     def get_pos(db: Session, pos_id: int, include_warehouse: bool = True) -> POS:
         """Get POS by ID with relationships"""
         query = db.query(POS)
         
+        # Load related data only if needed
         if include_warehouse:
             query = query.options(
                 joinedload(POS.warehouse),
                 joinedload(POS.users),
-                joinedload(POS.addresses)
+                joinedload(POS.addresses),
+                joinedload(POS.procurements)  # Load procurements for stats
             )
         
         pos = query.filter(POS.id == pos_id).first()
         
         if not pos:
-            raise NotFoundException(f"POS {pos_id} not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"POS {pos_id} not found")
         
-        return pos
+        return pos    
     
+
     @staticmethod
     def list_pos(
         db: Session,
@@ -277,6 +216,7 @@ class POSService:
         
         return pos_list, total
     
+    
     @staticmethod
     def assign_warehouse(db: Session, pos_id: int, warehouse_id: int) -> POS:
         """Assign a warehouse to a POS"""
@@ -312,6 +252,7 @@ class POSService:
         logger.info(f"Warehouse {warehouse_id} assigned to POS {pos_id}")
         return pos
     
+
     @staticmethod
     def unassign_warehouse(db: Session, pos_id: int) -> POS:
         """Remove warehouse assignment from POS"""
@@ -338,41 +279,38 @@ class POSService:
     @staticmethod
     def get_pos_stats(db: Session, pos_id: int) -> Dict[str, Any]:
         """Get comprehensive statistics for a POS"""
-        pos = POSService.get_pos(db, pos_id, include_warehouse=False)
-        
-        # Import here to avoid circular imports
+        pos = POSService.get_pos(db, pos_id, include_warehouse=True)
+
         from src.services.pos_sales import SaleService
         from src.services.pos_expenses import ExpenseService
-        # from src.services.inventory import InventoryService
-        from src.services.procurement_service import ProcurementService
-        
+        from src.services.inventory import InventoryService
+        from src.models.procurement import ProcurementStatus, Procurement
+        from src.models.pos import POSUser
+
+
         try:
-            # Get sales summary
+            # Sales summary
             sales_summary = SaleService.get_sales_summary(db, pos_id=pos_id)
-            
-            # Get expenses summary
+
+            # Expenses summary
             expenses_summary = ExpenseService.get_expenses_summary(db, pos_id=pos_id)
-            
-            # Get low stock items if warehouse exists
+
+            # Low stock items
             low_stock_count = 0
             if pos.warehouse_id:
-                low_stock_items = InventoryService.get_low_stock_items(db, pos.warehouse_id)
+                low_stock_items = InventoryService.get_low_stock_items(db, warehouse_id=pos.warehouse_id)
+                print(pos.pos_business_name)
                 low_stock_count = len(low_stock_items)
-            
-            # Get pending procurements
-            from src.models.procurement import ProcurementStatus
-            pending_procurements = db.query(POS).filter(
-                POS.id == pos_id
-            ).join(POS.procurements).filter(
+
+            # Pending procurements
+            pending_procurements = db.query(Procurement).filter(
+                Procurement.pos_id == pos_id,
                 Procurement.status == ProcurementStatus.PENDING
             ).count()
-            
-            # Get active users count
-            active_users = db.query(POSUser).filter(
-                POSUser.pos_id == pos_id,
-                POSUser.is_active == True
-            ).count()
-            
+
+            # Active users
+            active_users = sum(1 for u in pos.users if u.is_active)
+
             return {
                 "pos_id": pos_id,
                 "pos_name": pos.pos_business_name,
@@ -387,10 +325,10 @@ class POSService:
                 "status": pos.status.value,
                 "last_updated": pos.updated_at
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting POS stats for {pos_id}: {str(e)}")
-            # Return basic stats even if some services fail
+            # Return minimal info if any service fails
             return {
                 "pos_id": pos_id,
                 "pos_name": pos.pos_business_name,

@@ -368,53 +368,62 @@ class ExpenseService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None
     ) -> Dict[str, Any]:
-        """Get expenses summary statistics"""
-        query = db.query(POSExpense)
-        
+        from sqlalchemy import func, desc
+        from src.models.pos import POSExpense
+
+        base_query = db.query(POSExpense)
+
         if pos_id:
-            query = query.filter(POSExpense.pos_id == pos_id)
-        
+            base_query = base_query.filter(POSExpense.pos_id == pos_id)
+
         if start_date:
-            query = query.filter(POSExpense.expense_date >= start_date)
-        
+            base_query = base_query.filter(POSExpense.expense_date >= start_date)
+
         if end_date:
-            query = query.filter(POSExpense.expense_date <= end_date)
-        
+            base_query = base_query.filter(POSExpense.expense_date <= end_date)
+
         # Total expenses count
-        total_expenses = query.count()
-        
-        # Total amount by status
-        total_by_status = db.session.execute(
+        total_expenses = base_query.count()
+
+        # Totals by status
+        by_status = (
             db.query(
                 POSExpense.status,
-                func.count(POSExpense.id).label('count'),
-                func.sum(POSExpense.amount).label('total')
-            ).filter(
-                POSExpense.pos_id == pos_id if pos_id else True,
-                POSExpense.expense_date >= start_date if start_date else True,
-                POSExpense.expense_date <= end_date if end_date else True
-            ).group_by(POSExpense.status)
-        ).all()
-        
-        # Total amount by category
-        total_by_category = db.session.execute(
+                func.count(POSExpense.id),
+                func.coalesce(func.sum(POSExpense.amount), 0)
+            )
+            .filter(POSExpense.pos_id == pos_id if pos_id else True)
+            .filter(POSExpense.expense_date >= start_date if start_date else True)
+            .filter(POSExpense.expense_date <= end_date if end_date else True)
+            .group_by(POSExpense.status)
+            .all()
+        )
+
+        # Totals by category
+        by_category = (
             db.query(
                 POSExpense.category,
-                func.count(POSExpense.id).label('count'),
-                func.sum(POSExpense.amount).label('total')
-            ).filter(
-                POSExpense.pos_id == pos_id if pos_id else True,
-                POSExpense.expense_date >= start_date if start_date else True,
-                POSExpense.expense_date <= end_date if end_date else True
-            ).group_by(POSExpense.category)
-        ).all()
-        
+                func.count(POSExpense.id),
+                func.coalesce(func.sum(POSExpense.amount), 0)
+            )
+            .filter(POSExpense.pos_id == pos_id if pos_id else True)
+            .filter(POSExpense.expense_date >= start_date if start_date else True)
+            .filter(POSExpense.expense_date <= end_date if end_date else True)
+            .group_by(POSExpense.category)
+            .all()
+        )
+
         # Recent expenses
-        recent_expenses = query.order_by(desc(POSExpense.expense_date)).limit(5).all()
-        
-        # Calculate totals
-        total_amount = sum(row.total or Decimal('0') for row in total_by_status)
-        
+        recent_expenses = (
+            base_query
+            .order_by(desc(POSExpense.expense_date))
+            .limit(5)
+            .all()
+        )
+
+        # Total amount
+        total_amount = sum(total for _, _, total in by_status)
+
         return {
             "total_expenses": total_expenses,
             "total_amount": float(total_amount),
@@ -422,16 +431,18 @@ class ExpenseService:
                 {
                     "status": status.value,
                     "count": count,
-                    "total": float(total or Decimal('0'))
-                } for status, count, total in total_by_status
+                    "total": float(total)
+                }
+                for status, count, total in by_status
             ],
             "by_category": [
                 {
                     "category": category.value,
                     "count": count,
-                    "total": float(total or Decimal('0')),
-                    "percentage": float((total or Decimal('0')) / total_amount * 100) if total_amount > 0 else 0
-                } for category, count, total in total_by_category
+                    "total": float(total),
+                    "percentage": float((total / total_amount) * 100) if total_amount > 0 else 0
+                }
+                for category, count, total in by_category
             ],
             "recent_expenses": [
                 {
@@ -441,7 +452,8 @@ class ExpenseService:
                     "amount": float(expense.amount),
                     "category": expense.category.value,
                     "status": expense.status.value
-                } for expense in recent_expenses
+                }
+                for expense in recent_expenses
             ]
         }
     

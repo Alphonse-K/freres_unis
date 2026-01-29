@@ -134,54 +134,54 @@ def update_warehouse(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@inventory_router.post("/warehouses/{warehouse_id}/assign-to-pos/{pos_id}",
-    response_model=WarehouseOut,
-    summary="Assign warehouse to POS",
-    description="Assign a warehouse to a POS location"
-)
-def assign_warehouse_to_pos(
-    warehouse_id: int = Path(..., description="Warehouse ID", gt=0),
-    pos_id: int = Path(..., description="POS ID", gt=0),
-    current_account: dict = Depends(get_current_account),
-    db: Session = Depends(get_db)
-):
-    """
-    Assign warehouse to a POS.
+# @inventory_router.post("/warehouses/{warehouse_id}/assign-to-pos/{pos_id}",
+#     response_model=WarehouseOut,
+#     summary="Assign warehouse to POS",
+#     description="Assign a warehouse to a POS location"
+# )
+# def assign_warehouse_to_pos(
+#     warehouse_id: int = Path(..., description="Warehouse ID", gt=0),
+#     pos_id: int = Path(..., description="POS ID", gt=0),
+#     current_account: dict = Depends(get_current_account),
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Assign warehouse to a POS.
     
-    - **warehouse_id**: ID of warehouse to assign
-    - **pos_id**: ID of POS to assign to
-    """
-    try:
-        return InventoryService.assign_warehouse_to_pos(db, warehouse_id, pos_id)
-    except NotFoundException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except BusinessRuleException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+#     - **warehouse_id**: ID of warehouse to assign
+#     - **pos_id**: ID of POS to assign to
+#     """
+#     try:
+#         return InventoryService.assign_warehouse_to_pos(db, warehouse_id, pos_id)
+#     except NotFoundException as e:
+#         raise HTTPException(status_code=e.status_code, detail=e.message)
+#     except BusinessRuleException as e:
+#         raise HTTPException(status_code=e.status_code, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@inventory_router.post("/warehouses/{warehouse_id}/unassign-from-pos",
-    response_model=WarehouseOut,
-    summary="Unassign warehouse from POS",
-    description="Remove warehouse assignment from POS"
-)
-def unassign_warehouse_from_pos(
-    warehouse_id: int = Path(..., description="Warehouse ID", gt=0),
-    current_account: dict = Depends(get_current_account),
-    db: Session = Depends(get_db)
-):
-    """
-    Unassign warehouse from POS.
+# @inventory_router.post("/warehouses/{warehouse_id}/unassign-from-pos",
+#     response_model=WarehouseOut,
+#     summary="Unassign warehouse from POS",
+#     description="Remove warehouse assignment from POS"
+# )
+# def unassign_warehouse_from_pos(
+#     warehouse_id: int = Path(..., description="Warehouse ID", gt=0),
+#     current_account: dict = Depends(get_current_account),
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Unassign warehouse from POS.
     
-    - **warehouse_id**: ID of warehouse to unassign
-    """
-    try:
-        return InventoryService.unassign_warehouse_from_pos(db, warehouse_id)
-    except NotFoundException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+#     - **warehouse_id**: ID of warehouse to unassign
+#     """
+#     try:
+#         return InventoryService.unassign_warehouse_from_pos(db, warehouse_id)
+#     except NotFoundException as e:
+#         raise HTTPException(status_code=e.status_code, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ================================
