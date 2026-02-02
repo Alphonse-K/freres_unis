@@ -34,6 +34,7 @@ class Category(Base):
     def __repr__(self):
         return f"<Category {self.name}>"
 
+    
 # ---------------- PRODUCT ----------------
 
 class Product(Base):
@@ -89,6 +90,8 @@ class ProductVariant(Base):
 
     purchase_price = Column(Numeric(12, 2), nullable=False)
     sale_price = Column(Numeric(12, 2), nullable=False)
+
+    image_url = Column(String(255), nullable=True)
 
     product = relationship("Product", back_populates="variants")
 

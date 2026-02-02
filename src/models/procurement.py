@@ -15,11 +15,10 @@ class ProcurementStatus(str, enum.Enum):
 class Procurement(Base):
     __tablename__ = "procurements"    
     id = Column(Integer, primary_key=True)    
-    reference = Column(String(50), nullable=False, unique=True)  # This is your PO number!
+    reference = Column(String(50), nullable=False, unique=True)
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
-    # purchase_invoice_id = Column(Integer, ForeignKey("purchase_invoices.id"), nullable=True)    
     po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
     expected_delivery_date = Column(DateTime(timezone=True), nullable=True)    
     total_amount = Column(Numeric(12, 2), nullable=False)    
@@ -27,7 +26,7 @@ class Procurement(Base):
         PgEnum(ProcurementStatus),
         default=ProcurementStatus.PENDING,
         nullable=False
-    )    
+    )
     # Delivery tracking (added fields)
     delivery_date = Column(DateTime(timezone=True), nullable=True)
     received_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=True)

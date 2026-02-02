@@ -18,6 +18,10 @@ class CategoryCreate(CategoryBase):
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
 
+class CategoryLight(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
 
 class CategoryOut(CategoryBase):
     id: int
@@ -28,13 +32,19 @@ class CategoryOut(CategoryBase):
 # -------------------------------
 # PRODUCT SCHEMAS
 # -------------------------------
+class ProductLight(BaseModel):
+    id: int
+    name: str
+    image_url: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+    
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
     category_id: int
     brand: Optional[str] = None
     is_active: Optional[bool] = True
     type: Optional[str] = "unique"
-    image_url: Optional[str] = None
 
     tax_id: Optional[int] = None
     tax_inclusion: Optional[str] = "exclusive"
@@ -55,7 +65,6 @@ class ProductUpdate(BaseModel):
     brand: Optional[str] = None
     is_active: Optional[bool] = None
     type: Optional[str] = None
-    image_url: Optional[str] = None
     tax_id: Optional[int] = None
     tax_inclusion: Optional[str] = None
     custom_field1: Optional[str] = None
@@ -66,10 +75,10 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(ProductBase):
     id: int
-    category: Optional[CategoryOut] = None
-    variants: List["ProductVariantOut"] = []
+    category: Optional[CategoryLight] = None
+    image_url: Optional[str] = None
+    variants: List["ProductVariantLight"] = []
     model_config = ConfigDict(from_attributes=True)
-
 
 # -------------------------------
 # PRODUCT VARIANT SCHEMAS
@@ -94,7 +103,8 @@ class ProductVariantUpdate(BaseModel):
 
 class ProductVariantOut(ProductVariantBase):
     id: int
-    product: Optional[ProductOut] = None
+    product: Optional[ProductLight] = None
+    image_url: Optional[str] = None
     # computed properties
     price_ht: Optional[Decimal] = None
     price_ttc: Optional[Decimal] = None
@@ -103,6 +113,11 @@ class ProductVariantOut(ProductVariantBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ProductVariantLight(BaseModel):
+    id: int
+    sku: str
+    image_url: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 # -------------------------------
 # Pydantic v2: rebuild forward references
