@@ -453,7 +453,6 @@ def request_password_reset(
         
     return response
 
-
 @auth_router.post("/password-reset/verify")
 def verify_password_reset(
     email: Optional[str] = Body(None),

@@ -201,11 +201,17 @@ class POSExpenseOut(POSExpenseBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class POSMini(POSBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
 class POSUserSchema(BaseModel):
     id: int
     email: Optional[EmailStr] = None
     username: str
     role: Optional[str] = None
+    pos: Optional[POSMini] = None
     model_config = ConfigDict(from_attributes=True)
 
 
