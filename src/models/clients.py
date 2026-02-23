@@ -1,5 +1,6 @@
 # src/models/client.py
 from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as PgEnum, Text, Time
+from src.models.rbac_assiciation import client_roles
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -70,11 +71,6 @@ class Client(Base):
     phone = Column(String(40), unique=True, nullable=False)
     email = Column(String(255))
     status = Column(PgEnum(ClientStatus), default=ClientStatus.INACTIVE)
-    role = Column(
-        PgEnum(ClientRole, name="client_role_enum", create_constraint=True),
-        nullable=False,
-        default=ClientRole.CLIENT   
-    )
     opening_balance = Column(Numeric(14, 2), default=0)
     anticipated_balance = Column(Numeric(14, 2), default=0)
     current_balance = Column(Numeric(14, 2), default=0)
@@ -107,6 +103,12 @@ class Client(Base):
         uselist=False,
         back_populates="client"
     )
+    roles = relationship(
+        "Role",
+        secondary=client_roles,
+        back_populates="clients"
+    )
+
 
 
 class ClientApproval(Base):

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from src.schemas.users import UserCreate, UserOut, UserUpdate, LogoutResponse, PaginatedResponse, PaginationParams, UserFilter
 from src.services.user_service import UserService
 from src.core.database import get_db
-from src.core.auth_dependencies import require_role
+from src.core.auth_dependencies import require_role, require_permission
+from src.core.permissions import Permissions
 from src.models.users import UserRole
 
 user_router = APIRouter(prefix="/users", tags=["System User"])
@@ -21,7 +22,10 @@ def create_user(
 ):
     return UserService.create_user(db, user_data)
 
-@user_router.patch("/update/{user_id}", response_model=UserOut, dependencies=[Depends(require_role(["ADMIN"]))]
+@user_router.patch(
+    "/update/{user_id}", 
+    response_model=UserOut, 
+    dependencies=[Depends(require_permission(Permissions.UPDATE_USER))]
 )
 def update_user(
     user_id: int,
@@ -30,7 +34,10 @@ def update_user(
 ):
     return UserService.update_user(db, user_id, user_data)
 
-@user_router.delete("/users/{user_id}", response_model=LogoutResponse, dependencies=[Depends(require_role(["ADMIN"]))]
+@user_router.delete(
+    "/users/{user_id}", 
+    response_model=LogoutResponse, 
+    dependencies=[Depends(Permissions.DELETE_USER)]
 )
 def delete_user(
     user_id: int,
@@ -42,7 +49,7 @@ def delete_user(
 @user_router.get(
     "/list-users",
     response_model=PaginatedResponse[UserOut],
-    dependencies=[Depends(require_role(["ADMIN, CHECKER"]))]
+    dependencies=[Depends(Permissions.READ_USER)]
 )
 def list_users(
     filters: UserFilter = Depends(),

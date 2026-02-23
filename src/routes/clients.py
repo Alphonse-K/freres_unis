@@ -27,7 +27,8 @@ from src.services.client_approval_service import ClientApprovalService
 from src.services.client_invoice_service import ClientInvoiceService
 from src.services.client_payment_service import ClientPaymentService
 from src.core.security import SecurityUtils
-from src.core.auth_dependencies import require_role, get_current_user, get_current_account
+from src.core.auth_dependencies import require_role, require_permission
+from src.core.permissions import Permissions
 
 client_router = APIRouter(
     prefix="/clients",
@@ -90,9 +91,8 @@ def submit_client_approval(
 @client_router.get(
     "/approvals",
     response_model=list[ClientApprovalResponse],
-    dependencies=[Depends(require_role(["ADMIN", "COMPLIANCE"]))],
 )
-def list_client_approvals(db: Session = Depends(get_db)):
+def list_client_approvals(db: Session = Depends(get_db), current_user = Depends(require_permission(Permissions.READ_CLIENT))):
     return db.query(ClientApproval).order_by(
         ClientApproval.submitted_at.desc()
     ).all()
@@ -103,30 +103,27 @@ def list_client_approvals(db: Session = Depends(get_db)):
 @client_router.patch(
     "/approvals/{approval_id}",
     response_model=ClientApprovalResponse,
-    dependencies=[Depends(require_role([UserRole.ADMIN, UserRole.RH]))],
     status_code=status.HTTP_200_OK,
 )
 def review_client_approval(
     approval_id: int,
     review: ClientApprovalUpdate,
     db: Session = Depends(get_db),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.APPROVE_CLIENT)),
 ):
     """
     Review a client approval (approve / reject).
     Only system users (admin or RH) can do this.
     """
-
     account_type = current_account["account_type"]
     account = current_account["account"]
-
     # Only 'user' accounts can review approvals
     if account_type != "user":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only system users can review client approvals"
         )
-
+    
     return ClientApprovalService.review(
         db=db,
         approval_id=approval_id,
@@ -137,10 +134,10 @@ def review_client_approval(
 @client_router.get(
     "/{client_id}",
     response_model=ClientResponse,
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "RH", "MAKER"]))]
 )
 def get_client(
     client_id: int,
+    currrent_user = Depends(require_permission(Permissions.READ_CLIENT)),
     db: Session = Depends(get_db),
 ):
     return ClientService.get(db, client_id)
@@ -149,10 +146,10 @@ def get_client(
 @client_router.get(
     "",
     response_model=PaginatedResponse[ClientResponse],
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "RH", "MAKER"]))]
 )
 def list_clients(
     pagination: PaginationParams = Depends(),
+    current_user = require_permission(Permissions.READ_CLIENT),
     db: Session = Depends(get_db),
 ):
     total, items = ClientService.list(db, pagination)
@@ -166,13 +163,12 @@ def list_clients(
 @client_router.patch(
     "/{client_id}",
     response_model=ClientResponse,
-    dependencies=[Depends(require_role(["ADMIN", "RH"]))]
 )
 def update_client(
     client_id: int,
     data: ClientUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_permission(Permissions.UPDATE_CLIENT)),
 ):
     return ClientService.update(
         db=db,
@@ -184,13 +180,12 @@ def update_client(
 @client_router.patch(
     "/{client_id}/status",
     response_model=ClientResponse,
-    dependencies=[Depends(require_role(["ADMIN", "RH"]))]
 )
 def change_client_status(
     client_id: int,
     status,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_permission(Permissions.UPDATE_CLIENT)),
 ):
     return ClientService.change_status(
         db=db,
@@ -235,23 +230,23 @@ def activate_client(
     "/{client_id}/invoices",
     response_model=ClientInvoiceResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["ADMIN", "FINANCE"]))]
 )
 def create_client_invoice(
     client_id: int,
     data: ClientInvoiceCreate,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CREATE_PURCHASE_INVOICE))
 ):
     return ClientInvoiceService.create(db, data)
 
 @client_router.get(
     "/{client_id}/invoices",
     response_model=list[ClientInvoiceResponse],
-    dependencies=[Depends(require_role(["ADMIN", "FINANCE", "RH"]))]
 )
 def list_client_invoices(
     client_id: int,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_PURCHASE_INVOICE))
 ):
     return ClientInvoiceService.list_by_client(db, client_id)
 
@@ -259,23 +254,23 @@ def list_client_invoices(
     "/{client_id}/payments",
     response_model=ClientPaymentResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["ADMIN", "FINANCE", "CASHIER"]))]
 )
 def create_client_payment(
     client_id: int,
     data: ClientPaymentCreate,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CREATE_CLIENT_PAYMENT))
 ):
     return ClientPaymentService.create(db, data)
 
 @client_router.get(
     "/{client_id}/payments",
     response_model=list[ClientPaymentResponse],
-    dependencies=[Depends(require_role(["ADMIN", "FINANCE", "SUPPORT"]))]
 )
 def list_client_payments(
     client_id: int,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_CLIENT_PAYMENT))
 ):
     return (
         db.query(ClientPayment)
@@ -291,6 +286,7 @@ def list_client_payments(
 def create_client_return(
     payload: ClientReturnCreate,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CREATE_CLIENT_RETURN))
 ):
     return ClientReturnService.create_return(db, payload)
 
@@ -298,13 +294,13 @@ def create_client_return(
 @client_router.get(
     "/client-returns",
     response_model=PaginatedResponse[ClientReturnResponse],
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "MANAGER"]))],
 )
 def list_client_returns(
     filters: ClientReturnFilter = Depends(),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, le=100),
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_CLIENT_RETURN))
 ):
     offset = (page - 1) * page_size
     total, items = ClientReturnService.list_returns(
@@ -321,11 +317,11 @@ def list_client_returns(
 @client_router.get(
     "/client-returns/{return_id}/client-returns",
     response_model=ClientReturnResponse,
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER", "MANAGER"]))],
 )
 def get_client_return(
     return_id: int,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_CLIENT_RETURN))
 ):
     return ClientReturnService.get_return(db, return_id)
 
@@ -337,7 +333,7 @@ def get_client_return(
 def approve_client_return(
     return_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user = Depends(require_permission(Permissions.APPROVE_CLIENT_RETURN))
 ):
     return ClientReturnService.approve_return(
         db=db,
@@ -354,7 +350,7 @@ def reject_client_return(
     return_id: int,
     reason: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user = Depends(require_permission(Permissions.REJECT_CLIENT_RETURN))
 ):
     return ClientReturnService.reject_return(
         db, return_id, current_user.id, reason

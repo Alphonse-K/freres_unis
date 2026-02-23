@@ -6,7 +6,8 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account
+from src.core.auth_dependencies import get_current_account, require_permission
+from src.core.permissions import Permissions
 from src.models.pos import SaleStatus, PaymentMethod
 from src.schemas.pos import (
     SaleCreate, SaleUpdate, SaleOut, SaleItemOut,
@@ -30,7 +31,7 @@ sales_router = APIRouter(prefix="/sales", tags=["POS Sales"])
 )
 def create_sale(
     data: SaleCreate,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -63,7 +64,7 @@ def create_sale(
 )
 def get_sale(
     sale_id: int = Path(..., description="Sale ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -87,7 +88,7 @@ def get_sale(
 def update_sale(
     sale_id: int = Path(..., description="Sale ID", gt=0),
     data: SaleUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.UPDATE_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -115,7 +116,7 @@ def update_sale(
 def cancel_sale(
     sale_id: int = Path(..., description="Sale ID", gt=0),
     reason: Optional[str] = Query(None, description="Reason for cancellation"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CANCEL_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -149,7 +150,7 @@ def list_sales(
     payment_mode: Optional[PaymentMethod] = Query(None, description="Filter by payment method"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -188,7 +189,7 @@ def list_sale_returns(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     start_date: Optional[date] = Query(None, description="Filter by start date"),
     end_date: Optional[date] = Query(None, description="Filter by end date"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -218,7 +219,7 @@ def get_sales_summary(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     start_date: Optional[date] = Query(None, description="Start date for summary"),
     end_date: Optional[date] = Query(None, description="End date for summary"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_SALES_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -242,7 +243,7 @@ def get_sales_summary(
 def get_daily_sales_report(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     date: Optional[date] = Query(None, description="Report date (default: today)"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_SALES_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -265,7 +266,7 @@ def get_daily_sales_report(
 def get_sales_trend(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     days: int = Query(30, ge=1, le=365, description="Number of days for trend"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_SALES_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -290,7 +291,7 @@ def get_top_products_report(
     start_date: Optional[date] = Query(None, description="Start date for report"),
     end_date: Optional[date] = Query(None, description="End date for report"),
     limit: int = Query(10, ge=1, le=50, description="Number of top products"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_SALES_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -315,7 +316,7 @@ def get_top_products_report(
 def get_recent_sales_by_pos(
     pos_id: int = Path(..., description="POS ID", gt=0),
     limit: int = Query(10, ge=1, le=50, description="Number of recent sales"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_SALES_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -342,7 +343,7 @@ def get_customer_sales_history(
     customer_id: int = Path(..., description="Customer ID", gt=0),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_SALES_REPORT)),
     db: Session = Depends(get_db)
 ):
     """

@@ -6,9 +6,10 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account
+from src.core.auth_dependencies import get_current_account, require_permission
 from src.models.users import User
 from src.models.providers import PurchaseInvoiceStatus, PaymentMethod
+from src.core.permissions import Permissions
 from starlette.responses import JSONResponse
 from src.schemas.providers import (
     # Provider
@@ -38,7 +39,7 @@ provider_router = APIRouter(prefix="/providers", tags=["providers"])
 )
 def create_provider(
     data: ProviderCreate,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_PROVIDER)),
     db: Session = Depends(get_db)
 ):
     """
@@ -65,7 +66,7 @@ def list_providers(
     country_id: Optional[int] = Query(None, description="Filter by country"),
     limit: int = Query(100, ge=1, le=200, description="Number of results per page"),
     offset: int = Query(0, ge=0, description="Page offset for pagination"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PROVIDER)),
     db: Session = Depends(get_db)
 ):
     """
@@ -94,7 +95,7 @@ def list_providers(
 )
 def get_provider(
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PROVIDER)),
     db: Session = Depends(get_db)
 ):
     """
@@ -122,7 +123,7 @@ def get_provider(
 def update_provider(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     data: ProviderUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.UPDATE_PROVIDER)),
     db: Session = Depends(get_db)
 ):
     """
@@ -141,7 +142,7 @@ def update_provider(
 )
 def delete_provider(
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.DELETE_PROVIDER)),
     db: Session = Depends(get_db)
 ):
     """
@@ -152,7 +153,6 @@ def delete_provider(
     - Note: Cannot deactivate providers with outstanding unpaid invoices
     """
     success = ProviderService.delete_provider(db, provider_id)
-    
     if success:
         return {"message": "Provider deactivated successfully"}
     
@@ -173,9 +173,9 @@ def delete_provider(
     description="Add a new address to an existing provider."
 )
 def add_provider_address(
+    address_data: AddressCreate,
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    address_data: AddressCreate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.MANAGE_ADDRESS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -195,7 +195,7 @@ def add_provider_address(
 )
 def get_provider_addresses(
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_ADDRESS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -214,7 +214,7 @@ def get_provider_addresses(
 )
 def get_provider_default_address(
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_ADDRESS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -243,7 +243,7 @@ def update_provider_address(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     address_id: int = Path(..., description="Address ID", gt=0),
     address_data: AddressUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.MANAGE_ADDRESS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -258,7 +258,6 @@ def update_provider_address(
         db, provider_id, address_id, address_data
     )
 
-
 @provider_router.delete("/{provider_id}/addresses/{address_id}", 
     summary="Delete provider address",
     description="Remove an address from a provider."
@@ -266,7 +265,7 @@ def update_provider_address(
 def delete_provider_address(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     address_id: int = Path(..., description="Address ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.MANAGE_ADDRESS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -297,7 +296,7 @@ def delete_provider_address(
 )
 def get_provider_balance(
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PROVIDER_BALANCE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -317,7 +316,7 @@ def get_provider_balance_history(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     start_date: Optional[date] = Query(None, description="Start date for history"),
     end_date: Optional[date] = Query(None, description="End date for history"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PROVIDER_BALANCE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -346,7 +345,7 @@ def get_provider_balance_history(
 def create_purchase_invoice(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     data: PurchaseInvoiceCreate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PURCHASE_INVOICE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -377,7 +376,7 @@ def list_provider_invoices(
     overdue_only: bool = Query(False, description="Show only overdue invoices"),
     limit: int = Query(100, ge=1, le=200, description="Number of results per page"),
     offset: int = Query(0, ge=0, description="Page offset for pagination"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PURCHASE_INVOICE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -415,7 +414,7 @@ def list_provider_invoices(
 )
 def get_purchase_invoice(
     invoice_id: int = Path(..., description="Invoice ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PURCHASE_INVOICE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -441,9 +440,9 @@ def get_purchase_invoice(
     description="Update invoice details, mainly payment status and amounts."
 )
 def update_purchase_invoice(
+    data: PurchaseInvoiceUpdate,
     invoice_id: int = Path(..., description="Invoice ID", gt=0),
-    data: PurchaseInvoiceUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.UPDATE_PURCHASE_INVOICE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -465,7 +464,7 @@ def update_purchase_invoice(
 def cancel_purchase_invoice(
     invoice_id: int = Path(..., description="Invoice ID", gt=0),
     reason: Optional[str] = Query(None, description="Reason for cancellation"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_PURCHASE_INVOICE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -490,9 +489,9 @@ def cancel_purchase_invoice(
     description="Record a payment to a provider. Can be linked to an invoice or general payment."
 )
 def create_payment(
+    data: ProviderPaymentCreate,
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    data: ProviderPaymentCreate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_PROVIDER_PAYMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -523,7 +522,7 @@ def get_provider_payments(
     end_date: Optional[date] = Query(None, description="End date for payments"),
     limit: int = Query(100, ge=1, le=200, description="Number of results per page"),
     offset: int = Query(0, ge=0, description="Page offset for pagination"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PROVIDER_PAYMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -544,7 +543,6 @@ def get_provider_payments(
         offset=offset
     )
 
-
 @provider_router.get("/payments/{payment_id}", 
     response_model=ProviderPaymentResponse,
     summary="Get payment details",
@@ -552,7 +550,7 @@ def get_provider_payments(
 )
 def get_payment(
     payment_id: int = Path(..., description="Payment ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PROVIDER_PAYMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -588,7 +586,7 @@ def create_purchase_return(
     return_date: date = Query(..., description="Date of return"),
     amount: Decimal = Query(..., gt=0, description="Return amount"),
     reason: str = Query(..., min_length=2, max_length=255, description="Reason for return"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.RETURN_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -606,7 +604,6 @@ def create_purchase_return(
         db, provider_id, invoice_id, return_date, amount, reason
     )
 
-
 @provider_router.get("/{provider_id}/returns", 
     response_model=List[PurchaseReturnResponse],
     summary="List purchase returns",
@@ -616,7 +613,7 @@ def get_provider_returns(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     start_date: Optional[date] = Query(None, description="Start date for returns"),
     end_date: Optional[date] = Query(None, description="End date for returns"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.RETURN_PROVIDER)),
     db: Session = Depends(get_db)
 ):
     """
@@ -642,7 +639,7 @@ def get_provider_returns(
 )
 def get_provider_summary(
     provider_id: int = Path(..., description="Provider ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_PROVIDER_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -660,7 +657,7 @@ def get_provider_summary(
 )
 def get_overdue_invoices(
     days_overdue: int = Query(30, ge=0, description="Minimum days overdue"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_PURCHASE_INVOICE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -680,7 +677,7 @@ def get_top_providers_by_purchases(
     start_date: Optional[date] = Query(None, description="Start date for analysis"),
     end_date: Optional[date] = Query(None, description="End date for analysis"),
     limit: int = Query(10, ge=1, le=50, description="Number of top providers to return"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_PROVIDER_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -704,7 +701,7 @@ def get_provider_performance_metrics(
     provider_id: int = Path(..., description="Provider ID", gt=0),
     start_date: Optional[date] = Query(None, description="Start date for metrics"),
     end_date: Optional[date] = Query(None, description="End date for metrics"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_PROVIDER_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -719,13 +716,12 @@ def get_provider_performance_metrics(
         db, provider_id, start_date, end_date
     )
 
-
 @provider_router.get("/reports/aging-analysis", 
     summary="Get aging analysis report",
     description="Get accounts payable aging analysis for all providers."
 )
 def get_aging_analysis(
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_PROVIDER_REPORT)),
     db: Session = Depends(get_db)
 ):
     """

@@ -5,17 +5,10 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from src.core.database import Base
+from src.models.rbac_assiciation import user_roles
+
 import enum
 
-
-# class UserRole(str, enum.Enum):
-#     ADMIN = "admin"
-#     CHECKER = "checker"
-#     MAKER = "maker"
-#     USER = "user"
-#     PARTNERD = "partner"
-#     RH = "rh"
-#     FINANCE = "finance"
 class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
     CHECKER = "CHECKER"
@@ -45,12 +38,6 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     last_login_ip = Column(String, nullable=True)
     last_login_user_agent = Column(String, nullable=True)
-    role = Column(
-        SAEnum(UserRole, name="user_role_enum", create_constraint=True),
-        nullable=False,
-        default=UserRole.USER   
-    )
-
     status = Column(
         SAEnum(UserStatus, name="user_status_enum", create_constraint=True),
         nullable=False,
@@ -74,11 +61,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    # employee = relationship("Employee")
-    # otp_codes = relationship("OTPCode", back_populates="user")
-    # blacklisted_tokens = relationship("JWTBlacklist", back_populates="user")
-    # refresh_tokens = relationship("RefreshToken", back_populates="user")
-
+    roles = relationship(
+        "Role",
+        secondary=user_roles,
+        back_populates="users"
+    )
 
     def __repr__(self):
         return f"<User {self.username} ({self.role})>"

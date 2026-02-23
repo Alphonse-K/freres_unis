@@ -15,4 +15,7 @@ from .procurement import *
 from .providers import *
 from .security import *
 from .taxes import *
+from .role import *
+from .rbac_assiciation import *
+from .permission import *
 # import every model file here

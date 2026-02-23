@@ -19,6 +19,7 @@ from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 # Access JWT secret and expiry
 SECRET_KEY = settings.SECRET_KEY
 REFRESH_SECRET_KEY = settings.REFRESH_SECRET_KEY
@@ -36,11 +37,9 @@ API_KEY_LENGTH = settings.API_KEY_LENGTH
 API_SECRET_LENGTH = settings.API_SECRET_LENGTH
 
 
-
 class SecurityUtils:
 
     # ---------------- Password ----------------
-    
     @staticmethod
     def hash_password(password: str) -> str:
         """
@@ -82,6 +81,7 @@ class SecurityUtils:
         if not any(c.isdigit() for c in password): return False, "Must contain a number"
         if not any(c.isupper() for c in password): return False, "Must contain uppercase"
         if not any(c.islower() for c in password): return False, "Must contain lowercase"
+
         return True, "Strong password"
 
     @staticmethod
@@ -195,38 +195,6 @@ class SecurityUtils:
     def verify_hmac_signature(secret: str, message: str, signature: str) -> bool:
         return hmac.compare_digest(SecurityUtils.generate_hmac_signature(secret, message), signature)
     
-
-#     @staticmethod
-#     def enforce_login_policies(account) -> None:
-#         now = datetime.now(timezone.utc)
-
-
-#         if account.status is not UserStatus.ACTIVE:
-#             raise HTTPException(403, "Account not active")
-
-#         if account.suspended_until:
-#             if now < account.suspended_until:
-#                 remaining = int((account.suspended_until - now).total_seconds() / 60)
-#                 raise HTTPException(
-#                     status_code=403,
-#                     detail=f"Account suspended. Try again in {remaining} minutes."
-#                 )
-#             account.suspended_until = None
-#             account.failed_attempts = 0
-
-#         if account.allowed_login_start and account.allowed_login_end:
-#             current = now.time()
-#             start = account.allowed_login_start
-#             end = account.allowed_login_end
-
-#             if start <= end:
-#                 allowed = start <= current <= end
-#             else:
-#                 allowed = current >= start or current <= end
-
-#             if not allowed:
-#                 raise HTTPException(403, "Login not allowed at this time")
-
     @staticmethod
     def enforce_login_policies(account) -> None:
         now = datetime.now(timezone.utc)
@@ -284,7 +252,6 @@ class SecurityUtils:
 
                 if not allowed:
                     raise HTTPException(403, "Login not allowed at this time")
-
 
     @staticmethod
     def update_login_metadata(

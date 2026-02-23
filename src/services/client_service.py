@@ -19,7 +19,6 @@ class ClientService:
     def list(db: Session, pagination: PaginationParams):
         query = db.query(Client)
         total = query.count()
-
         items = (
             query
             .order_by(Client.id.desc())
@@ -38,13 +37,11 @@ class ClientService:
         actor_id: int,
     ) -> Client:
         client = ClientService.get(db, client_id)
-
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(client, field, value)
 
         db.commit()
         db.refresh(client)
-
         audit_log("UPDATE", "Client", client.id, actor_id)
         return client
 

@@ -6,7 +6,8 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account
+from src.core.auth_dependencies import get_current_account, require_permission
+from src.core.permissions import Permissions
 # from src.models.dicts import dict
 from src.schemas.inventory import (
     WarehouseCreate, WarehouseUpdate, WarehouseOut,
@@ -34,7 +35,7 @@ inventory_router = APIRouter(prefix="/inventory", tags=["POS Inventory"])
 )
 def create_warehouse(
     data: WarehouseCreate,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_WAREHOUSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -63,7 +64,7 @@ def list_warehouses(
     has_pos: Optional[bool] = Query(None, description="Filter warehouses with/without POS"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_WAREHOUSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -91,7 +92,7 @@ def list_warehouses(
 )
 def get_warehouse(
     warehouse_id: int = Path(..., description="Warehouse ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_WAREHOUSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -115,7 +116,7 @@ def get_warehouse(
 def update_warehouse(
     warehouse_id: int = Path(..., description="Warehouse ID", gt=0),
     data: WarehouseUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.UPDATE_WAREHOUSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -196,7 +197,7 @@ def update_warehouse(
 )
 def create_inventory_item(
     data: InventoryCreate,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
@@ -224,7 +225,7 @@ def create_inventory_item(
 )
 def get_inventory_item(
     inventory_id: int = Path(..., description="Inventory item ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
@@ -248,7 +249,7 @@ def get_inventory_item(
 def update_inventory_item(
     inventory_id: int = Path(..., description="Inventory item ID", gt=0),
     data: InventoryUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.UPDATE_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
@@ -278,7 +279,7 @@ def get_warehouse_inventory(
     low_stock_threshold: Optional[Decimal] = Query(None, description="Show items below threshold"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(100, ge=1, le=200, description="Items per page"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
@@ -306,7 +307,7 @@ def get_warehouse_inventory(
 def get_product_variant_stock(
     product_variant_id: int = Path(..., description="Product variant ID", gt=0),
     warehouse_id: Optional[int] = Query(None, description="Filter by warehouse"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
@@ -333,7 +334,7 @@ def get_product_variant_stock(
 )
 def increase_stock(
     data: StockIncreaseRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.INCREASE_STOCK)),
     db: Session = Depends(get_db)
 ):
     """
@@ -363,7 +364,7 @@ def increase_stock(
 )
 def decrease_stock(
     data: StockDecreaseRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.DECREASE_STOCK)),
     db: Session = Depends(get_db)
 ):
     """
@@ -395,7 +396,7 @@ def decrease_stock(
 )
 def reserve_stock(
     data: StockReserveRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.RESERVE_STOCK)),
     db: Session = Depends(get_db)
 ):
     """
@@ -429,7 +430,7 @@ def reserve_stock(
 )
 def release_reserved_stock(
     data: StockReleaseRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.RELEASE_STOCK)),
     db: Session = Depends(get_db)
 ):
     """
@@ -451,37 +452,37 @@ def release_reserved_stock(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-# @inventory_router.post("/stock/transfer",
-#     summary="Transfer stock",
-#     description="Transfer stock between warehouses"
-# )
-# def transfer_stock(
-#     data: StockTransferRequest,
-#     current_account: dict = Depends(get_current_account),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Transfer stock between warehouses.
+@inventory_router.post("/stock/transfer",
+    summary="Transfer stock",
+    description="Transfer stock between warehouses"
+)
+def transfer_stock(
+    data: StockTransferRequest,
+    current_account: dict = Depends(require_permission(Permissions.TRANSFER_STOCK)),
+    db: Session = Depends(get_db)
+):
+    """
+    Transfer stock between warehouses.
     
-#     - **from_warehouse_id**: Source warehouse ID
-#     - **to_warehouse_id**: Destination warehouse ID
-#     - **product_variant_id**: Product variant ID
-#     - **quantity**: Quantity to transfer (must be positive)
-#     - **notes**: Optional notes
-#     """
-#     try:
-#         return InventoryService.transfer_stock(
-#             db, data.from_warehouse_id, data.to_warehouse_id,
-#             data.product_variant_id, data.quantity, data.notes
-#         )
-#     except NotFoundException as e:
-#         raise HTTPException(status_code=e.status_code, detail=e.message)
-#     except ValidationException as e:
-#         raise HTTPException(status_code=e.status_code, detail=e.message)
-#     except InsufficientStockException as e:
-#         raise HTTPException(status_code=e.status_code, detail=e.message)
-#     except Exception as e:
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    - **from_warehouse_id**: Source warehouse ID
+    - **to_warehouse_id**: Destination warehouse ID
+    - **product_variant_id**: Product variant ID
+    - **quantity**: Quantity to transfer (must be positive)
+    - **notes**: Optional notes
+    """
+    try:
+        return InventoryService.transfer_stock(
+            db, data.from_warehouse_id, data.to_warehouse_id,
+            data.product_variant_id, data.quantity, data.notes
+        )
+    except NotFoundException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except ValidationException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except InsufficientStockException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @inventory_router.post("/stock/check",
@@ -491,7 +492,7 @@ def release_reserved_stock(
 )
 def check_stock_availability(
     data: StockCheckRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_INVENTORY_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -521,7 +522,7 @@ def check_stock_availability(
 )
 def receive_procurement(
     data: ProcurementReceiveRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.RECEIVE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -551,7 +552,7 @@ def receive_procurement(
 )
 def process_sale_items(
     data: SaleProcessRequest,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.PROCESS_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -580,7 +581,7 @@ def finalize_sale(
     sale_id: int = Path(..., description="Sale ID", gt=0),
     pos_id: int = Query(..., description="POS ID", gt=0),
     items: List[dict] = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -607,7 +608,7 @@ def finalize_sale(
 def cancel_sale_reservations(
     pos_id: int = Query(..., description="POS ID", gt=0),
     items: List[dict] = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CANCEL_SALE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -637,7 +638,7 @@ def cancel_sale_reservations(
 )
 def get_inventory_summary(
     warehouse_id: Optional[int] = Query(None, description="Filter by warehouse"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_INVENTORY_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -659,7 +660,7 @@ def get_inventory_summary(
 def get_low_stock_items(
     warehouse_id: Optional[int] = Query(None, description="Filter by warehouse"),
     threshold: Decimal = Query(10, gt=0, description="Low stock threshold"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_INVENTORY_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -682,7 +683,7 @@ def get_low_stock_items(
 def get_stock_level_report(
     warehouse_id: Optional[int] = Query(None, description="Filter by warehouse"),
     product_id: Optional[int] = Query(None, description="Filter by product"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_INVENTORY_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -703,7 +704,7 @@ def get_stock_level_report(
 )
 def get_inventory_value_report(
     warehouse_id: Optional[int] = Query(None, description="Filter by warehouse"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_INVENTORY_REPORT)),
     db: Session = Depends(get_db)
 ):
     """

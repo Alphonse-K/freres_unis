@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from src.models.clients import ClientApproval, Client, ClientStatus, ApprovalStatus
+from src.models.role import Role
 from src.schemas.clients import (
     ClientApprovalCreate,
     ClientApprovalUpdate,
@@ -109,6 +110,11 @@ class ClientApprovalService:
             db.flush()
             approval.client_id = client.id
 
+            # Assign default role to client
+            default_role = db.query(Role).filter(Role.name=="CLIENT_BASIC").first()
+            if default_role:
+                client.roles.append(default_role)
+                
         db.commit()
-        db.refresh(approval)  # ensure all fields are up-to-date
+        db.refresh(approval)  
         return approval

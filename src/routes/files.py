@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 from typing import Literal
 import os
 from pathlib import Path as PathLib  # Rename pathlib Path to avoid conflict
+from src.core.permissions import Permissions
+from src.core.auth_dependencies import require_permission
 
 from src.core.database import get_db
 from src.models.clients import Client, ClientApproval
-from src.core.auth_dependencies import get_current_user
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -33,7 +34,7 @@ AllowedDocType = Literal["face", "badge", "id-recto", "id-verso", "magnetic-card
 async def get_client_documents(
     client_id: int = FastAPIPath(..., description="Client ID", examples=2),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(require_permission(Permissions.READ_CLIENT))
 ):
     """
     Get ALL document URLs for a client.
@@ -136,7 +137,7 @@ async def get_client_document(
         examples="face"
     ),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(require_permission(Permissions.READ_CLIENT))
 ):
     """
     Get information about a specific client document.
@@ -202,5 +203,5 @@ async def get_client_document(
     description="Simple health check endpoint for the file service",
     response_description="Service status"
 )
-async def health_check():
+async def health_check(current_user = Depends(require_permission(Permissions.READ_CLIENT))):
     return {"status": "ok", "service": "file-service"}

@@ -6,7 +6,8 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account
+from src.core.auth_dependencies import get_current_account, require_permission
+from src.core.permissions import Permissions
 from src.models.pos import POSExpenseCategory, POSExpenseStatus
 from src.schemas.pos import (
     POSExpenseCreate, POSExpenseUpdate, POSExpenseOut, POSExpenseFilter,
@@ -30,7 +31,7 @@ expenses_router = APIRouter(prefix="/expenses", tags=["POS Expenses"])
 )
 def create_expense(
     data: POSExpenseCreate,
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -62,7 +63,7 @@ def create_expense(
 )
 def get_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -85,7 +86,7 @@ def get_expense(
 )
 def get_expense_by_reference(
     reference: str = Path(..., description="Expense reference number"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -109,7 +110,7 @@ def get_expense_by_reference(
 def update_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
     data: POSExpenseUpdate = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -142,7 +143,7 @@ def update_expense(
 )
 def delete_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.DELETE_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -182,7 +183,7 @@ def list_expenses(
     approved_by_id: Optional[int] = Query(None, description="Filter by approver"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.READ_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -220,7 +221,7 @@ def list_expenses(
 def approve_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
     data: ExpenseApproveRequest = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.APPROVE_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -247,7 +248,7 @@ def approve_expense(
 def reject_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
     data: ExpenseRejectRequest = Depends(),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.REJECT_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -273,7 +274,7 @@ def reject_expense(
 )
 def mark_expense_as_paid(
     expense_id: int = Path(..., description="Expense ID", gt=0),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.PAY_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -304,7 +305,7 @@ def get_expenses_summary(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     start_date: Optional[date] = Query(None, description="Start date for summary"),
     end_date: Optional[date] = Query(None, description="End date for summary"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -328,7 +329,7 @@ def get_expenses_summary(
 def get_expenses_trend(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     days: int = Query(30, ge=1, le=365, description="Number of days for trend"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -352,7 +353,7 @@ def get_category_breakdown(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     start_date: Optional[date] = Query(None, description="Start date for breakdown"),
     end_date: Optional[date] = Query(None, description="End date for breakdown"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -377,7 +378,7 @@ def get_monthly_expense_report(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     year: Optional[int] = Query(None, description="Year for report"),
     month: Optional[int] = Query(None, description="Month for report (1-12)"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -401,7 +402,7 @@ def get_monthly_expense_report(
 def compare_with_previous_period(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     days: int = Query(30, ge=1, le=90, description="Period length in days"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -424,7 +425,7 @@ def compare_with_previous_period(
 def get_recent_expenses_by_pos(
     pos_id: int = Path(..., description="POS ID", gt=0),
     limit: int = Query(10, ge=1, le=50, description="Number of recent expenses"),
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -447,7 +448,7 @@ def get_recent_expenses_by_pos(
     description="Get list of all expense categories"
 )
 def list_expense_categories(
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -468,7 +469,7 @@ def list_expense_categories(
     description="Get list of all expense statuses"
 )
 def list_expense_statuses(
-    current_account: dict = Depends(get_current_account),
+    current_account: dict = Depends(require_permission(Permissions.VIEW_EXPENSE_REPORT)),
     db: Session = Depends(get_db)
 ):
     """

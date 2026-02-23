@@ -10,7 +10,9 @@ from src.services.audit_service import AuditService
 from src.schemas.users import PinLogin, PasswordLogin, UserOut, UserOut, UserSchema, LogoutResponse
 from src.services.auth_service import AuthService
 from src.core.security import SecurityUtils
-from src.core.auth_dependencies import get_db, get_current_user, require_role, get_current_account
+from src.core.auth_dependencies import require_role, get_current_account, require_permission
+from src.core.database import get_db
+from src.core.permissions import Permissions
 from datetime import timezone, datetime
 from typing import Optional, Dict, Any
 import logging
@@ -106,7 +108,6 @@ def login_password(
         "user": _get_user_schema(account)
     }
 
-
 @auth_router.post("/login/pin")
 def login_pin(
     data: PinLogin,
@@ -152,17 +153,13 @@ def verify_otp(
         "ip_address": ip,
         "user_agent": ua
     }
-
     AuthService.update_login_metadata(
         user,
         device_info["ip_address"],
         device_info["user_agent"],
         db
     )
-
     tokens = AuthService.create_tokens(db, user, device_info)
-
-
     return {
         **tokens,
         "user": UserSchema.model_validate(user)
@@ -179,7 +176,6 @@ def refresh_tokens(
         "ip_address": ip,
         "user_agent": ua
     }
-
     result = AuthService.refresh_tokens(db, refresh_data.refresh_token, device_info)
     if not result:
         raise HTTPException(
@@ -187,22 +183,18 @@ def refresh_tokens(
             detail="Invalid or expired refresh token"
         )
 
-    # Decode to identify account
     payload = SecurityUtils.verify_access_token(result["access_token"])
     if not payload:
         raise HTTPException(401, "Invalid token")
 
     account_type = payload["account_type"]
     account_id = int(payload["sub"])
-
     model_map = {
         "user": User,
         "pos": POSUser,
         "client": Client
     }
-
     account = db.query(model_map[account_type]).get(account_id)
-
     return {
         **result,
         "user": serialize_account(account)
@@ -242,7 +234,6 @@ def change_password(
         "message": "Password changed successfully"
     }
 
-
 @auth_router.post("/change-pin", status_code=status.HTTP_200_OK)
 def change_pin(
     payload: ChangePinRequest,
@@ -260,9 +251,7 @@ def change_pin(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="PIN change only available for POS users and clients"
         )
-    
     ip_address = request.client.host if request.client else ""
-    
     success = AuthService.change_pin(
         db=db,
         account_type=account_type,
@@ -272,7 +261,6 @@ def change_pin(
         confirm_pin=payload.confirm_pin,
         ip_address=ip_address,
     )
-    
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -290,7 +278,7 @@ def reset_client_password(
     payload: AdminResetClientPassword,
     request: Request,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_account),
+    current_admin: dict = Depends(require_permission(Permissions.CHANGE_PASSWORD)),
 ):
     """Admin resets client password (generates random or uses provided)"""
     
@@ -326,7 +314,7 @@ def set_client_pin(
     payload: AdminSetClientPin,
     request: Request,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_account),
+    current_admin: dict = Depends(require_permission(Permissions.CHANGE_PIN)),
 ):
     """Admin sets PIN for a client"""
     
@@ -355,7 +343,7 @@ def get_client_auth_logs(
     client_id: int,
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_user),
+    current_admin: dict = Depends(require_permission(Permissions.AUDIT_LOGS)),
 ):
     """Get authentication audit logs for a client"""
     
@@ -382,7 +370,7 @@ def get_client_auth_logs(
 def get_client_auth_status(
     client_id: int,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_user),
+    current_admin: dict = Depends(require_permission(Permissions.AUDIT_LOGS)),
 ):
     """Get client authentication status"""
     
@@ -497,7 +485,7 @@ def verify_password_reset(
 @auth_router.post("/api-keys", response_model=APIKeyOut)
 def create_api_key(
     create_data: APIKeyCreate,
-    current_user: User = Depends(require_role(["ADMIN"])),
+    current_user = Depends(require_permission(Permissions.MANAGE_API_KEYS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -509,7 +497,7 @@ def create_api_key(
 @auth_router.post("/logout", response_model=LogoutResponse)
 def logout(
     request: Request,
-    current_account_info: dict = Depends(get_current_account),  # CHANGED HERE
+    current_account_info: dict = Depends(get_current_account),
     db: Session = Depends(get_db)
 ):
     # Extract account object from the dict
@@ -554,7 +542,8 @@ def logout_all(
 @auth_router.get("/api-keys")
 def list_api_keys(
     company_id: int ,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.MANAGE_API_KEYS)),
 ):
     """
     List all API keys for the current company
@@ -565,7 +554,7 @@ def list_api_keys(
 @auth_router.delete("/api-keys/{key_id}")
 def revoke_api_key(
     key_id: int,
-    current_user: User = Depends(require_role(["ADMIN"])),
+    current_user = Depends(require_permission(Permissions.MANAGE_API_KEYS)),
     db: Session = Depends(get_db)
 ):
     """
@@ -580,17 +569,9 @@ def revoke_api_key(
     
     return {"message": "API key revoked successfully"}
 
-# Utility endpoints
-# @auth_router.get("/me", response_model=UserOut)
-# def get_current_user_info(current_user: User = Depends(get_current_user)):
-#     """
-#     Get current user information
-#     """
-#     return UserOut.model_validate(current_user)
-# CORRECT - should be:
 @auth_router.get("/me")
 async def get_current_user_info(
-    current_user_info: Dict[str, Any] = Depends(get_current_user)
+    current_user_info: Dict[str, Any] = Depends(get_current_account)
 ):
     """
     Handle User, POSUser, and Client accounts.

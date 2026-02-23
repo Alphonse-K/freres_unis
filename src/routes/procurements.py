@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account
+from src.core.auth_dependencies import get_current_account, require_permission
+from src.core.permissions import Permissions
 from src.models.pos import POSUser
 from src.schemas.procurement import (
     ProcurementCreate,
@@ -26,7 +27,7 @@ procurement_router = APIRouter(prefix="/procurements", tags=["POS Procurements"]
 @procurement_router.post("/", response_model=ProcurementResponse, status_code=status.HTTP_201_CREATED)
 def create_procurement(
     data: ProcurementCreate,
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.CREATE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -51,7 +52,7 @@ def list_procurements(
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.READ_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -86,7 +87,7 @@ def list_procurements(
 @procurement_router.get("/{procurement_id}", response_model=ProcurementResponse)
 def get_procurement(
     procurement_id: int,
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.READ_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -114,7 +115,7 @@ def get_procurement(
 def update_procurement(
     procurement_id: int,
     data: ProcurementUpdate,
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.UPDATE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -147,7 +148,7 @@ def mark_as_delivered(
     delivery_notes: Optional[str] = None,
     driver_name: Optional[str] = None,
     driver_phone: Optional[str] = None,
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.RECEIVE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -185,7 +186,7 @@ def mark_as_delivered(
 def cancel_procurement(
     procurement_id: int,
     reason: Optional[str] = None,
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.CANCEL_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -219,7 +220,7 @@ def cancel_procurement(
 @procurement_router.get("/pos/{pos_id}/summary")
 def get_pos_procurement_summary(
     pos_id: int,
-    current_user: POSUser = Depends(get_current_account),
+    current_user: POSUser = Depends(require_permission(Permissions.READ_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """

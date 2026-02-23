@@ -1,125 +1,105 @@
-# src/core/auth_dependencies.py
-from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional
+from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-from typing import Optional, Dict
-from src.services.auth_service import AuthService
-from src.core.database import get_db
+from src.services.auth_service import AuthService 
 from src.models.security import APIKey
-from src.models.users import UserRole, User
-# from src.models.clients import Client
-# from src.models.pos import POSUser
-from src.models.clients import ClientRole
+from src.core.database import get_db
+from src.core.permissions import Permissions
 
 
-
-security = HTTPBearer(auto_error=False)
-
-
-def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
-    if not credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-    token = credentials.credentials
-    user = AuthService.validate_access_token(db, token)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    return user
-
+security = HTTPBearer()
 
 def get_current_account(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security) , 
     db: Session = Depends(get_db)
 ) -> dict:
+    """
+        Returns:
+        {
+            "account_type": "user" | "client" | "posuser",
+            "account": SQLAlchemy instance
+        }
+    """
+
     if not credentials:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization required"
         )
-    
     token = credentials.credentials
-    account_info = AuthService.validate_access_token(db, token)
-    
+    account_info = AuthService.validate_access_token(token)
+
     if not account_info:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
+            status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token"
         )
-
+    
     return account_info
 
-
 def get_api_key(
-    x_api_key: str = Header(..., alias="X-API-Key"),
-    x_api_secret: str = Header(..., alias="X-API-Secret"),
-    db: Session = Depends(get_db)
+        x_api_key: str = Header(..., alias="X-API-Key"),
+        x_api_secret: str = Header(..., alias="X-API-Secret"),
+        db: Session = Depends(get_db)
 ) -> APIKey:
     api_key = AuthService.validate_api_key(db, x_api_key, x_api_secret)
+
     if not api_key:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key or secret")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API Key or secret"
+        )
     return api_key
 
+def require_role(required_roles: list[str]):
+    def checker(current_user: dict =  Depends(get_current_account)):
+        account = current_user['account']
+        roles  = getattr(account, 'roles', [])
+        role_names = [role.name for role in roles]
 
-def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db)
-) -> Optional[User]:
-    if not credentials: return None
-    return AuthService.validate_access_token(db, credentials.credentials)
-
-
-def require_role(allowed_user_roles: list[UserRole], allowed_client_roles: list[ClientRole] = None):
-    """
-    Flexible dependency that can check both user and client roles
-    
-    Examples:
-    - require_role([UserRole.ADMIN])  # Only admin users
-    - require_role([UserRole.USER], [ClientRole.SUPER_CLIENT])  # User role OR Super Client
-    - require_role(allowed_client_roles=[ClientRole.CLIENT])  # Any client
-    """
-    def role_checker(
-        current_account: dict = Depends(get_current_account)
-    ):
-        account_type = current_account["account_type"]
-        account = current_account["account"]
-        
-        # Handle CLIENTS
-        if account_type == "client":
-            if not allowed_client_roles:
-                raise HTTPException(403, "Clients not allowed for this route")
-            
-            if account.role.name not in allowed_client_roles:
-                raise HTTPException(
-                    403, 
-                    f"Client role '{account.role.name}' not authorized. Required: {[r for r in allowed_client_roles]}"
-                )
+        # SUPER_ADMIN bypass
+        if "SUPER_ADMIN" in role_names:
             return account
         
-        # Handle USERS
-        if account_type == "user":
-            if account.role == UserRole.ADMIN:
+        for role in role_names:
+            if role in required_roles:
                 return account
             
-            if not allowed_user_roles:
-                raise HTTPException(403, "Users not allowed for this route")
-            
-            if account.role not in allowed_user_roles:
-                raise HTTPException(
-                    403,
-                    f"User role '{account.role.value}' not authorized. Required: {[r.value for r in allowed_user_roles]}"
-                )
-            return account
-        
-        raise HTTPException(403, "Unknown account type")
-    
-    return role_checker
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=f"Required role(s): {required_roles}"
+        )
+    return checker
 
-def require_permission(required_permission: str):
-    def permission_checker(api_key: APIKey = Depends(get_api_key)):
+def require_permission(permission_name: Permissions):
+    def checker(current_user: dict = Depends(get_current_account)):
+        account = current_user["account"]
+        roles = getattr(account, "roles", [])
+
+        for role in roles:
+            if role.name == "SUPER_ADMIN":
+                return account
+        
+        for role in roles:
+            for perm in role.permissions:
+                if perm.name == permission_name.value:
+                    return account
+                
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=f"Required: {permission_name.value}"
+        )
+    return checker
+
+def api_key_permission(required_permission: str):
+    def checker(api_key: APIKey = Depends(get_api_key)):
         permissions = api_key.permissions or []
+
         if required_permission not in permissions:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API permissions"
+            )
         return api_key
-    return permission_checker
+    return checker

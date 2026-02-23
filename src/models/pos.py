@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Numeric, Enum, DateTime, ForeignKey, Boolean, Time
-
+from src.models.rbac_assiciation import posuser_roles
 from sqlalchemy.orm import relationship
 
 from sqlalchemy.sql import func
@@ -137,20 +137,17 @@ class POSUser(Base):
     require_password_change = Column(Boolean, default=True)
     allowed_login_start = Column(Time, nullable=True)  # e.g. 08:00
     allowed_login_end = Column(Time, nullable=True)    # e.g. 18:00
-    role = Column(
-        Enum(
-            POSUserRole,
-            name="pos_user_role_enum",
-            values_callable=lambda e: [i.value for i in e],
-        ),
-        nullable=False,
-        default=POSUserRole.CASHIER,
-    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # relationship
     pos = relationship("POS", back_populates="users")
+    roles = relationship(
+        "Role",
+        secondary=posuser_roles,
+        back_populates="posusers"
+    )
+
 
 
 class Sale(Base):
