@@ -85,7 +85,7 @@ class UserSchema(BaseModel):
     id: int
     email: EmailStr = Field(None)
     username: str
-    role: str
+    roles: List[str]
 
     model_config = ConfigDict(from_attributes=True)
 
