@@ -82,7 +82,7 @@ class Product(Base):
 
 class ProductVariant(Base):
     __tablename__ = "product_variants"
-
+    name = Column(String(255), nullable=True)
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
 

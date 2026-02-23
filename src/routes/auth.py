@@ -62,7 +62,7 @@ def login_password(
     
     # DEBUG: Check all users
     all_users = db.query(User).all()
-    print("All users in DB:", [(u.email, u.role) for u in all_users])
+    print("All users in DB:", [(u.email, u.roles) for u in all_users])
 
     # FIX: Only query by email if email is provided and not None
     if data.email:
