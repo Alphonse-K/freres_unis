@@ -16,7 +16,7 @@ from src.services.role import assign_permissions_to_role
 
 role_router = APIRouter(prefix="/rbac", tags=["RBAC"])
 
-role_router.post("/role/", response_model=RoleResponse)
+@role_router.post("/role/", response_model=RoleResponse)
 def create_new_role(
     role: RoleCreate, 
     db: Session = Depends(get_db),
@@ -24,7 +24,7 @@ def create_new_role(
 ):
     return create_role(db, role)
 
-role_router.put("/roles/{role_id}", response_model=RoleResponse)
+@role_router.put("/roles/{role_id}", response_model=RoleResponse)
 def update_role(
     role_id: int, 
     data: RoleUpdate, 
@@ -34,7 +34,7 @@ def update_role(
     updated_role = update_role(db, role_id, data)
     return updated_role
     
-role_router.get("/role/{role_id}")
+@role_router.get("/role/{role_id}")
 def get_role(
     role_id: int, 
     db: Session = Depends(get_db),
@@ -42,14 +42,14 @@ def get_role(
 ):
     return get_role_by_id(db, role_id)
 
-role_router.get("/roles/", response_model=List[RoleResponse])
+@role_router.get("/roles/", response_model=List[RoleResponse])
 def get_roles(
     db: Session = Depends(get_db), 
     current_user = Depends(require_permission(Permissions.READ_ROLE))
 ):
     return get_all_roles(db)
 
-role_router.post("/roles/")
+@role_router.post("/roles/")
 def delete_user_role(
     role_id: int,
     db: Session = Depends(get_db),
