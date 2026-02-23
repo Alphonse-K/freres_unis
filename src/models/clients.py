@@ -125,11 +125,6 @@ class ClientApproval(Base):
     # Identification
     id_type_id = Column(Integer, ForeignKey("id_types.id"), nullable=False)
     id_number = Column(String(100), nullable=False)
-    role = Column(
-        PgEnum(ClientRole, name="client_role_enum", create_constraint=True),
-        nullable=False,
-        default=ClientRole.CLIENT   
-    )
     # Partner-only fields
     employee_company = Column(String(255))
     employee_id_number = Column(String(120))
