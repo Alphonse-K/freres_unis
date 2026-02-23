@@ -25,23 +25,23 @@ def create_user(
 @user_router.patch(
     "/update/{user_id}", 
     response_model=UserOut, 
-    dependencies=[Depends(require_permission(Permissions.UPDATE_USER))]
 )
 def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.UPDATE_USER))
 ):
     return UserService.update_user(db, user_id, user_data)
 
 @user_router.delete(
     "/users/{user_id}", 
     response_model=LogoutResponse, 
-    dependencies=[Depends(Permissions.DELETE_USER)]
 )
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.DELETE_USER))
 ):
     UserService.delete_user(db, user_id)
     return {"message": "User deleted successfully"}
@@ -49,12 +49,12 @@ def delete_user(
 @user_router.get(
     "/list-users",
     response_model=PaginatedResponse[UserOut],
-    dependencies=[Depends(Permissions.READ_USER)]
 )
 def list_users(
     filters: UserFilter = Depends(),
     pagination: PaginationParams = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_USER))
 ):
     total, users = UserService.list_users(db, filters, pagination)
 
