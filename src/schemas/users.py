@@ -4,6 +4,7 @@ from typing import Optional, Generic, TypeVar, List
 from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict ,field_validator
 from src.models.users import UserRole, UserStatus
 from src.schemas.pos import RoleSchema
+from fastapi import Query
 import re
 
 class UserBase(BaseModel):
@@ -60,8 +61,8 @@ class UserUpdate(BaseModel):
     
 
 class PasswordLogin(BaseModel):
-    email: Optional[EmailStr] = None  # for User
-    phone: Optional[str] = None       # for POSUser or Client
+    email: Optional[EmailStr] = None  
+    phone: Optional[str] = None
     password: str
 
 
@@ -91,7 +92,7 @@ class LogoutResponse(BaseModel):
 
 
 class UserFilter(BaseModel):
-    role_ids: Optional[List[int]] = None
+    role_ids: Optional[List[int]] = Query(default=None)
     status: Optional[UserStatus] = None
     email: Optional[str] = Field(None, description="Partial email match")
     username: Optional[str] = Field(None, description="Partial username match")

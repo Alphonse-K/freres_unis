@@ -47,6 +47,7 @@ def seed_default_client_role_and_permissions(db: Session):
         Permissions.UPDATE_ORDER,
         Permissions.RETURN_ORDER
     ]
+    
     for perm_name in default_permissions:
         perm = db.query(Permission).filter_by(name=perm_name).first()
         if not perm:
