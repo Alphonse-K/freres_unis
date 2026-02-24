@@ -4,7 +4,6 @@ from decimal import Decimal
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from src.schemas.inventory import WarehouseOut
-from src.models.role import Role
 from enum import Enum
 import re
 
@@ -80,6 +79,12 @@ class POSExpenseStatus(str, Enum):
 # -------------------------------
 # POS USER SCHEMAS
 # -------------------------------
+from pydantic import BaseModel
+
+class RoleSchema(BaseModel):
+    id: int
+    name: str
+    model_config = {"from_attributes": True}
 
 class POSUserBase(BaseModel):
     first_name: Optional[str] = Field(None, max_length=120)
@@ -210,7 +215,7 @@ class POSUserSchema(BaseModel):
     id: int
     email: Optional[EmailStr] = None
     username: str
-    roles: Optional[List[Role]] = None
+    roles: Optional[List[RoleSchema]] = None
     pos: Optional[POSMini] = None
     model_config = ConfigDict(from_attributes=True)
 

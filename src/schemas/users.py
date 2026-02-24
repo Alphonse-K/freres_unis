@@ -3,7 +3,7 @@ from datetime import datetime, time
 from typing import Optional, Generic, TypeVar, List
 from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict ,field_validator
 from src.models.users import UserRole, UserStatus
-from src.models.role import Role
+from src.schemas.pos import RoleSchema
 import re
 
 class UserBase(BaseModel):
@@ -84,10 +84,9 @@ class UserSchema(BaseModel):
     id: int
     email: EmailStr = Field(None)
     username: str
-    roles: List[Role]
+    roles: List[RoleSchema]
 
     model_config = ConfigDict(from_attributes=True)
-
 
 
 class LogoutResponse(BaseModel):
@@ -95,7 +94,7 @@ class LogoutResponse(BaseModel):
 
 
 class UserFilter(BaseModel):
-    roles: Optional[List[Role]] = None
+    roles: Optional[List[RoleSchema]] = None
     status: Optional[UserStatus] = None
     email: Optional[str] = Field(None, description="Partial email match")
     username: Optional[str] = Field(None, description="Partial username match")
