@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from src.schemas.inventory import WarehouseOut
+from src.models.role import Role
 from enum import Enum
 import re
 
@@ -86,7 +87,7 @@ class POSUserBase(BaseModel):
     username: str = Field(..., max_length=120)
     phone: str = Field(..., max_length=40)
     email: Optional[str] = Field(None, max_length=255)
-    role: Optional[POSUserRole] = POSUserRole.CASHIER
+    # role: Optional[POSUserRole] = POSUserRole.CASHIER
     is_active: Optional[bool] = True
     allowed_login_start: Optional[time] = None
     allowed_login_end: Optional[time] = None
@@ -101,7 +102,6 @@ class POSUserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None
-    role: Optional[POSUserRole] = None
     is_active: Optional[bool] = None
     allowed_login_start: Optional[time] = None
     allowed_login_end: Optional[time] = None
@@ -210,7 +210,7 @@ class POSUserSchema(BaseModel):
     id: int
     email: Optional[EmailStr] = None
     username: str
-    role: Optional[str] = None
+    roles: Optional[List[Role]] = None
     pos: Optional[POSMini] = None
     model_config = ConfigDict(from_attributes=True)
 

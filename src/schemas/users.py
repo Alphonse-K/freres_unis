@@ -3,6 +3,7 @@ from datetime import datetime, time
 from typing import Optional, Generic, TypeVar, List
 from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict ,field_validator
 from src.models.users import UserRole, UserStatus
+from src.models.role import Role
 import re
 
 class UserBase(BaseModel):
@@ -11,7 +12,6 @@ class UserBase(BaseModel):
     username: str = Field(..., min_length=2, max_length=120)
     email: EmailStr = Field(..., example="user@company.com")
     phone: Optional[str] = Field(None, max_length=15)
-    role: UserRole = UserRole.USER
     status: UserStatus = UserStatus.ACTIVE
     failed_attempts: int = 0
     suspended_until: Optional[datetime] = None
@@ -46,7 +46,6 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, max_length=120)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=50)
-    role: Optional[UserRole] = None
     status: Optional[UserStatus] = None
     suspended_until: Optional[datetime] = None
     allowed_login_start: Optional[time] = None
@@ -85,7 +84,7 @@ class UserSchema(BaseModel):
     id: int
     email: EmailStr = Field(None)
     username: str
-    roles: List[str]
+    roles: List[Role]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -96,7 +95,7 @@ class LogoutResponse(BaseModel):
 
 
 class UserFilter(BaseModel):
-    role: Optional[UserRole] = None
+    roles: Optional[List[Role]] = None
     status: Optional[UserStatus] = None
     email: Optional[str] = Field(None, description="Partial email match")
     username: Optional[str] = Field(None, description="Partial username match")

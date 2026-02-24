@@ -1,5 +1,4 @@
 # src/core/permissions.py
-
 from enum import Enum
 
 
