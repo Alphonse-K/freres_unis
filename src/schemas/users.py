@@ -29,7 +29,6 @@ class UserBase(BaseModel):
     
 
 class UserCreate(UserBase):
-
     password: str = Field(..., min_length=8, max_length=128)
 
     @field_validator('password')
@@ -76,7 +75,6 @@ class UserOut(UserBase):
     created_at: datetime
     updated_at: Optional[datetime]
     last_login: Optional[datetime]
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -85,7 +83,6 @@ class UserSchema(BaseModel):
     email: EmailStr = Field(None)
     username: str
     roles: List[RoleSchema]
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -94,7 +91,7 @@ class LogoutResponse(BaseModel):
 
 
 class UserFilter(BaseModel):
-    roles: Optional[List[RoleSchema]] = None
+    role_ids: Optional[List[int]] = None
     status: Optional[UserStatus] = None
     email: Optional[str] = Field(None, description="Partial email match")
     username: Optional[str] = Field(None, description="Partial username match")

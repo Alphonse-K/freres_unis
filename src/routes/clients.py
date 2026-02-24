@@ -149,7 +149,7 @@ def get_client(
 )
 def list_clients(
     pagination: PaginationParams = Depends(),
-    current_user = require_permission(Permissions.READ_CLIENT),
+    current_user = Depends(require_permission(Permissions.READ_CLIENT)),
     db: Session = Depends(get_db),
 ):
     total, items = ClientService.list(db, pagination)
