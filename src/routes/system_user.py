@@ -51,8 +51,8 @@ def delete_user(
     response_model=PaginatedResponse[UserOut],
 )
 def list_users(
-    filters: UserFilter = Depends(),
-    pagination: PaginationParams = Depends(),
+    filters: UserFilter,
+    pagination: PaginationParams,
     db: Session = Depends(get_db),
     current_user = Depends(require_permission(Permissions.READ_USER))
 ):

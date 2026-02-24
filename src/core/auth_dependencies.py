@@ -28,7 +28,7 @@ def get_current_account(
             detail="Authorization required"
         )
     token = credentials.credentials
-    account_info = AuthService.validate_access_token(token)
+    account_info = AuthService.validate_access_token(db, token)
 
     if not account_info:
         raise HTTPException(
