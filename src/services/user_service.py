@@ -91,8 +91,8 @@ class UserService:
     ):
         query = db.query(User)
 
-        if filters.role:
-            query = query.filter(User.role == filters.role)
+        # if filters.role:
+        #     query = query.filter(User.role == filters.role)
 
         if filters.status:
             query = query.filter(User.status == filters.status)

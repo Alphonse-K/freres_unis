@@ -7,6 +7,7 @@ from src.schemas.pos import RoleSchema
 from fastapi import Query
 import re
 
+
 class UserBase(BaseModel):
     first_name: str = Field(..., min_length=2, max_length=120)
     last_name: str = Field(..., min_length=2, max_length=120)
@@ -19,7 +20,6 @@ class UserBase(BaseModel):
     allowed_login_start: Optional[time] = Field(None, description="User activity starting time")
     allowed_login_end: Optional[time] = Field(None, description="User activity end time")
     require_password_change: bool = False
-
 
     @model_validator(mode="after")
     def validate_time_window(self):
@@ -92,11 +92,11 @@ class LogoutResponse(BaseModel):
 
 
 class UserFilter(BaseModel):
-    role_ids: Optional[List[int]] = Query(default=None)
+    role_ids: Optional[List[int]] = Query(None)
     status: Optional[UserStatus] = None
-    email: Optional[str] = Field(None, description="Partial email match")
-    username: Optional[str] = Field(None, description="Partial username match")
-    phone: Optional[str] = Field(None)
+    email: Optional[str] = Query(None, description="Partial email match")
+    username: Optional[str] = Query(None, description="Partial username match")
+    phone: Optional[str] = Query(None)
     created_from: Optional[datetime] = None
     created_to: Optional[datetime] = None
 

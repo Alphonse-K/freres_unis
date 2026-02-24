@@ -57,10 +57,12 @@ def list_users(
     current_user = Depends(require_permission(Permissions.READ_USER))
 ):
     total, users = UserService.list_users(db, filters, pagination)
-
+    
     return {
         "total": total,
         "page": pagination.page,
         "page_size": pagination.page_size,
         "items": users,
     }
+
+
