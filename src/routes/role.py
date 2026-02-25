@@ -2,19 +2,28 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from src.schemas.roles_perm import (
-    RoleCreate, RoleUpdate, RoleResponse
+    RoleCreate, RoleUpdate, RoleResponse, PermissionResponse
 )
 from src.services.role import (
-    create_role, get_role_by_id, update_role, delete_role, get_all_roles,
+    create_role, get_role_by_id, update_role, delete_role, get_all_roles, assign_roles_to_entity
 )
 from src.core.auth_dependencies import require_permission
 from src.core.database import get_db
 from src.core.permissions import Permissions
+from src.models.permission import Permission
 from src.models.role import Role
 from src.schemas.roles_perm import RolePermissionAssign
 from src.services.role import assign_permissions_to_role
+from enum import Enum
 
 role_router = APIRouter(prefix="/rbac", tags=["RBAC"])
+
+
+class EntityType(str, Enum):
+    CLIENT = "CLIENT"
+    USER = "USER"
+    POS_USER = "POS_USER"
+
 
 @role_router.post("/role/", response_model=RoleResponse)
 def create_new_role(
@@ -23,6 +32,16 @@ def create_new_role(
     current_user = Depends(require_permission(Permissions.CREATE_ROLE))
 ):
     return create_role(db, role)
+
+@role_router.post("/assign-roles/{entity_type}/{entity_id}")
+def assing_roles_to_entity(
+        entity_type: EntityType,
+        entity_id: int,
+        role_ids: List[int],
+        db: Session = Depends(get_db),
+        current_user = Depends(require_permission(Permissions.UPDATE_ROLE))
+):
+    return assign_roles_to_entity(db, entity_type, entity_id, role_ids)
 
 @role_router.put("/roles/{role_id}", response_model=RoleResponse)
 def update_role(
@@ -71,7 +90,11 @@ def assign_permissions(
     db: Session = Depends(get_db),
     current_user = Depends(require_permission(Permissions.UPDATE_ROLE))
 ):
-    return assign_permissions_to_role(db, role_id, data.permissions)
+    return assign_permissions_to_role(
+        db=db,
+        role_id=role_id,
+        permission_ids=data.permission_ids
+    )
 
 @role_router.delete(
     "/roles/{role_id}/permissions",
@@ -86,13 +109,33 @@ def remove_permissions(
     role = db.query(Role).filter_by(id=role_id).first()
 
     if not role:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Role not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Role not found"
+        )
+
+    permissions_to_remove = db.query(Permission).filter(
+        Permission.id.in_(data.permission_ids)
+    ).all()
+
+    if not permissions_to_remove:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid permissions found"
+        )
 
     role.permissions = [
         perm for perm in role.permissions
-        if perm.name not in [p.value for p in data.permissions]
+        if perm.id not in data.permission_ids
     ]
 
     db.commit()
     db.refresh(role)
     return role
+
+@role_router.get("/permissions", response_model=List[PermissionResponse])
+def list_permissions(
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_ROLE))
+):
+    return db.query(Permission).all()

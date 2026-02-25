@@ -20,4 +20,8 @@ class RoleResponse(RoleBase):
     model_config = ConfigDict(from_attributes=True)
 
 class RolePermissionAssign(BaseModel):
-    permissions: List[Permissions]
+    permission_ids: List[int]
+
+class PermissionResponse(BaseModel):
+    name: str
+    model_config = ConfigDict(from_attributes=True)
