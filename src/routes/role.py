@@ -68,7 +68,7 @@ def get_roles(
 ):
     return get_all_roles(db)
 
-@role_router.post("/roles/")
+@role_router.delete("/roles/")
 def delete_user_role(
     role_id: int,
     db: Session = Depends(get_db),
