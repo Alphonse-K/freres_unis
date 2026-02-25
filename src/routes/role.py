@@ -5,7 +5,8 @@ from src.schemas.roles_perm import (
     RoleCreate, RoleUpdate, RoleResponse, PermissionResponse
 )
 from src.services.role import (
-    create_role, get_role_by_id, update_role, delete_role, get_all_roles, assign_roles_to_entity
+    create_role, get_role_by_id, update_role, delete_role, 
+    get_all_roles, assign_roles_to_entity
 )
 from src.core.auth_dependencies import require_permission
 from src.core.database import get_db
