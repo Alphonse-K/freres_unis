@@ -92,14 +92,33 @@ class LogoutResponse(BaseModel):
 
 
 class UserFilter(BaseModel):
-    role_ids: Optional[List[int]] = Query(None)
+    role_ids: Optional[List[int]] = None
     status: Optional[UserStatus] = None
-    email: Optional[str] = Query(None, description="Partial email match")
-    username: Optional[str] = Query(None, description="Partial username match")
-    phone: Optional[str] = Query(None)
+    email: Optional[str] = None
+    username: Optional[str] = None
+    phone: Optional[str] = None
     created_from: Optional[datetime] = None
     created_to: Optional[datetime] = None
 
+
+def get_user_filters(
+    role_ids: Optional[List[int]] = Query(None),
+    status: Optional[UserStatus] = Query(None),
+    email: Optional[str] = Query(None),
+    username: Optional[str] = Query(None),
+    phone: Optional[str] = Query(None),
+    created_from: Optional[datetime] = Query(None),
+    created_to: Optional[datetime] = Query(None),
+) -> UserFilter:
+    return UserFilter(
+        role_ids=role_ids,
+        status=status,
+        email=email,
+        username=username,
+        phone=phone,
+        created_from=created_from,
+        created_to=created_to,
+    )
 
 class PaginationParams(BaseModel):
     page: int = Field(1, ge=1)

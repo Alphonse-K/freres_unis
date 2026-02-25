@@ -2,14 +2,15 @@
 from fastapi import Depends, APIRouter
 from sqlalchemy.orm import Session
 
-from src.schemas.users import UserCreate, UserOut, UserUpdate, LogoutResponse, PaginatedResponse, PaginationParams, UserFilter
+from src.schemas.users import UserCreate, UserOut, UserUpdate, LogoutResponse, PaginatedResponse, PaginationParams, UserFilter, get_user_filters
 from src.services.user_service import UserService
 from src.core.database import get_db
 from src.core.auth_dependencies import require_role, require_permission
 from src.core.permissions import Permissions
-from src.models.users import UserRole
 
 user_router = APIRouter(prefix="/users", tags=["System User"])
+
+from fastapi import Query
 
 @user_router.post(
     "/create",
@@ -51,7 +52,7 @@ def delete_user(
     response_model=PaginatedResponse[UserOut],
 )
 def list_users(
-    filters: UserFilter = Depends(),
+    filters: UserFilter = Depends(get_user_filters),
     pagination: PaginationParams= Depends(),
     db: Session = Depends(get_db),
     current_user = Depends(require_permission(Permissions.READ_USER))
