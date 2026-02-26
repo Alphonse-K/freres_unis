@@ -85,6 +85,7 @@ class ProductOut(ProductBase):
 # -------------------------------
 class ProductVariantBase(BaseModel):
     product_id: int
+    name: str
     sku: str = Field(..., max_length=120)
     purchase_price: Decimal
     sale_price: Decimal

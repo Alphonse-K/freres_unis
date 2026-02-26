@@ -932,7 +932,6 @@ class AuthService:
             )
             
             db.commit()
-            
             return True, "Password reset successfully", new_password if generate_random else None
             
         except Exception as e:
