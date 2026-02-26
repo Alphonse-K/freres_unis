@@ -61,7 +61,7 @@ def get_all_roles(db: Session):
     return roles
 
 def get_role_by_id(db: Session, role_id: int):
-    role = db.query(Role).filter(Role.id == role_id)
+    role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
