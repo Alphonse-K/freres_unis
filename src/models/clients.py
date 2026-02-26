@@ -1,6 +1,5 @@
 # src/models/client.py
 from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as PgEnum, Text, Time
-from src.models.rbac_assiciation import client_roles
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
