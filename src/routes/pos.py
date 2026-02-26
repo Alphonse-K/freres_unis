@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from src.schemas.pos import POSCreate, POSUpdate, POSOut, POSUserCreate, POSUserUpdate, POSUserOut, POSStats
 from src.services.pos import POSService
 from src.core.database import get_db
-from src.core.auth_dependencies import require_role, require_permission
+from src.core.auth_dependencies import require_permission, get_current_account
 from src.core.permissions import Permissions
 from src.services.pos import POSUserService
 from src.schemas.users import PaginatedResponse, PaginationParams
@@ -15,7 +15,7 @@ pos_router = APIRouter(prefix="/pos", tags=["POS"])
 @pos_router.get(
     "/list",
     response_model=PaginatedResponse[POSOut],
-    dependencies=[Depends(require_permission(Permissions.READ_POS))]
+    dependencies=[Depends(get_current_account)]
 )
 def list_pos(
     pagination: PaginationParams = Depends(),
@@ -50,7 +50,7 @@ def update_pos(pos_id: int, data: POSUpdate, db: Session = Depends(get_db)):
 @pos_router.get(
     "/{pos_id}",
     response_model=POSOut,
-    dependencies=[Depends(require_permission(Permissions.READ_POS))]
+    dependencies=[Depends(get_current_account)]
 )
 def get_pos(pos_id: int, db: Session = Depends(get_db)):
     return POSService.get_pos(db, pos_id)

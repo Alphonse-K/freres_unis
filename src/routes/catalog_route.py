@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from src.core.permissions import Permissions
-from src.core.auth_dependencies import require_permission
+from src.core.auth_dependencies import require_permission, get_current_account
 from src.core.permissions import Permissions
 
 from src.core.database import get_db
@@ -126,6 +126,6 @@ def update_variant(
 @product_router.get("/variants", response_model=List[ProductVariantOut])
 def list_variants(
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_VARIANT))
+    current_user = Depends(get_current_account)
 ):
     return CatalogService.list_variants(db)
