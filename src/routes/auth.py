@@ -282,7 +282,7 @@ def reset_client_password(
 ):
     """Admin resets client password (generates random or uses provided)"""
     
-    admin = current_admin["account"]
+    admin = current_admin
     ip = request.client.host if request.client else ""
     ua = request.headers.get("user-agent")
     
