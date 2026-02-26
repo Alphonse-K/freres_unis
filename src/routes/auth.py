@@ -318,7 +318,7 @@ def set_client_pin(
 ):
     """Admin sets PIN for a client"""
     
-    admin = current_admin["account"]
+    admin = current_admin
     ip = request.client.host if request.client else ""
     ua = request.headers.get("user-agent")
     
