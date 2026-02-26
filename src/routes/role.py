@@ -140,3 +140,22 @@ def list_permissions(
     current_user = Depends(require_permission(Permissions.READ_ROLE))
 ):
     return db.query(Permission).all()
+
+@role_router.get(
+    "/roles/{role_id}/permissions",
+    response_model=List[PermissionResponse],
+)
+def get_role_permissions(
+    role_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_ROLE))
+):
+    role = db.query(Role).filter_by(id=role_id).first()
+
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Role not found"
+        )
+
+    return role.permissions
