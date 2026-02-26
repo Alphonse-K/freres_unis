@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 
 from src.core.database import Base, engine, SessionLocal
-from src.core.seed_permissions import seed_permissions, seed_role, seed_default_client_role_and_permissions
+from src.core.seed_permissions import seed_permissions, seed_role
 
 import src.models  # Ensure models are registered
 
@@ -31,7 +31,6 @@ async def lifespan(app: FastAPI):
     try:
         seed_permissions(db)
         seed_role(db)
-        seed_default_client_role_and_permissions(db)
     finally:
         db.close()
 
