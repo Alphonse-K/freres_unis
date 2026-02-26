@@ -21,7 +21,6 @@ def get_current_account(
             "account": SQLAlchemy instance
         }
     """
-
     if not credentials:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,

@@ -899,12 +899,11 @@ class AuthService:
         generate_random: bool = True,
     ) -> tuple[bool, str, Optional[str]]:
         """Admin resets client password (can generate random or use provided)"""
-        
         try:
             client = db.query(Client).filter(Client.phone == phone).first()
             if not client:
                 return False, "Client not found", None
-            # new_password = ""
+            
             # Generate or use provided password
             if generate_random:
                 import secrets
