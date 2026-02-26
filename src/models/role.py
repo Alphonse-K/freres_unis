@@ -20,11 +20,11 @@ class Role(Base):
         secondary=user_roles,
         back_populates="roles"
     )
-    clients = relationship(
-        "Client",
-        secondary=client_roles,
-        back_populates="roles"
-    )
+    # clients = relationship(
+    #     "Client",
+    #     secondary=client_roles,
+    #     back_populates="roles"
+    # )
     posusers = relationship(
         "POSUser",
         secondary=posuser_roles,

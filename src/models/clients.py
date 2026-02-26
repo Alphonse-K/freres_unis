@@ -103,11 +103,11 @@ class Client(Base):
         uselist=False,
         back_populates="client"
     )
-    roles = relationship(
-        "Role",
-        secondary=client_roles,
-        back_populates="clients"
-    )
+    # roles = relationship(
+    #     "Role",
+    #     secondary=client_roles,
+    #     back_populates="clients"
+    # )
 
 
 

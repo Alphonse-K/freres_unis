@@ -18,12 +18,12 @@ user_roles = Table(
 )
 
 # Client ↔ Role
-client_roles = Table(
-    "client_roles",
-    Base.metadata,
-    Column("client_id", ForeignKey("clients.id", ondelete="CASCADE"), primary_key=True),
-    Column("role_id", ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-)
+# client_roles = Table(
+#     "client_roles",
+#     Base.metadata,
+#     Column("client_id", ForeignKey("clients.id", ondelete="CASCADE"), primary_key=True),
+#     Column("role_id", ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+# )
 
 # POSUser ↔ Role
 posuser_roles = Table(

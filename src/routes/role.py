@@ -21,7 +21,6 @@ role_router = APIRouter(prefix="/rbac", tags=["RBAC"])
 
 
 class EntityType(str, Enum):
-    CLIENT = "CLIENT"
     USER = "USER"
     POS_USER = "POS_USER"
 

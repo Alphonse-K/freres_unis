@@ -110,11 +110,6 @@ class ClientApprovalService:
             db.flush()
             approval.client_id = client.id
 
-            # Assign default role to client
-            default_role = db.query(Role).filter(Role.name=="CLIENT_BASIC").first()
-            if default_role:
-                client.roles.append(default_role)
-                
         db.commit()
         db.refresh(approval)  
         return approval
