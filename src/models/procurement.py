@@ -20,7 +20,7 @@ class Procurement(Base):
     reference = Column(String(50), nullable=False, unique=True)
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
-    supplying_pos_id = Column(Integer, ForeignKey("pos.id", nullable=True))
+    supplying_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
     po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
     expected_delivery_date = Column(DateTime(timezone=True), nullable=True)    
