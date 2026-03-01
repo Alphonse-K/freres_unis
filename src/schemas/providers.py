@@ -12,7 +12,7 @@ class ProviderBase(BaseModel):
     phone: Optional[str] = Field(None, max_length=40)
     email: Optional[EmailStr] = None
     is_active: bool = True
-
+    
 
 class ProviderCreate(ProviderBase):
     opening_balance: Decimal = 0

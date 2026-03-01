@@ -59,3 +59,6 @@ class ProcurementResponse(BaseModel):
     updated_at: Optional[datetime]
     
     model_config = ConfigDict(from_attributes=True)
+
+class ProcurementUpdateStatus(BaseModel):
+    status: ProcurementStatus

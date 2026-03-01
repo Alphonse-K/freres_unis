@@ -9,7 +9,7 @@ import logging
 
 from src.models.inventory import Inventory, Warehouse
 from src.models.pos import POS
-from src.models.procurement import Procurement, ProcurementItem
+from src.models.procurement import Procurement, ProcurementItem, ProcurementStatus
 from src.models.pos import SaleItem
 from src.models.catalog import ProductVariant, Product
 from src.schemas.inventory import (
@@ -788,34 +788,37 @@ class InventoryService:
     # ================================
     # PROCUREMENT TO INVENTORY
     # ================================
-    
     @staticmethod
     def receive_procurement(
         db: Session,
         procurement_id: int,
-        warehouse_id: int
+        warehouse_id: int,
+        received_by_id: int
     ) -> Dict[str, Any]:
-        """Receive procurement items into warehouse inventory"""
-        # Verify procurement exists
+        
         procurement = db.query(Procurement).options(
-            joinedload(Procurement.items).joinedload(ProcurementItem.product_variant)
-        ).filter(
-            Procurement.id == procurement_id
-        ).first()
-        
+            joinedload(Procurement.items).filter(
+                Procurement.id == procurement_id
+            )
+        ).with_for_update().first()
         if not procurement:
-            raise NotFoundException(f"Procurement {procurement_id} not found")
+            raise NotFoundException(f"Procurement with {procurement_id} not found.")
         
-        # Verify warehouse exists
-        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
+        if procurement.status != ProcurementStatus.SHIPPED:
+            raise BusinessRuleException("Procurement must be SHIPPED before it's received.")
+        
+        if procurement.status == ProcurementStatus.CANCELLED:
+            raise BusinessRuleException("Cannot receive cancelled procurement.")
+        
+        warehouse = db.query(Warehouse).filter(
+            Warehouse.id == warehouse_id
+        ).first()
         if not warehouse:
-            raise NotFoundException(f"Warehouse {warehouse_id} not found")
+            raise NotFoundException(f"Warehous with ID {warehouse_id} not found")
         
         results = []
-        
         try:
             for proc_item in procurement.items:
-                # Increase stock for each item
                 item = InventoryService.increase_stock(
                     db,
                     warehouse_id,
@@ -823,32 +826,29 @@ class InventoryService:
                     proc_item.quantity,
                     source=f"procurement_{procurement_id}"
                 )
-                
+
                 results.append({
                     "product_variant_id": proc_item.product_variant_id,
                     "quantity": proc_item.quantity,
                     "inventory_item_id": item.id
                 })
-            
-            # Update procurement status
+
             procurement.warehouse_id = warehouse_id
-            procurement.status = "delivered"
+            procurement.status = ProcurementStatus.RECEIVED
             procurement.updated_at = datetime.now(timezone.utc)
-            
+            procurement.received_by_id = received_by_id
+
             db.commit()
-            
-            logger.info(f"Procurement {procurement_id} received into warehouse {warehouse_id}")
             return {
                 "procurement_id": procurement_id,
                 "warehouse_id": warehouse_id,
                 "items_received": len(results),
                 "details": results
             }
-            
         except Exception as e:
             db.rollback()
-            logger.error(f"Error receiving procurement {procurement_id}: {str(e)}")
-            raise ValidationException(f"Error receiving procurement: {str(e)}")
+            logger.error(f"Error receiving procurement with ID {procurement_id}: {str(e)}")
+            raise ValidationException(f"Error recieving procurement: {str(e)}")
     
     # ================================
     # SALE STOCK OPERATIONS
@@ -864,8 +864,8 @@ class InventoryService:
         try:
             # Get POS warehouse
             warehouse = InventoryService.get_warehouse_by_pos(db, pos_id)
-            
             results = []
+
             for item in sale_items:
                 product_variant_id = item["product_variant_id"]
                 quantity = item["quantity"]
@@ -874,7 +874,6 @@ class InventoryService:
                 stock_check = InventoryService.check_stock_availability(
                     db, warehouse.id, product_variant_id, quantity
                 )
-                
                 if not stock_check["is_available"]:
                     raise InsufficientStockException(
                         f"Insufficient stock for product variant {product_variant_id}. "
@@ -926,8 +925,8 @@ class InventoryService:
             results = []
             for item in sale_items:
                 product_variant_id = item["product_variant_id"]
-                quantity = item["quantity"]
-                
+                quantity = item["quantity"]           
+
                 # Decrease stock (deduct from reserved)
                 inventory_item = InventoryService.decrease_stock(
                     db,

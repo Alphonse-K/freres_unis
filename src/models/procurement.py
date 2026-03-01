@@ -8,7 +8,9 @@ import enum
 
 class ProcurementStatus(str, enum.Enum):
     PENDING = "pending"
-    DELIVERED = "delivered"
+    APPROVED = "APPROVED"
+    SHIPPED = "shipped"
+    RECEIVED = "received"
     CANCELLED = "cancelled"
 
 
@@ -18,6 +20,7 @@ class Procurement(Base):
     reference = Column(String(50), nullable=False, unique=True)
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
+    supplying_pos_id = Column(Integer, ForeignKey("pos.id", nullable=True))
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
     po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
     expected_delivery_date = Column(DateTime(timezone=True), nullable=True)    
@@ -34,11 +37,10 @@ class Procurement(Base):
     driver_name = Column(String(255), nullable=True)
     driver_phone = Column(String(40), nullable=True)    
     # Document storage
-    po_pdf_path = Column(String(500), nullable=True) 
     delivery_note_photo = Column(String(500), nullable=True) 
     receipt_photo = Column(String(500), nullable=True)
     # Terms
-    payment_terms = Column(String(255), nullable=True)  # e.g., "Net 30"
+    payment_terms = Column(String(255), nullable=True)
     shipping_terms = Column(String(255), nullable=True) 
     # Audit
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -46,15 +48,29 @@ class Procurement(Base):
     
     # Relationships
     provider = relationship("Provider")
-    pos = relationship("POS", back_populates="procurements")
-    created_by = relationship("POSUser", foreign_keys=[created_by_id])
-    received_by = relationship("POSUser", foreign_keys=[received_by_id])
-    purchase_invoice = relationship("PurchaseInvoice", back_populates="procurement", uselist=False)
+    pos = relationship(
+        "POS", 
+        back_populates="procurements"
+    )
+    created_by = relationship(
+        "POSUser", 
+        foreign_keys=[created_by_id]
+    )
+    received_by = relationship(
+        "POSUser", 
+        foreign_keys=[received_by_id]
+    )
+    purchase_invoice = relationship(
+        "PurchaseInvoice", 
+        back_populates="procurement", 
+        uselist=False
+    )
     items = relationship(
         "ProcurementItem",
         back_populates="procurement",
         cascade="all, delete-orphan"
     )
+    supplying_pos = relationship("POS", foreign_keys=[supplying_pos_id])
         
     @property
     def warehouse(self):

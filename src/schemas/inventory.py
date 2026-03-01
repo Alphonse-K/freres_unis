@@ -169,6 +169,7 @@ class StockLevelReportItem(BaseModel):
 class ProcurementReceiveRequest(BaseModel):
     procurement_id: int
     warehouse_id: int
+    received_by_id: int
 
 
 # -------------------------------

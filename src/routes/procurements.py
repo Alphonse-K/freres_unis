@@ -11,13 +11,11 @@ from src.schemas.procurement import (
     ProcurementCreate,
     ProcurementUpdate,
     ProcurementResponse,
-    ProcurementStatus
+    ProcurementStatus,
+    ProcurementUpdateStatus
 )
 from src.services.procurement_service import (
     ProcurementService,
-    NotFoundException, 
-    ValidationException, 
-    BusinessRuleException
 )
 
 
@@ -132,19 +130,14 @@ def update_procurement(
             detail="Procurement not found"
         )
     
-    # Authorization
-    if current_user.get('payload').get('role') != "manager" and procurement.pos_id != current_user.get('account').pos.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this procurement"
-        )
     
     return ProcurementService.update_procurement(db, procurement_id, data)
 
 
 @procurement_router.post("/{procurement_id}/deliver", response_model=ProcurementResponse)
-def mark_as_delivered(
+def change_procurement_status(
     procurement_id: int,
+    new_status: ProcurementUpdateStatus,
     delivery_notes: Optional[str] = None,
     driver_name: Optional[str] = None,
     driver_phone: Optional[str] = None,
@@ -152,9 +145,7 @@ def mark_as_delivered(
     db: Session = Depends(get_db)
 ):
     """
-    Mark procurement as delivered
-    
-    - Updates inventory automatically
+    Change procurement as status
     - Creates purchase invoice if not exists
     - Requires appropriate permissions
     """
@@ -165,17 +156,11 @@ def mark_as_delivered(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Procurement not found"
         )
-    
-    # Authorization: Only manager or storekeeper can mark as delivered
-    if current_user.get('payload').get('role') not in ["manager", "storekeeper"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only managers or storekeepers can mark procurements as delivered"
-        )
-    
-    return ProcurementService.mark_as_delivered(
+        
+    return ProcurementService.change_procurement_status(
         db=db,
         procurement_id=procurement_id,
+        status=new_status,
         user_id=current_user.id,
         delivery_notes=delivery_notes,
         driver_name=driver_name,

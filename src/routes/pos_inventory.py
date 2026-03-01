@@ -8,7 +8,6 @@ from typing import List, Optional
 from src.core.database import get_db
 from src.core.auth_dependencies import get_current_account, require_permission
 from src.core.permissions import Permissions
-# from src.models.dicts import dict
 from src.schemas.inventory import (
     WarehouseCreate, WarehouseUpdate, WarehouseOut,
     InventoryCreate, InventoryUpdate, InventoryOut,
@@ -18,7 +17,6 @@ from src.schemas.inventory import (
     InventorySummary, LowStockItem, StockLevelReportItem
 )
 from src.services.inventory import InventoryService, NotFoundException, ValidationException, BusinessRuleException, InsufficientStockException
-
 
 inventory_router = APIRouter(prefix="/inventory", tags=["POS Inventory"])
 
@@ -35,12 +33,11 @@ inventory_router = APIRouter(prefix="/inventory", tags=["POS Inventory"])
 )
 def create_warehouse(
     data: WarehouseCreate,
-    current_account: dict = Depends(require_permission(Permissions.CREATE_WAREHOUSE)),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_account = Depends(require_permission(Permissions.CREATE_WAREHOUSE)),
 ):
     """
     Create a new warehouse.
-    
     - **name**: Warehouse name (required, unique)
     - **location**: Optional location description
     - **is_active**: Active status (default: true)
@@ -51,7 +48,6 @@ def create_warehouse(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 @inventory_router.get("/warehouses/",
     response_model=List[WarehouseOut],
@@ -522,7 +518,7 @@ def check_stock_availability(
 )
 def receive_procurement(
     data: ProcurementReceiveRequest,
-    current_account: dict = Depends(require_permission(Permissions.RECEIVE_PROCUREMENT)),
+    current_account = Depends(require_permission(Permissions.RECEIVE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -532,7 +528,7 @@ def receive_procurement(
     - **warehouse_id**: Warehouse ID to receive into
     """
     try:
-        return InventoryService.receive_procurement(db, data.procurement_id, data.warehouse_id)
+        return InventoryService.receive_procurement(db, data.procurement_id, data.warehouse_id, data.received_by_id)
     except NotFoundException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ValidationException as e:
@@ -586,7 +582,6 @@ def finalize_sale(
 ):
     """
     Finalize sale inventory.
-    
     - **sale_id**: Sale ID
     - **pos_id**: POS ID
     - **items**: List of sale items (from sale creation)
@@ -674,7 +669,6 @@ def get_low_stock_items(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-
 @inventory_router.get("/reports/stock-levels",
     response_model=List[StockLevelReportItem],
     summary="Stock level report",
@@ -688,7 +682,6 @@ def get_stock_level_report(
 ):
     """
     Get stock level report.
-    
     - **warehouse_id**: Optional warehouse filter
     - **product_id**: Optional product filter
     """
@@ -696,7 +689,6 @@ def get_stock_level_report(
         return InventoryService.get_stock_level_report(db, warehouse_id, product_id)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 @inventory_router.get("/reports/value",
     summary="Inventory value report",

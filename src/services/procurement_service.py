@@ -8,14 +8,15 @@ from sqlalchemy import func, desc, asc, and_, or_, extract
 import logging
 
 from src.models.procurement import (
-    Procurement, ProcurementItem, ProcurementStatus
+    Procurement, ProcurementItem, ProcurementStatus,
 )
-from src.models.pos import POS, POSUser
+from src.models.providers import ProviderType
+from src.models.pos import POS, POSUser, PosType
 from src.models.providers import Provider
 from src.models.catalog import ProductVariant
 from src.models.inventory import Inventory
 from src.schemas.procurement import (
-    ProcurementCreate, ProcurementUpdate, ProcurementItemCreate
+    ProcurementCreate, ProcurementUpdate, ProcurementItemCreate,
 )
 from src.services.inventory import InventoryService, NotFoundException, ValidationException, BusinessRuleException
 
@@ -53,33 +54,52 @@ class ProcurementService:
     ) -> Procurement:
         """Create a new procurement (purchase order)"""
         try:
-            # Verify POS exists
+            # --- Verify requesting POS ---
             pos = db.query(POS).filter(POS.id == pos_id).first()
             if not pos:
                 raise NotFoundException(f"POS {pos_id} not found")
-            
-            # Verify provider exists
+
+            # --- Verify provider ---
             provider = db.query(Provider).filter(Provider.id == data.provider_id).first()
             if not provider:
                 raise NotFoundException(f"Provider {data.provider_id} not found")
-            
-            # Verify all product variants exist
+
+            if not provider.is_active:
+                raise BusinessRuleException("Provider is inactive")
+
+            # --- Internal provider rules ---
+            if provider.provider_type == ProviderType.INTERNAL:
+                if not provider.linked_pos_id:
+                    raise BusinessRuleException("Internal provider must be linked to a POS")
+                
+                supplying_pos = db.query(POS).filter(POS.id == provider.linked_pos_id).first()
+                if not supplying_pos:
+                    raise NotFoundException(f"Linked POS {provider.linked_pos_id} not found")
+                
+                # Cannot procure from self
+                if supplying_pos.id == pos.id:
+                    raise BusinessRuleException("POS cannot procure from itself")
+
+                # Only Central or Regional can supply
+                if supplying_pos.type not in [PosType.CENTRAL, PosType.REGIONAL]:
+                    raise BusinessRuleException("This POS cannot supply products")
+
+                # Central cannot request
+                if pos.type == PosType.CENTRAL:
+                    raise BusinessRuleException("Central POS cannot request procurement")
+
+            # --- Verify all product variants exist ---
             for item in data.items:
                 product_variant = db.query(ProductVariant).filter(
                     ProductVariant.id == item.product_variant_id
                 ).first()
                 if not product_variant:
                     raise NotFoundException(f"Product variant {item.product_variant_id} not found")
-            
-            # Generate PO number
+
             po_number = ProcurementService.generate_po_number(db, pos_id)
-            
-            # Calculate totals
             subtotal = sum(item.quantity * item.unit_price for item in data.items)
             tax = subtotal * (data.tax_rate or Decimal('0')) / 100
             total_amount = subtotal + tax
-            
-            # Create procurement
             procurement = Procurement(
                 po_number=po_number,
                 pos_id=pos_id,
@@ -96,9 +116,8 @@ class ProcurementService:
                 updated_at=datetime.now(timezone.utc)
             )
             db.add(procurement)
-            db.flush()  # Get procurement ID
-            
-            # Create procurement items
+            db.flush()
+
             for item_data in data.items:
                 procurement_item = ProcurementItem(
                     procurement_id=procurement.id,
@@ -108,18 +127,16 @@ class ProcurementService:
                     created_at=datetime.now(timezone.utc)
                 )
                 db.add(procurement_item)
-            
+
             db.commit()
             db.refresh(procurement)
-            
             logger.info(f"Procurement created: {procurement.po_number} for POS {pos_id}")
             return procurement
-            
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating procurement: {str(e)}")
-            raise
-    
+            raise    
+
     @staticmethod
     def get_procurement(
         db: Session,
@@ -216,9 +233,10 @@ class ProcurementService:
     # ================================
     
     @staticmethod
-    def mark_as_delivered(
+    def change_procurement_status(
         db: Session,
         procurement_id: int,
+        new_status: ProcurementStatus,
         user_id: int,
         delivery_notes: Optional[str] = None,
         driver_name: Optional[str] = None,
@@ -227,6 +245,7 @@ class ProcurementService:
         """
         Mark procurement as delivered and update inventory.
         """
+
         # Get procurement with lock for update
         procurement = db.query(Procurement).filter(
             Procurement.id == procurement_id
@@ -235,55 +254,30 @@ class ProcurementService:
         if not procurement:
             raise NotFoundException(f"Procurement {procurement_id} not found")
         
-        # Check if already delivered
-        if procurement.status == ProcurementStatus.DELIVERED:
-            raise BusinessRuleException("Procurement is already delivered")
-        
-        # Check if cancelled
-        if procurement.status == ProcurementStatus.CANCELLED:
-            raise BusinessRuleException("Cannot deliver cancelled procurement")
+        # Check if already delivered OR cancelled
+        if procurement.status in [
+            ProcurementStatus.CANCELLED,
+            ProcurementStatus.RECEIVED
+        ]:
+            raise BusinessRuleException("Procurement is already delivered or cancelled")
         
         try:
             # Update procurement status
-            procurement.status = ProcurementStatus.DELIVERED
-            procurement.delivered_at = datetime.now(timezone.utc)
-            procurement.delivered_by_id = user_id
+            procurement.status = new_status
             procurement.delivery_notes = delivery_notes
             procurement.driver_name = driver_name
             procurement.driver_phone = driver_phone
             procurement.warehouse_id = procurement.pos.warehouse_id  # Link to POS warehouse
             procurement.updated_at = datetime.now(timezone.utc)
-            
-            # Get procurement items
-            items = db.query(ProcurementItem).filter(
-                ProcurementItem.procurement_id == procurement_id
-            ).all()
-            
+                        
             # Check if POS has warehouse
             if not procurement.pos.warehouse_id:
                 raise BusinessRuleException(f"POS {procurement.pos_id} has no associated warehouse")
             
-            # Update inventory for each item
-            for item in items:
-                # Increase stock in warehouse
-                inventory_item = InventoryService.increase_stock(
-                    db,
-                    procurement.pos.warehouse_id,
-                    item.product_variant_id,
-                    item.quantity,
-                    source=f"procurement_{procurement.po_number}"
-                )
-                
-                logger.debug(
-                    f"Stock increased: {item.quantity} units of product {item.product_variant_id}"
-                )
-            
             db.commit()
-            db.refresh(procurement)
-            
+            db.refresh(procurement)           
             logger.info(f"Procurement delivered: {procurement.po_number}")
-            return procurement
-            
+            return procurement           
         except Exception as e:
             db.rollback()
             logger.error(f"Error delivering procurement {procurement_id}: {str(e)}")

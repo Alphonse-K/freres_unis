@@ -11,6 +11,7 @@ class PosType(str, enum.Enum):
     INTERNAL = "internal"
     EXTERNAL = "external"
     REGIONAL = "regional"
+    CENTRAL = "central"
 
 
 class PosStatus(str, enum.Enum):

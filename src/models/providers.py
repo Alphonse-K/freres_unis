@@ -26,6 +26,10 @@ class PaymentMethod(str, enum.Enum):
     CARD = "card"
     OTHER = "other"
 
+class ProviderType(str, enum.Enum):
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+
 
 class Provider(Base):
     __tablename__ = "providers"
@@ -42,8 +46,11 @@ class Provider(Base):
     current_balance = Column(Numeric(14, 2), default=0)
     created_at = Column(Date(), server_default=func.now())
     updated_at = Column(Date(), onupdate=func.now())
+    provider_type = Column(PgEnum(ProviderType), nullable=False)
+    linked_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
 
     # --- Relationships ---
+    linked_pos = relationship("POS")
     addresses = relationship(
         "Address",
         back_populates="provider",
