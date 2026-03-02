@@ -77,7 +77,13 @@ class POSExpenseStatus(str, enum.Enum):
 class POS(Base):
     __tablename__ = "pos"
     id = Column(Integer, primary_key=True)
-    type = Column(Enum(PosType), nullable=False)
+    type = Column(
+        Enum(
+            PosType,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
+        nullable=False
+    )    
     pos_business_name= Column(String(255), nullable=False)
     phone = Column(String(40), unique=True, nullable=False)
     balance = Column(Numeric(12, 2), default=0)
