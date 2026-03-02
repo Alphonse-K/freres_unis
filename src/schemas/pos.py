@@ -7,13 +7,7 @@ from src.schemas.inventory import WarehouseOut
 from enum import Enum
 import re
 
-# from src.models.pos import SaleStatus, PaymentMethod, POSExpenseCategory, POSExpenseStatus
-
-
-# --- ENUMS ---
-class PosType(str, Enum):
-    INTERNAL = "internal"
-    EXTERNAL = "external"
+from src.models.pos import PosType
 
 
 class PosStatus(str, Enum):
