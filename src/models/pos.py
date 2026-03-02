@@ -50,12 +50,6 @@ class SaleStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
-class POSUserRole(str, enum.Enum):
-    MANAGER = "manager"
-    CASHIER = "cashier"
-    STOREKEEPER = "storekeeper"
-
-
 class POSExpenseCategory(str, enum.Enum):
     RENT = "rent"
     TRANSPORT = "transport"
@@ -151,7 +145,6 @@ class POSUser(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # relationship
     pos = relationship("POS", back_populates="users")
     roles = relationship(
         "Role",
