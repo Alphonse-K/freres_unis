@@ -193,7 +193,6 @@ def cancel_procurement(
         reason=reason
     )
 
-
 @procurement_router.get("/pos/{pos_id}/summary")
 def get_pos_procurement_summary(
     pos_id: int,
@@ -207,7 +206,11 @@ def get_pos_procurement_summary(
     - Shows total amount
     """
     # Authorization
-    if current_user.role != "manager" and current_user.pos_id != pos_id:
+    is_super_admin = any(
+        role.name == "SUPER_ADMIN"
+        for role in current_user.roles
+    )
+    if not is_super_admin and current_user.pos.id != pos_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this POS summary"

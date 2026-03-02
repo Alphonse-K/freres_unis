@@ -243,7 +243,7 @@ class ProcurementService:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
-    
+
     # ================================
     # PROCUREMENT WORKFLOW
     # ================================
