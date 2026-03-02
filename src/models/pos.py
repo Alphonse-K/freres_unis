@@ -130,7 +130,7 @@ class POSUser(Base):
     last_name = Column(String(120))
     username = Column(String(120), unique=True, nullable=False)
     phone = Column(String(40), unique=True, nullable=False)
-    email = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     pin_hash = Column(String(255), nullable=False)
     last_login_ip = Column(String, nullable=True)
