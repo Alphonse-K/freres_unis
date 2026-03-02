@@ -168,24 +168,23 @@ class ProcurementService:
         offset: int = 0
     ) -> List[Procurement]:
         """List procurements with filtering"""
-
-        procurement = db.query(Procurement).filter(Procurement.pos_id == pos_id).first()
-        if not any(role.name == "SUPER_ADMIN" for role in current_user.roles):
-            if current_user.pos.id != procurement.pos_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You can only see your own procurements"
-                )
             
         query = db.query(Procurement).options(
             joinedload(Procurement.pos),
             joinedload(Procurement.provider)
         )
         
-        # Apply filters
-        if pos_id:
-            query = query.filter(Procurement.pos_id == pos_id)
-        
+        is_super_admin = any(
+            role.name == "SUPER_ADMIN"
+            for role in current_user.roles)
+        if not is_super_admin:
+           query = query.filter(
+               Procurement.pos_id == current_user.pos.id)
+        else:
+            if pos_id:
+                query = query.fiter(Procurement.pos_id == pos_id)
+
+        # Apply filters        
         if provider_id:
             query = query.filter(Procurement.provider_id == provider_id)
         
