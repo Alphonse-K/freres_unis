@@ -97,6 +97,7 @@ class ProductVariantCreate(ProductVariantBase):
 
 class ProductVariantUpdate(BaseModel):
     product_id: Optional[int] = None
+    name:  str | None = None
     sku: Optional[str] = None
     purchase_price: Optional[Decimal] = None
     sale_price: Optional[Decimal] = None
