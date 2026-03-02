@@ -86,7 +86,6 @@ class POSUserBase(BaseModel):
     username: str = Field(..., max_length=120)
     phone: str = Field(..., max_length=40)
     email: Optional[str] = Field(None, max_length=255)
-    # role: Optional[POSUserRole] = POSUserRole.CASHIER
     is_active: Optional[bool] = True
     allowed_login_start: Optional[time] = None
     allowed_login_end: Optional[time] = None

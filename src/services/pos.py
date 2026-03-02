@@ -355,12 +355,11 @@ class POSUserService:
                 detail="POS user phone already exists"
             )
 
-        payload = data.model_dump(exclude={"password_hash", "pin_hash", "role"})
+        payload = data.model_dump(exclude={"password_hash", "pin_hash"})
 
         user = POSUser(
             pos_id=pos_id,
             **payload,
-            role=data.role or POSUserRole.CASHIER,
             password_hash=SecurityUtils.hash_password(data.password_hash),
             pin_hash=SecurityUtils.hash_password(data.pin_hash),
         )
