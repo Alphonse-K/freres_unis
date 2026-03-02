@@ -287,13 +287,10 @@ def get_warehouse_inventory(
     - **skip**: Pagination offset
     - **limit**: Items per page (1-200)
     """
-    try:
-        items, total = InventoryService.get_inventory_by_warehouse(
-            db, warehouse_id, current_account, product_id, low_stock_threshold, skip, limit
-        )
-        return items
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    items, total = InventoryService.get_inventory_by_warehouse(
+        db, warehouse_id, current_account, product_id, low_stock_threshold, skip, limit
+    )
+    return items
 
 
 @inventory_router.get("/products/{product_variant_id}/stock",

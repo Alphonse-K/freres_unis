@@ -436,7 +436,7 @@ class InventoryService:
         user_warehouse_id = current_account.pos.warehouse_id
         if user_warehouse_id and warehouse_id != user_warehouse_id:
             raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to view these inventories"
             )
             
