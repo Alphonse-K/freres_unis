@@ -161,11 +161,9 @@ class SaleService:
                 raise SaleValidationException(f"Inventory update failed: {str(e)}")
             
             db.commit()
-            db.refresh(sale)
-            
+            db.refresh(sale)           
             logger.info(f"Sale created: {sale.id} at POS {data.pos_id}")
-            return sale
-            
+            return sale           
         except SaleException:
             db.rollback()
             raise

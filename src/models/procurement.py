@@ -50,7 +50,8 @@ class Procurement(Base):
     provider = relationship("Provider")
     pos = relationship(
         "POS", 
-        back_populates="procurements"
+        back_populates="procurements",
+        foreign_keys=[pos_id]
     )
     created_by = relationship(
         "POSUser", 
