@@ -418,16 +418,28 @@ class InventoryService:
             Inventory.warehouse_id == warehouse_id
         ).first()
     
+    def has_role(user, role_name: str) -> bool:
+        return any(role.name == role_name for role in user.roles)
+    
     @staticmethod
     def get_inventory_by_warehouse(
         db: Session,
         warehouse_id: int,
+        current_account,
         product_id: Optional[int] = None,
         low_stock_threshold: Optional[Decimal] = None,
         skip: int = 0,
         limit: int = 100
     ) -> Tuple[List[Inventory], int]:
         """Get inventory items for a warehouse"""
+
+        user_warehouse_id = current_account.pos.warehouse_id
+        if user_warehouse_id and warehouse_id != user_warehouse_id:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view these inventories"
+            )
+            
         query = db.query(Inventory).filter(
             Inventory.warehouse_id == warehouse_id
         ).options(

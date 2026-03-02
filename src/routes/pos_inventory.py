@@ -275,7 +275,7 @@ def get_warehouse_inventory(
     low_stock_threshold: Optional[Decimal] = Query(None, description="Show items below threshold"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(100, ge=1, le=200, description="Items per page"),
-    current_account: dict = Depends(require_permission(Permissions.READ_INVENTORY_ITEM)),
+    current_account = Depends(require_permission(Permissions.READ_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
@@ -289,7 +289,7 @@ def get_warehouse_inventory(
     """
     try:
         items, total = InventoryService.get_inventory_by_warehouse(
-            db, warehouse_id, product_id, low_stock_threshold, skip, limit
+            db, warehouse_id, current_account, product_id, low_stock_threshold, skip, limit
         )
         return items
     except Exception as e:
