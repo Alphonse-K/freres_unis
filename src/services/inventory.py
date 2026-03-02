@@ -471,9 +471,17 @@ class InventoryService:
     def get_inventory_by_product_variant(
         db: Session,
         product_variant_id: int,
+        current_account,
         warehouse_id: Optional[int] = None
     ) -> List[Inventory]:
         """Get inventory across all warehouses for a product variant"""
+        user_warehouse_id = current_account.pos.warehouse_id
+        if user_warehouse_id and warehouse_id != user_warehouse_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view these inventories"
+            )
+        
         query = db.query(Inventory).filter(
             Inventory.product_variant_id == product_variant_id
         ).options(
@@ -490,9 +498,18 @@ class InventoryService:
         db: Session,
         warehouse_id: int,
         product_variant_id: int,
-        quantity: Decimal
+        quantity: Decimal,
+        current_account
     ) -> Dict[str, Any]:
         """Check if sufficient stock is available for sale"""
+        
+        user_warehouse_id = current_account.pos.warehouse_id
+        if user_warehouse_id and warehouse_id != user_warehouse_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view these inventories"
+            )
+
         item = db.query(Inventory).filter(
             Inventory.warehouse_id == warehouse_id,
             Inventory.product_variant_id == product_variant_id

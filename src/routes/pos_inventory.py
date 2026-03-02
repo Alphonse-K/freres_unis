@@ -309,11 +309,13 @@ def get_product_variant_stock(
     - **product_variant_id**: Product variant ID
     - **warehouse_id**: Optional warehouse filter
     """
-    try:
-        items = InventoryService.get_inventory_by_product_variant(db, product_variant_id, warehouse_id)
-        return items
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    items = InventoryService.get_inventory_by_product_variant(
+        db, 
+        product_variant_id, 
+        current_account, 
+        warehouse_id
+    )
+    return items
 
 
 # ================================
@@ -495,14 +497,9 @@ def check_stock_availability(
     - **product_variant_id**: Product variant ID
     - **quantity**: Required quantity (must be positive)
     """
-    try:
-        return InventoryService.check_stock_availability(
-            db, data.warehouse_id, data.product_variant_id, data.quantity
-        )
-    except NotFoundException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    return InventoryService.check_stock_availability(
+        db, data.warehouse_id, data.product_variant_id, data.quantity, current_account
+    )
 
 
 # ================================

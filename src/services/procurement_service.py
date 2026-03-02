@@ -160,13 +160,23 @@ class ProcurementService:
     @staticmethod
     def list_procurements(
         db: Session,
+        current_user,
         pos_id: Optional[int] = None,
         provider_id: Optional[int] = None,
-        status: Optional[ProcurementStatus] = None,
+        procurement_status: Optional[ProcurementStatus] = None,
         limit: int = 100,
         offset: int = 0
     ) -> List[Procurement]:
         """List procurements with filtering"""
+
+        procurement = db.query(Procurement).filter(Procurement.pos_id == pos_id).first()
+        if not any(role.name == "SUPER_ADMIN" for role in current_user.roles):
+            if current_user.pos.id != procurement.pos_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only see your own procurements"
+                )
+            
         query = db.query(Procurement).options(
             joinedload(Procurement.pos),
             joinedload(Procurement.provider)
@@ -179,8 +189,8 @@ class ProcurementService:
         if provider_id:
             query = query.filter(Procurement.provider_id == provider_id)
         
-        if status:
-            query = query.filter(Procurement.status == status)
+        if procurement_status:
+            query = query.filter(Procurement.status == procurement_status)
         
         # Apply pagination and ordering
         query = query.order_by(desc(Procurement.created_at)).offset(offset).limit(limit)
@@ -191,6 +201,7 @@ class ProcurementService:
     def update_procurement(
         db: Session,
         procurement_id: int,
+        current_user,
         data: ProcurementUpdate
     ) -> Procurement:
         """Update procurement information"""
@@ -203,6 +214,12 @@ class ProcurementService:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail=f"Cannot update procurement with status {procurement.status.value}"
+            )
+        
+        if procurement.pos_id != current_user.pos.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update your own procurement."
             )
         
         try:
@@ -316,8 +333,7 @@ class ProcurementService:
             db.refresh(procurement)
             
             logger.info(f"Procurement cancelled: {procurement.po_number}")
-            return procurement
-            
+            return procurement            
         except Exception as e:
             db.rollback()
             logger.error(f"Error cancelling procurement {procurement_id}: {str(e)}")

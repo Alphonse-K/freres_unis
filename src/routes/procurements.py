@@ -42,31 +42,24 @@ def create_procurement(
         user_id=current_user.id
     )
 
-
 @procurement_router.get("/", response_model=List[ProcurementResponse])
 def list_procurements(
     pos_id: Optional[int] = Query(None, description="Filter by POS"),
     provider_id: Optional[int] = Query(None, description="Filter by provider"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    procurement_status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
     current_user: POSUser = Depends(require_permission(Permissions.READ_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
     """
-    List procurements with filtering
-    
+    List procurements with filtering   
     - POS users can only see their POS's procurements unless admin
     - Supports pagination
     """
-    # For regular POS users, restrict to their POS
-    current_user_role = current_user.get('payload').get('role')
-    if current_user_role not in ["ADMIN", "RH", "FINANCE"]:
-        pos_id = current_user.get('account').pos.id
-    
     # Convert status string to enum
     status_enum = None
-    if status:
+    if procurement_status:
         try:
             status_enum = ProcurementStatus(status.lower())
         except ValueError:
@@ -74,13 +67,13 @@ def list_procurements(
     
     return ProcurementService.list_procurements(
         db=db,
+        current_user=current_user,
         pos_id=pos_id,
         provider_id=provider_id,
-        status=status_enum,
+        procurement_status=status_enum,
         limit=limit,
         offset=offset
     )
-
 
 @procurement_router.get("/{procurement_id}", response_model=ProcurementResponse)
 def get_procurement(
@@ -130,8 +123,7 @@ def update_procurement(
             detail="Procurement not found"
         )
     
-    
-    return ProcurementService.update_procurement(db, procurement_id, data)
+    return ProcurementService.update_procurement(db, procurement_id, current_user, data)
 
 
 @procurement_router.post("/{procurement_id}/deliver", response_model=ProcurementResponse)
