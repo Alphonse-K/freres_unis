@@ -100,7 +100,11 @@ class POS(Base):
         cascade="all, delete-orphan"
     )
     sales = relationship("Sale", back_populates="pos")
-    procurements = relationship("Procurement", back_populates="pos")
+    procurements = relationship(
+        "Procurement", 
+        back_populates="pos", 
+        foreign_keys="Procurement.pos_id"
+    )
     users = relationship(
         "POSUser",
         back_populates="pos",
