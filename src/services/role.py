@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from src.models.role import Role 
 from src.models.permission import Permission
 from src.core.permissions import Permissions
@@ -42,6 +42,28 @@ def assign_roles_to_entity(
     db.commit()
     db.refresh(entity)
     return entity
+
+def get_entity_roles(
+    db: Session,
+    entity_type: str,
+    entity_id: int
+):
+    Model = MODEL_MAP.get(entity_type.upper())
+
+    if not Model:
+        raise HTTPException(status_code=400, detail="Invalid entity type")
+
+    entity = (
+        db.query(Model)
+        .options(joinedload(Model.roles))
+        .filter(Model.id == entity_id)
+        .first()
+    )
+
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+
+    return entity.roles
 
 def update_role(db: Session, role_id: int, role_data):
     role = db.query(Role).filter(Role.id == role_id).first()

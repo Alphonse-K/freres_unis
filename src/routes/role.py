@@ -6,7 +6,7 @@ from src.schemas.roles_perm import (
 )
 from src.services.role import (
     create_role, get_role_by_id, update_role, delete_role, 
-    get_all_roles, assign_roles_to_entity
+    get_all_roles, assign_roles_to_entity, get_entity_roles
 )
 from src.core.auth_dependencies import require_permission
 from src.core.database import get_db
@@ -42,6 +42,15 @@ def assing_roles_to_entity(
         current_user = Depends(require_permission(Permissions.UPDATE_ROLE))
 ):
     return assign_roles_to_entity(db, entity_type, entity_id, role_ids)
+
+@role_router.get("/get-entity-roles/{entity_type}/{entity_id}")
+def get_entity_role(
+    entity_type: EntityType,
+    entity_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_ROLE))
+):
+    return get_entity_roles(db, entity_type, entity_id)
 
 @role_router.put("/roles/{role_id}", response_model=RoleResponse)
 def update_role(
