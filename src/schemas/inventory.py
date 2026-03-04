@@ -37,23 +37,27 @@ class WarehouseOut(WarehouseBase):
 # -------------------------------
 # INVENTORY SCHEMAS
 # -------------------------------
+class InventoryItemCreate(BaseModel):
+    product_variant_id: int
+    quantity: Optional[Decimal] = Decimal("0")
+    reserved_quantity: Optional[Decimal] = Decimal("0")
+
+
+class InventoryBulkCreate(BaseModel):
+    warehouse_id: int
+    items: List[InventoryItemCreate]
+
 class InventoryBase(BaseModel):
     product_variant_id: int
     warehouse_id: int
     quantity: Optional[Decimal] = Decimal('0')
     reserved_quantity: Optional[Decimal] = Decimal('0')
 
-
-class InventoryCreate(InventoryBase):
-    pass
-
-
 class InventoryUpdate(BaseModel):
     product_variant_id: Optional[int] = None
     warehouse_id: Optional[int] = None
     quantity: Optional[Decimal] = None
     reserved_quantity: Optional[Decimal] = None
-
 
 class InventoryOut(InventoryBase):
     id: int

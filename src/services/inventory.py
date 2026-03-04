@@ -13,7 +13,7 @@ from src.models.procurement import Procurement, ProcurementItem, ProcurementStat
 from src.models.pos import SaleItem
 from src.models.catalog import ProductVariant, Product
 from src.schemas.inventory import (
-    InventoryCreate, InventoryUpdate, WarehouseCreate, WarehouseUpdate
+    InventoryBulkCreate, InventoryUpdate, WarehouseCreate, WarehouseUpdate
 )
 
 logger = logging.getLogger(__name__)
@@ -262,52 +262,63 @@ class InventoryService:
     # ================================
     
     @staticmethod
-    def create_inventory_item(db: Session, data: InventoryCreate) -> Inventory:
-        """Add product to warehouse inventory or update existing"""
+    def bulk_create_inventory_items(db: Session, data: InventoryBulkCreate) -> List[Inventory]:
+        """Add products to warehouse inventory or update existing"""
         try:
-            # Verify warehouse exists
-            warehouse = db.query(Warehouse).filter(Warehouse.id == data.warehouse_id).first()
+            # Validate warehouse
+            warehouse = db.query(Warehouse).filter(
+                Warehouse.id == data.warehouse_id
+            ).first()          
             if not warehouse:
-                raise NotFoundException(f"Warehouse {data.warehouse_id} not found")
-            
-            # Verify product variant exists
-            product_variant = db.query(ProductVariant).filter(
-                ProductVariant.id == data.product_variant_id
-            ).first()
-            if not product_variant:
-                raise NotFoundException(f"Product variant {data.product_variant_id} not found")
-            
-            # Check if item already exists in warehouse
-            existing = db.query(Inventory).filter(
-                Inventory.warehouse_id == data.warehouse_id,
-                Inventory.product_variant_id == data.product_variant_id
-            ).first()
-            
-            if existing:
-                # Update existing item
-                existing.quantity = data.quantity or Decimal('0')
-                existing.reserved_quantity = data.reserved_quantity or Decimal('0')
-                existing.updated_at = datetime.now(timezone.utc)
-                item = existing
-                db.add(item)
-            else:
-                # Create new item
-                item = Inventory(
-                    warehouse_id=data.warehouse_id,
-                    product_variant_id=data.product_variant_id,
-                    quantity=data.quantity or Decimal('0'),
-                    reserved_quantity=data.reserved_quantity or Decimal('0'),
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
+                raise NotFoundException(
+                    f"Warehouse with {data.warehouse_id} not found"
                 )
-                db.add(item)
+            
+            variant_ids = [variant.product_variant_id for variant in data.items]
+            variants = db.query(ProductVariant).filter(
+                ProductVariant.id.in_(variant_ids)
+            ).all()
+            found_items_id = {item.id for item in variants}
+
+            missing = set(variant_ids) - found_items_id
+            if missing:
+                raise NotFoundException(
+                    f"products variants not found: {missing}"
+                )
+            
+            # Fetch existing items at once
+            existing_items = db.query(Inventory).filter(
+                Inventory.warehouse_id == data.warehouse_id,
+                Inventory.product_variant_id.in_(variant_ids)
+            ).all()
+
+            existing_map = {
+                item.product_variant_id: item
+                for item in existing_items
+            }
+
+            result_items = []
+
+            for entry in data.items:
+                existing = existing_map.get(entry.product_variant_id)
+                if existing:
+                    existing.quantity = entry.quantity or Decimal("0")
+                    existing.reserved_quantity = entry.reserved_quantity or Decimal("0")
+                    existing.updated_at = datetime.now(timezone.utc)
+                    result_items.append(existing)
+                else:
+                    new_item = Inventory(
+                        warehouse_id=data.warehouse_id,
+                        product_variant_id=entry.product_variant_id,
+                        quantity=entry.quantity or Decimal('0'),
+                        reserved_quantity=entry.reserved_quantity,
+                        created_at=datetime.now(timezone.utc)                      
+                    )
+                    db.add(new_item)
+                    result_items.append(new_item)
             
             db.commit()
-            db.refresh(item)
-            
-            logger.info(f"Inventory item {'updated' if existing else 'created'}: {item.id} in warehouse {data.warehouse_id}")
-            return item
-            
+            return result_items
         except InventoryException:
             db.rollback()
             raise
@@ -403,7 +414,7 @@ class InventoryService:
         
         if not item:
             raise NotFoundException(f"Inventory item {inventory_id} not found")
-        
+    
         return item
     
     @staticmethod

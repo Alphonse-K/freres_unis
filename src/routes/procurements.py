@@ -91,14 +91,7 @@ def get_procurement(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Procurement not found"
         )
-    
-    # Authorization: Check if user can access this procurement
-    if current_user.role != "manager" and procurement.pos_id != current_user.pos_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this procurement"
-        )
-    
+        
     return procurement
 
 
@@ -179,14 +172,7 @@ def cancel_procurement(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Procurement not found"
         )
-    
-    # Authorization: Only manager can cancel
-    if current_user.role != "manager":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only managers can cancel procurements"
-        )
-    
+        
     return ProcurementService.cancel_procurement(
         db=db,
         procurement_id=procurement_id,

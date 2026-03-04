@@ -10,7 +10,7 @@ from src.core.auth_dependencies import get_current_account, require_permission
 from src.core.permissions import Permissions
 from src.schemas.inventory import (
     WarehouseCreate, WarehouseUpdate, WarehouseOut,
-    InventoryCreate, InventoryUpdate, InventoryOut,
+    InventoryBulkCreate, InventoryUpdate, InventoryOut,
     StockIncreaseRequest, StockDecreaseRequest, StockReserveRequest,
     StockReleaseRequest, StockTransferRequest, StockCheckRequest, StockCheckResponse,
     ProcurementReceiveRequest, SaleProcessRequest, SaleProcessResponse,
@@ -189,29 +189,22 @@ def update_warehouse(
     response_model=InventoryOut,
     status_code=status.HTTP_201_CREATED,
     summary="Create inventory item",
-    description="Add product to warehouse inventory or update existing"
+    description="Add products to warehouse inventory or update existing"
 )
-def create_inventory_item(
-    data: InventoryCreate,
+def bulk_create_inventory_items(
+    data: InventoryBulkCreate,
     current_account: dict = Depends(require_permission(Permissions.CREATE_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """
-    Create or update inventory item.
+    Create or update inventory items.
     
     - **product_variant_id**: Product variant ID (required)
     - **warehouse_id**: Warehouse ID (required)
     - **quantity**: Initial quantity (default: 0)
     - **reserved_quantity**: Reserved quantity (default: 0)
     """
-    try:
-        return InventoryService.create_inventory_item(db, data)
-    except NotFoundException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except ValidationException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    return InventoryService.bulk_create_inventory_items(db, data)
 
 
 @inventory_router.get("/items/{inventory_id}",
@@ -235,7 +228,6 @@ def get_inventory_item(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 @inventory_router.put("/items/{inventory_id}",
     response_model=InventoryOut,
@@ -291,7 +283,6 @@ def get_warehouse_inventory(
         db, warehouse_id, current_account, product_id, low_stock_threshold, skip, limit
     )
     return items
-
 
 @inventory_router.get("/products/{product_variant_id}/stock",
     summary="Get stock across warehouses",
