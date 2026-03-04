@@ -20,10 +20,12 @@ class Procurement(Base):
     reference = Column(String(50), nullable=False, unique=True)
     provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
-    supplying_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
+    # supplying_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
     po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
-    expected_delivery_date = Column(DateTime(timezone=True), nullable=True)    
+    expected_delivery_date = Column(DateTime(timezone=True), nullable=True) 
+    subtotal_amount = Column(Numeric(12, 2), nullable=False)
+    tax_amount = Column(Numeric(12, 2), nullable=False, default=0)
     total_amount = Column(Numeric(12, 2), nullable=False)    
     status = Column(
         PgEnum(ProcurementStatus),
@@ -71,7 +73,7 @@ class Procurement(Base):
         back_populates="procurement",
         cascade="all, delete-orphan"
     )
-    supplying_pos = relationship("POS", foreign_keys=[supplying_pos_id])
+    # supplying_pos = relationship("POS", foreign_keys=[supplying_pos_id])
         
     @property
     def warehouse(self):
@@ -107,15 +109,7 @@ class Procurement(Base):
     def total_quantity(self):
         """Total quantity across all items"""
         return sum(item.qty for item in self.items) if self.items else 0
-        
-    @property
-    def has_po_pdf(self):
-        return bool(self.po_pdf_path)
-    
-    @property
-    def is_delivered(self):
-        return self.status == ProcurementStatus.DELIVERED
-    
+            
     @property
     def delivery_info(self):
         """Structured delivery information"""
@@ -124,7 +118,7 @@ class Procurement(Base):
         
         return {
             "date": self.delivery_date,
-            "received_by": self.received_by.full_name if self.received_by else None,
+            "received_by": self.received_by.username if self.received_by else None,
             "driver": self.driver_name,
             "driver_phone": self.driver_phone,
             "notes": self.delivery_notes,

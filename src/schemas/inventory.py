@@ -47,6 +47,7 @@ class InventoryBulkCreate(BaseModel):
     warehouse_id: int
     items: List[InventoryItemCreate]
 
+
 class InventoryBase(BaseModel):
     product_variant_id: int
     warehouse_id: int

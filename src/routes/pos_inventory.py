@@ -186,7 +186,7 @@ def update_warehouse(
 # ================================
 
 @inventory_router.post("/items/",
-    response_model=InventoryOut,
+    response_model=List[InventoryOut],
     status_code=status.HTTP_201_CREATED,
     summary="Create inventory item",
     description="Add products to warehouse inventory or update existing"

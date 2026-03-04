@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from src.models.role import Role 
 from src.models.permission import Permission

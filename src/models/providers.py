@@ -26,6 +26,7 @@ class PaymentMethod(str, enum.Enum):
     CARD = "card"
     OTHER = "other"
 
+
 class ProviderType(str, enum.Enum):
     INTERNAL = "internal"
     EXTERNAL = "external"

@@ -20,6 +20,7 @@ from src.routes.procurements import procurement_router
 from src.routes.provider import provider_router
 from src.routes.catalog_route import product_router
 from src.routes.role import role_router
+from src.routes.tax import tax_router
 from src.routes import files
 
 
@@ -52,6 +53,7 @@ app.include_router(client_router, prefix=API_PREFIX)
 app.include_router(pos_router, prefix=API_PREFIX)
 app.include_router(product_router, prefix=API_PREFIX)
 app.include_router(inventory_router, prefix=API_PREFIX)
+app.include_router(tax_router, prefix=API_PREFIX)
 app.include_router(sales_router, prefix=API_PREFIX)
 app.include_router(expenses_router, prefix=API_PREFIX)
 app.include_router(procurement_router, prefix=API_PREFIX)

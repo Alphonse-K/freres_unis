@@ -54,13 +54,13 @@ class ProcurementService:
     ) -> Procurement:
         """Create a new procurement (purchase order)"""
         try:
-            # --- Verify requesting POS ---
             pos = db.query(POS).filter(POS.id == pos_id).first()
             if not pos:
                 raise NotFoundException(f"POS {pos_id} not found")
 
-            # --- Verify provider ---
-            provider = db.query(Provider).filter(Provider.id == data.provider_id).first()
+            provider = db.query(Provider).filter(
+                Provider.id == data.provider_id
+            ).first()
             if not provider:
                 raise NotFoundException(f"Provider {data.provider_id} not found")
 
@@ -72,7 +72,9 @@ class ProcurementService:
                 if not provider.linked_pos_id:
                     raise BusinessRuleException("Internal provider must be linked to a POS")
                 
-                supplying_pos = db.query(POS).filter(POS.id == provider.linked_pos_id).first()
+                supplying_pos = db.query(POS).filter(
+                    POS.id == provider.linked_pos_id
+                ).first()
                 if not supplying_pos:
                     raise NotFoundException(f"Linked POS {provider.linked_pos_id} not found")
                 
@@ -86,7 +88,9 @@ class ProcurementService:
 
                 # Central cannot request
                 if pos.type == PosType.CENTRAL:
-                    raise BusinessRuleException("Central POS cannot request procurement")
+                    raise BusinessRuleException(
+                        "Central POS cannot request procurement"
+                    )
 
             # --- Verify all product variants exist ---
             for item in data.items:
@@ -94,26 +98,29 @@ class ProcurementService:
                     ProductVariant.id == item.product_variant_id
                 ).first()
                 if not product_variant:
-                    raise NotFoundException(f"Product variant {item.product_variant_id} not found")
+                    raise NotFoundException(
+                        f"Product variant {item.product_variant_id} not found"
+                    )
 
             po_number = ProcurementService.generate_po_number(db, pos_id)
-            subtotal = sum(item.quantity * item.unit_price for item in data.items)
-            tax = subtotal * (data.tax_rate or Decimal('0')) / 100
-            total_amount = subtotal + tax
+            subtotal = sum(
+                item.quantity * item.unit_price
+                for item in data.items
+            )
+            tax_rate = data.tax_rate or Decimal("0")
+            tax = (subtotal * tax_rate / 100).quantize(Decimal("0.01"))
+            grand_total = subtotal + tax            
             procurement = Procurement(
-                po_number=po_number,
+                reference=po_number,
                 pos_id=pos_id,
                 provider_id=data.provider_id,
                 created_by_id=user_id,
                 expected_delivery_date=data.expected_delivery_date,
-                delivery_address=data.delivery_address,
-                notes=data.notes,
+                delivery_notes=data.notes,
                 subtotal_amount=subtotal,
                 tax_amount=tax,
-                total_amount=total_amount,
-                status=ProcurementStatus.PENDING,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
+                total_amount=grand_total,
+                status=ProcurementStatus.PENDING
             )
             db.add(procurement)
             db.flush()
