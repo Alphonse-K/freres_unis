@@ -225,15 +225,6 @@ class CatalogService:
         db.refresh(variant)
         return variant
 
-    # @staticmethod
-    # def list_variants(db: Session, product_id: Optional[int] = None):
-    #     query = db.query(ProductVariant).options(
-    #         joinedload(ProductVariant.product)
-    #     )
-    #     if product_id:
-    #         query = query.filter(ProductVariant.product_id == product_id)
-
-    #     return query.all()
     def list_product_variants(db: Session):
         # eager load prices relationship
         variants = db.query(ProductVariant).options(

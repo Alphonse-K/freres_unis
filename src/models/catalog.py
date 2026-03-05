@@ -171,6 +171,7 @@ class ProductPrice(Base):
         ForeignKey("product_variants.id"),
         nullable=False
     )
+    qualification = Column(String(255), nullable=False)
     purchase_price = Column(Numeric(12, 2), nullable=False)
     sale_price = Column(Numeric(12, 2), nullable=False)
     is_active = Column(Boolean, default=True)
