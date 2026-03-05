@@ -33,7 +33,6 @@ class ProcurementItemResponse(BaseModel):
     product_variant_id: int
     product_name: Optional[str] = None
     qty: Decimal
-    total: Decimal
     
     model_config = ConfigDict(from_attributes=True)
 

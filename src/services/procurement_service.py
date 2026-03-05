@@ -168,7 +168,8 @@ class ProcurementService:
         )
         if not is_super_admin:
            query = query.filter(
-               Procurement.pos_id == current_user.pos.id)
+               Procurement.pos_id == current_user.pos.id
+            ).first()
         
         if include_details:
             query = query.options(
