@@ -50,12 +50,6 @@ class ProductBase(BaseModel):
     tax_id: Optional[int] = None
     tax_inclusion: Optional[str] = "exclusive"
 
-    custom_field1: Optional[str] = None
-    custom_field2: Optional[str] = None
-    custom_field3: Optional[str] = None
-    custom_field4: Optional[str] = None
-
-
 class ProductCreate(ProductBase):
     pass
 
@@ -68,10 +62,6 @@ class ProductUpdate(BaseModel):
     type: Optional[str] = None
     tax_id: Optional[int] = None
     tax_inclusion: Optional[str] = None
-    custom_field1: Optional[str] = None
-    custom_field2: Optional[str] = None
-    custom_field3: Optional[str] = None
-    custom_field4: Optional[str] = None
 
 
 class ProductOut(ProductBase):
@@ -91,6 +81,32 @@ class ProductVariantBase(BaseModel):
     sku: str = Field(..., max_length=120)
     image_url: Optional[str] = None
 
+class ProductPriceLight(BaseModel):
+    id: int
+    qualification: str
+    purchase_price: Decimal
+    sale_price: Decimal
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProductVariantOut(BaseModel):
+    id: int
+    product_id: int
+    name: str
+    sku: str
+    image_url: Optional[str] = None
+
+    # computed
+    price_ht: Optional[Decimal] = None
+    price_ttc: Optional[Decimal] = None
+    tax_amount: Optional[Decimal] = None
+    total_stock: Optional[Decimal] = None
+
+    # related prices
+    prices: list[ProductPriceLight] = []
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ProductVariantCreate(ProductVariantBase):
     pass 
@@ -101,17 +117,6 @@ class ProductVariantUpdate(BaseModel):
     name:  str | None = None
     sku: Optional[str] = None
     image_url: Optional[str] = None
-
-
-class ProductVariantOut(ProductVariantBase):
-    id: int
-    product: Optional[ProductLight] = None
-    # computed properties
-    price_ht: Optional[Decimal] = None
-    price_ttc: Optional[Decimal] = None
-    tax_amount: Optional[Decimal] = None
-    total_stock: Optional[Decimal] = None
-    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductVariantLight(BaseModel):

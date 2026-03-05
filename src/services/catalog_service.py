@@ -1,7 +1,9 @@
 from fastapi import HTTPException, status, UploadFile
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Optional
 import logging
+from decimal import Decimal
+
 
 from src.utils.file_upload import save_image
 from src.models.catalog import Product, ProductVariant, Category, ProductPrice
@@ -223,16 +225,51 @@ class CatalogService:
         db.refresh(variant)
         return variant
 
-    @staticmethod
-    def list_variants(db: Session, product_id: Optional[int] = None):
-        query = db.query(ProductVariant).options(
-            joinedload(ProductVariant.product)
-        )
-        if product_id:
-            query = query.filter(ProductVariant.product_id == product_id)
+    # @staticmethod
+    # def list_variants(db: Session, product_id: Optional[int] = None):
+    #     query = db.query(ProductVariant).options(
+    #         joinedload(ProductVariant.product)
+    #     )
+    #     if product_id:
+    #         query = query.filter(ProductVariant.product_id == product_id)
 
-        return query.all()
+    #     return query.all()
+    def list_product_variants(db: Session):
+        # eager load prices relationship
+        variants = db.query(ProductVariant).options(
+            selectinload(ProductVariant.prices)
+        ).all()
 
+        result = []
+        for variant in variants:
+            # find active price
+            active_price = next(
+                (p for p in variant.prices if p.is_active), None
+            )
+
+            variant_data = {
+                "id": variant.id,
+                "name": variant.name,
+                "sku": variant.sku,
+                "image_url": variant.image_url,
+                "product_id": variant.product_id,
+                "price_ht": active_price.sale_price if active_price else None,
+                "price_ttc": active_price.sale_price if active_price else None,  # optionally apply tax calculation
+                "tax_amount": None,  # you can compute based on product tax
+                "total_stock": sum(inv.quantity for inv in variant.inventory_items),
+                "prices": [
+                    {
+                        "id": p.id,
+                        "qualification": p.qualification,
+                        "purchase_price": p.purchase_price,
+                        "sale_price": p.sale_price,
+                        "is_active": p.is_active
+                    } for p in variant.prices
+                ]
+            }
+            result.append(variant_data)
+
+        return result
 
 class ProductPriceService:
 
