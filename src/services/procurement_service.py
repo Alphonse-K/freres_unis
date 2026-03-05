@@ -148,7 +148,7 @@ class ProcurementService:
 
             db.commit()
             db.refresh(procurement)            
-            logger.info(f"Procurement created: {procurement.po_number} for POS {pos_id}")
+            logger.info(f"Procurement created: {procurement.reference} for POS {pos_id}")
             return procurement
         except Exception as e:
             db.rollback()
