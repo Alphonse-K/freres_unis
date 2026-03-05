@@ -9,7 +9,6 @@ from src.models.procurement import ProcurementStatus
 class ProcurementItemCreate(BaseModel):
     product_variant_id: int
     qty: Decimal = Field(gt=0)
-    price: Decimal = Field(gt=0)
 
 
 class ProcurementCreate(BaseModel):
@@ -34,7 +33,6 @@ class ProcurementItemResponse(BaseModel):
     product_variant_id: int
     product_name: Optional[str] = None
     qty: Decimal
-    price: Decimal
     total: Decimal
     
     model_config = ConfigDict(from_attributes=True)
@@ -59,6 +57,7 @@ class ProcurementResponse(BaseModel):
     updated_at: Optional[datetime]
     
     model_config = ConfigDict(from_attributes=True)
+
 
 class ProcurementUpdateStatus(BaseModel):
     status: ProcurementStatus
