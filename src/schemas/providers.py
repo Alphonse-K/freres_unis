@@ -12,6 +12,7 @@ class ProviderBase(BaseModel):
     phone: Optional[str] = Field(None, max_length=40)
     email: Optional[EmailStr] = None
     is_active: bool = True
+    linked_pos_id: int | None = None
     
 
 class ProviderCreate(ProviderBase):
