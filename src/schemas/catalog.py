@@ -84,37 +84,35 @@ class ProductOut(ProductBase):
 # -------------------------------
 # PRODUCT VARIANT SCHEMAS
 # -------------------------------
+# ProductVariant schemas
 class ProductVariantBase(BaseModel):
     product_id: int
     name: str
     sku: str = Field(..., max_length=120)
-    purchase_price: Decimal
-    sale_price: Decimal
+    image_url: Optional[str] = None
 
 
 class ProductVariantCreate(ProductVariantBase):
-    pass
+    pass 
 
 
 class ProductVariantUpdate(BaseModel):
     product_id: Optional[int] = None
     name:  str | None = None
     sku: Optional[str] = None
-    purchase_price: Optional[Decimal] = None
-    sale_price: Optional[Decimal] = None
+    image_url: Optional[str] = None
 
 
 class ProductVariantOut(ProductVariantBase):
     id: int
     product: Optional[ProductLight] = None
-    image_url: Optional[str] = None
     # computed properties
     price_ht: Optional[Decimal] = None
     price_ttc: Optional[Decimal] = None
     tax_amount: Optional[Decimal] = None
     total_stock: Optional[Decimal] = None
-
     model_config = ConfigDict(from_attributes=True)
+
 
 class ProductVariantLight(BaseModel):
     id: int

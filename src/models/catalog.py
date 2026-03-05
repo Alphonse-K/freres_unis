@@ -80,22 +80,16 @@ class Product(Base):
 
 class ProductVariant(Base):
     __tablename__ = "product_variants"
-
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
-
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-
     sku = Column(String(120), unique=True, nullable=False)
     image_url = Column(String(255), nullable=True)
-
     product = relationship("Product", back_populates="variants")
-
     inventory_items = relationship(
         "Inventory",
         back_populates="product_variant"
     )
-
     prices = relationship(
         "ProductPrice",
         back_populates="variant",
