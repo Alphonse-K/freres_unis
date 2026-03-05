@@ -103,10 +103,26 @@ class ProcurementService:
                     )
 
             po_number = ProcurementService.generate_po_number(db, pos_id)
-            subtotal = sum(
-                item.qty * item.unit_price
-                for item in data.items
-            )
+
+            variant_ids = [item.product_variant_id for item in data.items]
+            variants = db.query(ProductVariant).filter(
+                ProductVariant.id.in_(variant_ids)
+            ).all()
+
+            variant_map = {v.id: v for v in variants}
+            subtotal = Decimal("0")
+            for item in data.items:
+                variant = variant_map.get(item.product_variant_id)
+
+                if not variant:
+                    raise NotFoundException(
+                        f"Variant {item.product_variant_id} not found"
+                    )
+
+                purchase_price = variant.purchase_price
+                subtotal += item.qty * purchase_price
+
+
             procurement = Procurement(
                 reference=po_number,
                 pos_id=pos_id,
@@ -117,21 +133,31 @@ class ProcurementService:
                 total_amount=subtotal,
                 status=ProcurementStatus.PENDING
             )
+
             db.add(procurement)
             db.flush()
 
+
             for item_data in data.items:
+
+                variant = variant_map[item_data.product_variant_id]
+                purchase_price = variant.purchase_price
+                line_total = item_data.qty * purchase_price
+
                 procurement_item = ProcurementItem(
                     procurement_id=procurement.id,
                     product_variant_id=item_data.product_variant_id,
-                    qty=item_data.quantity,
-                    unit_price=item_data.unit_price,
+                    qty=item_data.qty,
+                    unit_price=purchase_price,
+                    total_price=line_total,
                     created_at=datetime.now(timezone.utc)
                 )
+
                 db.add(procurement_item)
 
+
             db.commit()
-            db.refresh(procurement)
+            db.refresh(procurement)            
             logger.info(f"Procurement created: {procurement.po_number} for POS {pos_id}")
             return procurement
         except Exception as e:
