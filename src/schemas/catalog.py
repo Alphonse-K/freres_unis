@@ -128,7 +128,7 @@ class ProductVariantLight(BaseModel):
 
 class ProductPriceBase(BaseModel):
     product_variant_id: int
-    qualification: str = Field(..., example="Retail")
+    qualification: str = Field(..., example="carton")
     purchase_price: Decimal = Field(..., ge=0)
     sale_price: Decimal = Field(..., ge=0)
 

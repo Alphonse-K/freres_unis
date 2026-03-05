@@ -444,12 +444,13 @@ class InventoryService:
     ) -> Tuple[List[Inventory], int]:
         """Get inventory items for a warehouse"""
 
-        user_warehouse_id = current_account.pos.warehouse_id
-        if user_warehouse_id and warehouse_id != user_warehouse_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view these inventories"
-            )
+        is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_account.roles)
+        user_warehouse_id = getattr(current_account.pos, "warehouse_id", None)
+        if not is_super_admin and user_warehouse_id and warehouse_id != user_warehouse_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to view these inventories"
+                )
             
         query = db.query(Inventory).filter(
             Inventory.warehouse_id == warehouse_id
