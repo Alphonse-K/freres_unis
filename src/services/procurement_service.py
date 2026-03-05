@@ -113,15 +113,13 @@ class ProcurementService:
             subtotal = Decimal("0")
             for item in data.items:
                 variant = variant_map.get(item.product_variant_id)
-
                 if not variant:
                     raise NotFoundException(
                         f"Variant {item.product_variant_id} not found"
                     )
-
+                
                 purchase_price = variant.purchase_price
                 subtotal += item.qty * purchase_price
-
 
             procurement = Procurement(
                 reference=po_number,
@@ -133,24 +131,18 @@ class ProcurementService:
                 total_amount=subtotal,
                 status=ProcurementStatus.PENDING
             )
-
             db.add(procurement)
             db.flush()
 
-
             for item_data in data.items:
-
                 variant = variant_map[item_data.product_variant_id]
                 purchase_price = variant.purchase_price
-
                 procurement_item = ProcurementItem(
                     procurement_id=procurement.id,
                     product_variant_id=item_data.product_variant_id,
                     qty=item_data.qty,
                     price=purchase_price,
-                    created_at=datetime.now(timezone.utc)
                 )
-
                 db.add(procurement_item)
 
 
