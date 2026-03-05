@@ -2,6 +2,7 @@
 from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
 
 
 # -------------------------------
@@ -122,6 +123,30 @@ class ProductVariantLight(BaseModel):
     image_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
+class ProductPriceBase(BaseModel):
+    product_variant_id: int
+    qualification: str = Field(..., example="Retail")
+    purchase_price: Decimal = Field(..., ge=0)
+    sale_price: Decimal = Field(..., ge=0)
+
+
+class ProductPriceCreate(ProductPriceBase):
+    is_active: Optional[bool] = True
+
+
+class ProductPriceUpdate(BaseModel):
+    qualification: Optional[str] = None
+    purchase_price: Optional[Decimal] = None
+    sale_price: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+
+class ProductPriceResponse(ProductPriceBase):
+    id: int
+    is_active: bool
+    created_at: Optional[datetime]
+    model_config = ConfigDict(from_attributes=True)
+    
 # -------------------------------
 # Pydantic v2: rebuild forward references
 # -------------------------------

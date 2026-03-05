@@ -200,6 +200,12 @@ class Permissions(str, Enum):
     READ_VARIANT = "variant:read"
     DELETE_VARIANT = "variant:delete"
 
+    CREATE_VARIANT_PRICE = "variant_price:create"
+    UPDATE_VARIANT_PRICE = "variant_price:update"
+    READ_VARIANT_PRICE = "variant_price:read"
+    DELETE_VARIANT_PRICE = "variant_price:delete"
+
+
     CREATE_ORDER = "order:create"
     READ_ORDER = "order:read"
     UPDATE_ORDER = "order:update"
@@ -222,6 +228,7 @@ class Permissions(str, Enum):
     ID_TYPE_UPDATE = "id_type:update"
     ID_TYPE_READ = "id_type:read"
     ID_TYPE_DELETE = "id_type:delete"
+
 
     # =========================
     # SUPER ADMIN

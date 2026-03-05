@@ -6,11 +6,12 @@ from src.core.auth_dependencies import require_permission, get_current_account
 from src.core.permissions import Permissions
 
 from src.core.database import get_db
-from src.services.catalog_service import CatalogService, CategoryService
+from src.services.catalog_service import CatalogService, CategoryService, ProductPriceService
 from src.schemas.catalog import (
     ProductCreate, ProductUpdate, ProductOut,
     ProductVariantCreate, ProductVariantUpdate, ProductVariantOut,
-    CategoryUpdate, CategoryOut, CategoryCreate
+    CategoryUpdate, CategoryOut, CategoryCreate,
+    ProductPriceResponse, ProductPriceCreate, ProductPriceUpdate
 )
 
 product_router = APIRouter(prefix="/catalog", tags=["Product Catalog"])
@@ -19,7 +20,6 @@ product_router = APIRouter(prefix="/catalog", tags=["Product Catalog"])
 # ========================
 # PRODUCTS
 # ========================
-
 @product_router.post("/products/category", response_model=CategoryOut)
 def create_category(
     data: CategoryCreate,
@@ -94,6 +94,7 @@ def update_product(
 ):
     return CatalogService.update_product(db, product_id, data)
 
+
 # ========================
 # VARIANTS
 # ========================
@@ -129,3 +130,39 @@ def list_variants(
     current_user = Depends(get_current_account)
 ):
     return CatalogService.list_variants(db)
+
+# ========================
+# VARIANTS PRICE
+# ========================
+@product_router.post("/", response_model=ProductPriceResponse)
+def create_price(
+    data: ProductPriceCreate,
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.CREATE_VARIANT_PRICE))
+):
+    return ProductPriceService.create_price(db, data)
+
+@product_router.get("/variant/{variant_id}", response_model=List[ProductPriceResponse])
+def list_prices(
+    variant_id: int,
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.READ_VARIANT_PRICE))
+):
+    return ProductPriceService.list_prices(db, variant_id)
+
+@product_router.put("/{price_id}", response_model=ProductPriceResponse)
+def update_price(
+    price_id: int,
+    data: ProductPriceUpdate,
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.UPDATE_VARIANT_PRICE))
+):
+    return ProductPriceService.update_price(db, price_id, data)
+
+@product_router.delete("/{price_id}")
+def delete_price(
+    price_id: int,
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.DELETE_VARIANT_PRICE))
+):
+    return ProductPriceService.delete_price(db, price_id)

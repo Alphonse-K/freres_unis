@@ -4,10 +4,12 @@ from typing import List, Optional
 import logging
 
 from src.utils.file_upload import save_image
-from src.models.catalog import Product, ProductVariant, Category
+from src.models.catalog import Product, ProductVariant, Category, ProductPrice
 from src.schemas.catalog import (
     ProductCreate, ProductUpdate,
-    ProductVariantCreate, ProductVariantUpdate, CategoryCreate, CategoryUpdate
+    ProductVariantCreate, ProductVariantUpdate, 
+    CategoryCreate, CategoryUpdate, ProductPriceCreate, 
+    ProductPriceUpdate, ProductPriceResponse
 )
 
 
@@ -230,3 +232,90 @@ class CatalogService:
             query = query.filter(ProductVariant.product_id == product_id)
 
         return query.all()
+
+
+class ProductPriceService:
+
+    @staticmethod
+    def create_price(db: Session, data: ProductPriceCreate) -> ProductPrice:
+
+        variant = db.query(ProductVariant).filter(
+            ProductVariant.id == data.product_variant_id
+        ).first()
+
+        if not variant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Product variant not found"
+            )
+
+        if data.is_active:
+            db.query(ProductPrice).filter(
+                ProductPrice.product_variant_id == data.product_variant_id,
+                ProductPrice.is_active == True
+            ).update({"is_active": False})
+
+        price = ProductPrice(**data.dict())
+
+        db.add(price)
+        db.commit()
+        db.refresh(price)
+
+        return price
+
+
+    @staticmethod
+    def list_prices(db: Session, variant_id: int) -> List[ProductPrice]:
+
+        return db.query(ProductPrice).filter(
+            ProductPrice.product_variant_id == variant_id
+        ).all()
+
+
+    @staticmethod
+    def update_price(db: Session, price_id: int, data: ProductPriceUpdate):
+
+        price = db.query(ProductPrice).filter(
+            ProductPrice.id == price_id
+        ).first()
+
+        if not price:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Price not found"
+            )
+
+        update_data = data.dict(exclude_unset=True)
+
+        if update_data.get("is_active") is True:
+            db.query(ProductPrice).filter(
+                ProductPrice.product_variant_id == price.product_variant_id,
+                ProductPrice.is_active == True
+            ).update({"is_active": False})
+
+        for key, value in update_data.items():
+            setattr(price, key, value)
+
+        db.commit()
+        db.refresh(price)
+
+        return price
+
+
+    @staticmethod
+    def delete_price(db: Session, price_id: int):
+
+        price = db.query(ProductPrice).filter(
+            ProductPrice.id == price_id
+        ).first()
+
+        if not price:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Price not found"
+            )
+
+        db.delete(price)
+        db.commit()
+
+        return {"message": "Price deleted"}

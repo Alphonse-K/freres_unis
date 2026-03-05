@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Boolean, ForeignKey, Numeric, Enum
+    Column, Integer, String, Boolean, ForeignKey, Numeric, Enum, DateTime, func, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from src.core.database import Base
@@ -8,7 +8,6 @@ from decimal import Decimal
 
 
 # ---------------- ENUMS ----------------
-
 class ProductType(str, enum.Enum):
     UNIQUE = "unique"
     VARIABLE = "variable"
@@ -16,13 +15,19 @@ class ProductType(str, enum.Enum):
 
 
 class TaxInclusion(str, enum.Enum):
-    EXCLUSIVE = "exclusive"   # HT
-    INCLUSIVE = "inclusive"   # TTC
-    NONE = "none"             # Tax exempt
+    EXCLUSIVE = "exclusive"   
+    INCLUSIVE = "inclusive"  
+    NONE = "none"
+
+
+class PriceType(str, enum.Enum):
+    PURCHASE = "purchase"
+    SALE = "sale"
+    WHOLESALE = "wholesale"
+    PROMOTION = "promotion"
 
 
 # ---------------- CATEGORY ----------------
-
 class Category(Base):
     __tablename__ = "categories"
 
@@ -36,7 +41,6 @@ class Category(Base):
 
     
 # ---------------- PRODUCT ----------------
-
 class Product(Base):
     __tablename__ = "products"
 
@@ -59,12 +63,6 @@ class Product(Base):
         default=TaxInclusion.EXCLUSIVE
     )
 
-    # Optional custom fields
-    custom_field1 = Column(String(255))
-    custom_field2 = Column(String(255))
-    custom_field3 = Column(String(255))
-    custom_field4 = Column(String(255))
-
     # Relationships
     category = relationship("Category", back_populates="products")
     tax = relationship("Tax", back_populates="products")
@@ -82,15 +80,13 @@ class Product(Base):
 
 class ProductVariant(Base):
     __tablename__ = "product_variants"
-    name = Column(String(255), nullable=False)
+
     id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
 
     sku = Column(String(120), unique=True, nullable=False)
-
-    purchase_price = Column(Numeric(12, 2), nullable=False)
-    sale_price = Column(Numeric(12, 2), nullable=False)
-
     image_url = Column(String(255), nullable=True)
 
     product = relationship("Product", back_populates="variants")
@@ -99,50 +95,106 @@ class ProductVariant(Base):
         "Inventory",
         back_populates="product_variant"
     )
-    
+
+    prices = relationship(
+        "ProductPrice",
+        back_populates="variant",
+        cascade="all, delete-orphan"
+    )
+
     # ---------------- PRICING HELPERS ----------------
+    @property
+    def purchase_price(self):
+        price = next((p for p in self.prices if p.is_active), None)
+        return price.purchase_price if price else None
+
+    @property
+    def sale_price(self):
+        price = next((p for p in self.prices if p.is_active), None)
+        return price.sale_price if price else None
 
     @property
     def price_ht(self):
         """
-        Price before tax (HT)
+        Price before tax
         """
+        sale_price = self.sale_price
+        if not sale_price:
+            return None
+
         product = self.product
+
         if not product.tax or product.tax_inclusion in ["exclusive", "none"]:
-            return self.sale_price
+            return sale_price
 
         rate = Decimal(product.tax.rate) / Decimal(100)
-        return self.sale_price / (1 + rate)
+        return sale_price / (1 + rate)
 
     @property
     def price_ttc(self):
         """
-        Price including tax (TTC)
+        Price including tax
         """
+        sale_price = self.sale_price
+        if not sale_price:
+            return None
+
         product = self.product
+
         if not product.tax or product.tax_inclusion == "none":
-            return self.sale_price
+            return sale_price
 
         rate = Decimal(product.tax.rate) / Decimal(100)
 
         if product.tax_inclusion == "inclusive":
-            return self.sale_price
+            return sale_price
 
-        return self.sale_price * (1 + rate)
+        return sale_price * (1 + rate)
 
     @property
     def tax_amount(self):
-        """
-        Tax amount per unit
-        """
+        if not self.sale_price:
+            return None
+
         return self.price_ttc - self.price_ht
 
     @property
     def total_stock(self):
         """
-        Total quantity across all warehouses
+        Total quantity across warehouses
         """
         return sum(inv.quantity for inv in self.inventory_items)
 
     def __repr__(self):
         return f"<Variant {self.sku}>"
+
+
+class ProductPrice(Base):
+    __tablename__ = "product_prices"
+    id = Column(Integer, primary_key=True)
+    product_variant_id = Column(
+        Integer,
+        ForeignKey("product_variants.id"),
+        nullable=False
+    )
+    purchase_price = Column(Numeric(12, 2), nullable=False)
+    sale_price = Column(Numeric(12, 2), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+    variant = relationship(
+        "ProductVariant",
+        back_populates="prices"
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "product_variant_id",
+            "is_active",
+            name="unique_active_price_per_variant"
+        ),
+    )
+
+    def __repr__(self):
+        return f"<Price purchase={self.purchase_price} sale={self.sale_price}>"
