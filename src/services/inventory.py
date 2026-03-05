@@ -445,7 +445,6 @@ class InventoryService:
         """Get inventory items for a warehouse"""
 
         is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_account.roles)
-
         if not is_super_admin:
             user_warehouse_id = getattr(getattr(current_account, "pos", None), "warehouse_id", None)
             if user_warehouse_id and warehouse_id != user_warehouse_id:
@@ -488,13 +487,16 @@ class InventoryService:
         current_account,
         warehouse_id: Optional[int] = None
     ) -> List[Inventory]:
+        
         """Get inventory across all warehouses for a product variant"""
-        user_warehouse_id = current_account.pos.warehouse_id
-        if user_warehouse_id and warehouse_id != user_warehouse_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view these inventories"
-            )
+        is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_account.roles)
+        if not is_super_admin:
+            user_warehouse_id = getattr(getattr(current_account, "pos", None), "warehouse_id", None)
+            if user_warehouse_id and warehouse_id != user_warehouse_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to view these inventories"
+                )            
         
         query = db.query(Inventory).filter(
             Inventory.product_variant_id == product_variant_id
@@ -503,8 +505,8 @@ class InventoryService:
         )
         
         if warehouse_id:
-            query = query.filter(Inventory.warehouse_id == warehouse_id)
-        
+            query = query.filter(Inventory.warehouse_id == warehouse_id)    
+
         return query.all()
     
     @staticmethod
@@ -523,7 +525,7 @@ class InventoryService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to view these inventories"
             )
-
+        
         item = db.query(Inventory).filter(
             Inventory.warehouse_id == warehouse_id,
             Inventory.product_variant_id == product_variant_id

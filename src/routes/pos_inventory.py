@@ -180,7 +180,6 @@ def update_warehouse(
 #     except Exception as e:
 #         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-
 # ================================
 # INVENTORY ITEM ROUTES
 # ================================
@@ -374,7 +373,6 @@ def decrease_stock(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-
 @inventory_router.post("/stock/reserve",
     response_model=InventoryOut,
     summary="Reserve stock",
@@ -407,7 +405,6 @@ def reserve_stock(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 @inventory_router.post("/stock/release",
     response_model=InventoryOut,
