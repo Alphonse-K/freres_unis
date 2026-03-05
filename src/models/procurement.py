@@ -24,8 +24,6 @@ class Procurement(Base):
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
     po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
     expected_delivery_date = Column(DateTime(timezone=True), nullable=True) 
-    subtotal_amount = Column(Numeric(12, 2), nullable=False)
-    tax_amount = Column(Numeric(12, 2), nullable=False, default=0)
     total_amount = Column(Numeric(12, 2), nullable=False)    
     status = Column(
         PgEnum(ProcurementStatus),

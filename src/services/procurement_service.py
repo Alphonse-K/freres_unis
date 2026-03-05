@@ -107,9 +107,6 @@ class ProcurementService:
                 item.quantity * item.unit_price
                 for item in data.items
             )
-            tax_rate = data.tax_rate or Decimal("0")
-            tax = (subtotal * tax_rate / 100).quantize(Decimal("0.01"))
-            grand_total = subtotal + tax            
             procurement = Procurement(
                 reference=po_number,
                 pos_id=pos_id,
@@ -117,9 +114,7 @@ class ProcurementService:
                 created_by_id=user_id,
                 expected_delivery_date=data.expected_delivery_date,
                 delivery_notes=data.notes,
-                subtotal_amount=subtotal,
-                tax_amount=tax,
-                total_amount=grand_total,
+                total_amount=subtotal,
                 status=ProcurementStatus.PENDING
             )
             db.add(procurement)
@@ -148,10 +143,17 @@ class ProcurementService:
     def get_procurement(
         db: Session,
         procurement_id: int,
+        current_user: int,
         include_details: bool = True
     ) -> Optional[Procurement]:
         """Get procurement by ID with optional details"""
-        query = db.query(Procurement)
+        is_super_admin = any(
+            role.name == "SUPER_ADMIN"
+            for role in current_user.roles
+        )
+        if not is_super_admin:
+           query = query.filter(
+               Procurement.pos_id == current_user.pos.id)
         
         if include_details:
             query = query.options(
