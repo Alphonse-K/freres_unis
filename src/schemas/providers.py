@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
-from src.models.providers import PurchaseInvoiceStatus, PaymentMethod
+from src.models.providers import PurchaseInvoiceStatus, PaymentMethod, ProviderType
 from src.schemas.location import AddressCreate, AddressOut
 
 
@@ -11,6 +11,7 @@ class ProviderBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
     phone: Optional[str] = Field(None, max_length=40)
     email: Optional[EmailStr] = None
+    provider_type: ProviderType
     is_active: bool = True
     linked_pos_id: int | None = None
     
