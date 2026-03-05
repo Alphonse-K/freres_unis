@@ -134,14 +134,12 @@ class ProductPriceBase(BaseModel):
 
 
 class ProductPriceCreate(ProductPriceBase):
-    is_active: Optional[bool] = True
-
+    pass
 
 class ProductPriceUpdate(BaseModel):
     qualification: Optional[str] = None
     purchase_price: Optional[Decimal] = None
     sale_price: Optional[Decimal] = None
-    is_active: Optional[bool] = None
 
 
 class ProductPriceResponse(ProductPriceBase):

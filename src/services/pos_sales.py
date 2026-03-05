@@ -1,5 +1,5 @@
 # src/services/sale_service.py
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session, joinedload
@@ -115,12 +115,12 @@ class SaleService:
                 total_amount=total_amount,
                 payment_mode=data.payment_mode,
                 status=SaleStatus.COMPLETED,
-                transaction_date=data.transaction_date or datetime.utcnow(),
+                transaction_date=data.transaction_date or datetime.now(timezone.utc),
                 notes=data.notes,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(sale)
-            db.flush()  # Get sale ID
+            db.flush()
             
             # Create sale items
             sale_items_data = []
@@ -150,8 +150,7 @@ class SaleService:
             # Update inventory (reserve and then deduct)
             try:
                 # Process sale items in inventory
-                InventoryService.process_sale_items(db, data.pos_id, sale_items_data)
-                
+                InventoryService.process_sale_items(db, data.pos_id, sale_items_data)               
                 # Finalize sale (deduct from reserved)
                 InventoryService.finalize_sale(db, sale.id, data.pos_id, sale_items_data)
                 
@@ -449,9 +448,9 @@ class SaleService:
             # Create return record
             sale_return = SaleReturn(
                 sale_id=data.sale_id,
-                date=data.date or datetime.utcnow(),
+                date=data.date or datetime.now(timezone.utc),
                 reason=data.reason,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(sale_return)
             db.flush()  # Get return ID

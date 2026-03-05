@@ -277,13 +277,13 @@ class ProductPriceService:
                 detail="Product variant not found"
             )
 
-        if data.is_active:
-            db.query(ProductPrice).filter(
-                ProductPrice.product_variant_id == data.product_variant_id,
-                ProductPrice.is_active == True
-            ).update({"is_active": False})
+        # if data.is_active:
+        #     db.query(ProductPrice).filter(
+        #         ProductPrice.product_variant_id == data.product_variant_id,
+        #         ProductPrice.is_active == True
+        #     ).update({"is_active": False})
 
-        price = ProductPrice(**data.dict())
+        price = ProductPrice(**data.model_dump())
 
         db.add(price)
         db.commit()
@@ -313,13 +313,13 @@ class ProductPriceService:
                 detail="Price not found"
             )
 
-        update_data = data.dict(exclude_unset=True)
+        update_data = data.model_dump(exclude_unset=True)
 
-        if update_data.get("is_active") is True:
-            db.query(ProductPrice).filter(
-                ProductPrice.product_variant_id == price.product_variant_id,
-                ProductPrice.is_active == True
-            ).update({"is_active": False})
+        # if update_data.get("is_active") is True:
+        #     db.query(ProductPrice).filter(
+        #         ProductPrice.product_variant_id == price.product_variant_id,
+        #         ProductPrice.is_active == True
+        #     ).update({"is_active": False})
 
         for key, value in update_data.items():
             setattr(price, key, value)

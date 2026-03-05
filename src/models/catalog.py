@@ -183,13 +183,6 @@ class ProductPrice(Base):
         "ProductVariant",
         back_populates="prices"
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "product_variant_id",
-            "is_active",
-            name="unique_active_price_per_variant"
-        ),
-    )
 
     def __repr__(self):
         return f"<Price purchase={self.purchase_price} sale={self.sale_price}>"
