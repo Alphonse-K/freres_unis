@@ -47,6 +47,7 @@ class ProviderService:
                 email=data.email,
                 is_active=data.is_active,
                 linked_pos_id=data.linked_pos_id,
+                provider_type=data.provider_type,
                 opening_balance=data.opening_balance,
                 current_balance=data.opening_balance,
                 anticipated_balance=0,
