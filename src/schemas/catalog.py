@@ -86,7 +86,6 @@ class ProductPriceLight(BaseModel):
     qualification: str
     purchase_price: Decimal
     sale_price: Decimal
-    is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -144,7 +143,6 @@ class ProductPriceUpdate(BaseModel):
 
 class ProductPriceResponse(ProductPriceBase):
     id: int
-    is_active: bool
     created_at: Optional[datetime]
     model_config = ConfigDict(from_attributes=True)
     
