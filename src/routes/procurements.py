@@ -84,7 +84,7 @@ def get_procurement(
     """
     Get procurement details by ID
     """
-    procurement = ProcurementService.get_procurement(db, procurement_id)
+    procurement = ProcurementService.get_procurement(db, procurement_id, current_user)
     
     if not procurement:
         raise HTTPException(
@@ -108,7 +108,7 @@ def update_procurement(
     - Only certain fields can be updated
     - Mostly used for delivery information
     """
-    procurement = ProcurementService.get_procurement(db, procurement_id, include_details=False)
+    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
     
     if not procurement:
         raise HTTPException(
@@ -134,7 +134,7 @@ def change_procurement_status(
     - Creates purchase invoice if not exists
     - Requires appropriate permissions
     """
-    procurement = ProcurementService.get_procurement(db, procurement_id, include_details=False)
+    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
     
     if not procurement:
         raise HTTPException(
@@ -165,7 +165,7 @@ def cancel_procurement(
     - Cannot cancel delivered procurements
     - Requires manager role
     """
-    procurement = ProcurementService.get_procurement(db, procurement_id, include_details=False)
+    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
     
     if not procurement:
         raise HTTPException(

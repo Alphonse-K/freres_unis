@@ -145,7 +145,6 @@ class ProcurementService:
                 )
                 db.add(procurement_item)
 
-
             db.commit()
             db.refresh(procurement)            
             logger.info(f"Procurement created: {procurement.reference} for POS {pos_id}")
