@@ -129,7 +129,7 @@ def list_variants(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_account)
 ):
-    return CatalogService.list_variants(db)
+    return CatalogService.list_product_variants(db)
 
 # ========================
 # VARIANTS PRICE
