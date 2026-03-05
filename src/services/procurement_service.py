@@ -104,7 +104,7 @@ class ProcurementService:
 
             po_number = ProcurementService.generate_po_number(db, pos_id)
             subtotal = sum(
-                item.quantity * item.unit_price
+                item.qty * item.unit_price
                 for item in data.items
             )
             procurement = Procurement(
