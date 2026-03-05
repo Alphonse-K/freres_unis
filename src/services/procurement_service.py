@@ -142,14 +142,12 @@ class ProcurementService:
 
                 variant = variant_map[item_data.product_variant_id]
                 purchase_price = variant.purchase_price
-                line_total = item_data.qty * purchase_price
 
                 procurement_item = ProcurementItem(
                     procurement_id=procurement.id,
                     product_variant_id=item_data.product_variant_id,
                     qty=item_data.qty,
-                    unit_price=purchase_price,
-                    total_price=line_total,
+                    price=purchase_price,
                     created_at=datetime.now(timezone.utc)
                 )
 
