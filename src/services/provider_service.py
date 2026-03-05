@@ -46,6 +46,7 @@ class ProviderService:
                 phone=data.phone,
                 email=data.email,
                 is_active=data.is_active,
+                linked_pos_id=data.linked_pos_id,
                 opening_balance=data.opening_balance,
                 current_balance=data.opening_balance,
                 anticipated_balance=0,
