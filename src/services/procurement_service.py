@@ -158,30 +158,36 @@ class ProcurementService:
     def get_procurement(
         db: Session,
         procurement_id: int,
-        current_user: int,
+        current_user,
         include_details: bool = True
     ) -> Optional[Procurement]:
-        """Get procurement by ID with optional details"""
+
+        query = db.query(Procurement)
+
         is_super_admin = any(
             role.name == "SUPER_ADMIN"
             for role in current_user.roles
         )
+
         if not is_super_admin:
-           query = query.filter(
-               Procurement.pos_id == current_user.pos.id
-            ).first()
-        
+            query = query.filter(
+                Procurement.pos_id == current_user.pos.id
+            )
+
         if include_details:
             query = query.options(
                 joinedload(Procurement.pos),
                 joinedload(Procurement.provider),
                 joinedload(Procurement.created_by),
-                joinedload(Procurement.items).joinedload(ProcurementItem.product_variant)
+                joinedload(Procurement.items)
+                .joinedload(ProcurementItem.product_variant)
                 .joinedload(ProductVariant.product)
             )
-        
-        return query.filter(Procurement.id == procurement_id).first()
-    
+
+        return query.filter(
+            Procurement.id == procurement_id
+        ).first()    
+
     @staticmethod
     def list_procurements(
         db: Session,
