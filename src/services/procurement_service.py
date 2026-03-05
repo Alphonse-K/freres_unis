@@ -124,7 +124,7 @@ class ProcurementService:
                 procurement_item = ProcurementItem(
                     procurement_id=procurement.id,
                     product_variant_id=item_data.product_variant_id,
-                    quantity=item_data.quantity,
+                    qty=item_data.quantity,
                     unit_price=item_data.unit_price,
                     created_at=datetime.now(timezone.utc)
                 )
