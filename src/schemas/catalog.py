@@ -8,6 +8,7 @@ from datetime import datetime
 # -------------------------------
 # CATEGORY SCHEMAS
 # -------------------------------
+
 class CategoryBase(BaseModel):
     name: str = Field(..., max_length=255)
 
@@ -19,10 +20,12 @@ class CategoryCreate(CategoryBase):
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
 
+
 class CategoryLight(BaseModel):
     id: int
     name: str
     model_config = ConfigDict(from_attributes=True)
+
 
 class CategoryOut(CategoryBase):
     id: int
@@ -50,6 +53,7 @@ class ProductBase(BaseModel):
     tax_id: Optional[int] = None
     tax_inclusion: Optional[str] = "exclusive"
 
+
 class ProductCreate(ProductBase):
     pass
 
@@ -75,19 +79,24 @@ class ProductOut(ProductBase):
 # PRODUCT VARIANT SCHEMAS
 # -------------------------------
 # ProductVariant schemas
+
 class ProductVariantBase(BaseModel):
     product_id: int
     name: str
     sku: str = Field(..., max_length=120)
     image_url: Optional[str] = None
 
+
 class ProductPriceLight(BaseModel):
     id: int
     qualification: str
+    whole_sale_quantity: int
+    retail_sale_quantity: int
     purchase_price: Decimal
     sale_price: Decimal
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ProductVariantOut(BaseModel):
     id: int
@@ -95,17 +104,14 @@ class ProductVariantOut(BaseModel):
     name: str
     sku: str
     image_url: Optional[str] = None
-
-    # computed
     price_ht: Optional[Decimal] = None
     price_ttc: Optional[Decimal] = None
     tax_amount: Optional[Decimal] = None
     total_stock: Optional[Decimal] = None
-
-    # related prices
     prices: list[ProductPriceLight] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ProductVariantCreate(ProductVariantBase):
     pass 
@@ -128,6 +134,8 @@ class ProductVariantLight(BaseModel):
 class ProductPriceBase(BaseModel):
     product_variant_id: int
     qualification: str = Field(..., example="carton")
+    whole_sale_quantity: int
+    retail_sale_quantity: int
     purchase_price: Decimal = Field(..., ge=0)
     sale_price: Decimal = Field(..., ge=0)
 
@@ -137,6 +145,8 @@ class ProductPriceCreate(ProductPriceBase):
 
 class ProductPriceUpdate(BaseModel):
     qualification: Optional[str] = None
+    whole_sale_quantity: Optional[str] = None
+    retail_sale_quantity: Optional[str] = None
     purchase_price: Optional[Decimal] = None
     sale_price: Optional[Decimal] = None
 

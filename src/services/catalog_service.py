@@ -277,14 +277,7 @@ class ProductPriceService:
                 detail="Product variant not found"
             )
 
-        # if data.is_active:
-        #     db.query(ProductPrice).filter(
-        #         ProductPrice.product_variant_id == data.product_variant_id,
-        #         ProductPrice.is_active == True
-        #     ).update({"is_active": False})
-
         price = ProductPrice(**data.model_dump())
-
         db.add(price)
         db.commit()
         db.refresh(price)

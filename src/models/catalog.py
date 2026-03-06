@@ -172,6 +172,8 @@ class ProductPrice(Base):
         nullable=False
     )
     qualification = Column(String(255), nullable=False)
+    whole_sale_quantity = Column(Integer, nullable=False)
+    retail_sale_quantity = Column(Integer, nullable=False)
     purchase_price = Column(Numeric(12, 2), nullable=False)
     sale_price = Column(Numeric(12, 2), nullable=False)
     is_active = Column(Boolean, default=True)
