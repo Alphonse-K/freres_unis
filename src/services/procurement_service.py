@@ -170,9 +170,18 @@ class ProcurementService:
         )
 
         if not is_super_admin:
-            query = query.filter(
-                Procurement.pos_id == current_user.pos.id
-            )
+            user_pos_id = getattr(current_user, "pos_id", None)
+            if not user_pos_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not linked to pos"
+                )
+            query = query.join(Provider).filter(
+                or_(
+                    Procurement.pos_id == user_pos_id,
+                    Provider.linked_pos_id == user_pos_id
+                )
+            )            
 
         if include_details:
             query = query.options(
