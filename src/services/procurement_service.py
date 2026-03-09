@@ -333,7 +333,7 @@ class ProcurementService:
             procurement.delivery_notes = delivery_notes
             procurement.driver_name = driver_name
             procurement.driver_phone = driver_phone
-            procurement.warehouse_id = procurement.pos.warehouse_id  # Link to POS warehouse
+            # procurement.warehouse_id = procurement.pos.warehouse_id  # Link to POS warehouse
             procurement.updated_at = datetime.now(timezone.utc)
                         
             # Check if POS has warehouse
@@ -410,7 +410,6 @@ class ProcurementService:
             .group_by(Procurement.status)
         ).all()
         
-        # Total amount by status
         amount_by_status = db.execute(
             db.query(
                 Procurement.status,
@@ -419,11 +418,9 @@ class ProcurementService:
             .group_by(Procurement.status)
         ).all()
         
-        # Total counts
         total_count = sum(count for _, count in status_counts)
         total_amount = sum(amount for _, amount in amount_by_status)
         
-        # Convert to dict
         summary = {
             "pos_id": pos_id,
             "total_procurements": total_count,
@@ -432,14 +429,12 @@ class ProcurementService:
             "amount_by_status": {}
         }
         
-        # Fill status dictionaries
         for status, count in status_counts:
             summary["by_status"][status.value] = count
         
         for status, amount in amount_by_status:
             summary["amount_by_status"][status.value] = float(amount) if amount else 0.0
         
-        # Get recent procurements (last 5)
         recent_procurements = db.query(Procurement).filter(
             Procurement.pos_id == pos_id
         ).order_by(desc(Procurement.created_at)).limit(5).all()
@@ -454,8 +449,7 @@ class ProcurementService:
                 "created_at": p.created_at,
                 "expected_delivery_date": p.expected_delivery_date
             } for p in recent_procurements
-        ]
-        
+        ]      
         return summary
     
     @staticmethod

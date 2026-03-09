@@ -122,7 +122,7 @@ def update_procurement(
 @procurement_router.post("/{procurement_id}/deliver", response_model=ProcurementResponse)
 def change_procurement_status(
     procurement_id: int,
-    new_status: ProcurementUpdateStatus,
+    incoming_status: ProcurementUpdateStatus,
     delivery_notes: Optional[str] = None,
     driver_name: Optional[str] = None,
     driver_phone: Optional[str] = None,
@@ -145,7 +145,7 @@ def change_procurement_status(
     return ProcurementService.change_procurement_status(
         db=db,
         procurement_id=procurement_id,
-        new_status=new_status,
+        new_status=incoming_status,
         user_id=current_user.id,
         delivery_notes=delivery_notes,
         driver_name=driver_name,
