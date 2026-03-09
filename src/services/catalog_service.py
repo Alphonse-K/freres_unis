@@ -252,12 +252,21 @@ class CatalogService:
                 "tax_amount": None,  # you can compute based on product tax
                 "total_stock": sum(inv.quantity for inv in variant.inventory_items),
                 "prices": [
+                    # {
+                    #     "id": p.id,
+                    #     "qualification": p.qualification,
+                    #     "purchase_price": p.purchase_price,
+                    #     "sale_price": p.sale_price,
+                    #     "is_active": p.is_active
+                    # } for p in variant.prices
                     {
-                        "id": p.id,
-                        "qualification": p.qualification,
-                        "purchase_price": p.purchase_price,
-                        "sale_price": p.sale_price,
-                        "is_active": p.is_active
+                    "id": p.id,
+                    "qualification": p.qualification,
+                    "whole_sale_quantity": p.whole_sale_quantity,
+                    "retail_sale_quantity": p.retail_sale_quantity,
+                    "purchase_price": p.purchase_price,
+                    "sale_price": p.sale_price,
+                    "is_active": p.is_active
                     } for p in variant.prices
                 ]
             }

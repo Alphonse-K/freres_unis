@@ -90,7 +90,7 @@ class ProductVariantBase(BaseModel):
 class ProductPriceLight(BaseModel):
     id: int
     qualification: str
-    whole_sale_quantity: int
+    whole_sale_quantity: int 
     retail_sale_quantity: int
     purchase_price: Decimal
     sale_price: Decimal
