@@ -207,10 +207,21 @@ class ProcurementService:
         
         is_super_admin = any(
             role.name == "SUPER_ADMIN"
-            for role in current_user.roles)
+            for role in current_user.roles
+        )
         if not is_super_admin:
-           query = query.filter(
-               Procurement.pos_id == current_user.pos.id)
+           user_pos_id = getattr(current_user, "pos_id", None)
+           if not user_pos_id:
+               raise HTTPException(
+                   status_code=status.HTTP_404_NOT_FOUND,
+                   detail="User not linked to a pos"
+               )
+           query = query.join(Provider).filter(
+               or_(
+                   Procurement.pos_id == user_pos_id,
+                   Provider.linked_pos_id == user_pos_id
+               )
+           )
         else:
             if pos_id:
                 query = query.fiter(Procurement.pos_id == pos_id)
@@ -224,7 +235,6 @@ class ProcurementService:
         
         # Apply pagination and ordering
         query = query.order_by(desc(Procurement.created_at)).offset(offset).limit(limit)
-        
         return query.all()
     
     @staticmethod
