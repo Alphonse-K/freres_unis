@@ -298,6 +298,56 @@ class ProcurementService:
     # PROCUREMENT WORKFLOW
     # ================================
     
+    # @staticmethod
+    # def change_procurement_status(
+    #     db: Session,
+    #     procurement_id: int,
+    #     new_status: ProcurementStatus,
+    #     user_id: int,
+    #     delivery_notes: Optional[str] = None,
+    #     driver_name: Optional[str] = None,
+    #     driver_phone: Optional[str] = None
+    # ) -> Procurement:
+    #     """
+    #     Mark procurement as delivered and update inventory.
+    #     """
+
+    #     # Get procurement with lock for update
+    #     procurement = db.query(Procurement).filter(
+    #         Procurement.id == procurement_id
+    #     ).with_for_update().first()
+        
+    #     if not procurement:
+    #         raise NotFoundException(f"Procurement {procurement_id} not found")
+        
+    #     # Check if already delivered OR cancelled
+    #     if procurement.status in [
+    #         ProcurementStatus.CANCELLED,
+    #         ProcurementStatus.RECEIVED
+    #     ]:
+    #         raise BusinessRuleException("Procurement is already delivered or cancelled")
+        
+    #     try:
+    #         # Update procurement status
+    #         procurement.status = new_status
+    #         procurement.delivery_notes = delivery_notes
+    #         procurement.driver_name = driver_name
+    #         procurement.driver_phone = driver_phone
+    #         # procurement.warehouse_id = procurement.pos.warehouse_id  # Link to POS warehouse
+    #         procurement.updated_at = datetime.now(timezone.utc)
+                        
+    #         # Check if POS has warehouse
+    #         if not procurement.pos.warehouse_id:
+    #             raise BusinessRuleException(f"POS {procurement.pos_id} has no associated warehouse")
+            
+    #         db.commit()
+    #         db.refresh(procurement)           
+    #         logger.info(f"Procurement delivered: {procurement.po_number}")
+    #         return procurement           
+    #     except Exception as e:
+    #         db.rollback()
+    #         logger.error(f"Error delivering procurement {procurement_id}: {str(e)}")
+    #         raise
     @staticmethod
     def change_procurement_status(
         db: Session,
@@ -309,46 +359,55 @@ class ProcurementService:
         driver_phone: Optional[str] = None
     ) -> Procurement:
         """
-        Mark procurement as delivered and update inventory.
+        Change procurement status.
         """
 
-        # Get procurement with lock for update
-        procurement = db.query(Procurement).filter(
-            Procurement.id == procurement_id
-        ).with_for_update().first()
-        
+        procurement = (
+            db.query(Procurement)
+            .filter(Procurement.id == procurement_id)
+            .with_for_update()
+            .first()
+        )
+
         if not procurement:
             raise NotFoundException(f"Procurement {procurement_id} not found")
-        
-        # Check if already delivered OR cancelled
+
         if procurement.status in [
             ProcurementStatus.CANCELLED,
             ProcurementStatus.RECEIVED
         ]:
-            raise BusinessRuleException("Procurement is already delivered or cancelled")
-        
+            raise BusinessRuleException(
+                "Procurement is already delivered or cancelled"
+            )
+
+        if not procurement.pos or not procurement.pos.warehouse_id:
+            raise BusinessRuleException(
+                f"POS {procurement.pos_id} has no associated warehouse"
+            )
+
         try:
-            # Update procurement status
             procurement.status = new_status
             procurement.delivery_notes = delivery_notes
             procurement.driver_name = driver_name
             procurement.driver_phone = driver_phone
-            # procurement.warehouse_id = procurement.pos.warehouse_id  # Link to POS warehouse
             procurement.updated_at = datetime.now(timezone.utc)
-                        
-            # Check if POS has warehouse
-            if not procurement.pos.warehouse_id:
-                raise BusinessRuleException(f"POS {procurement.pos_id} has no associated warehouse")
-            
+
+            if new_status == ProcurementStatus.RECEIVED:
+                procurement.delivery_date = datetime.now(timezone.utc)
+                procurement.received_by_id = user_id
+
             db.commit()
-            db.refresh(procurement)           
-            logger.info(f"Procurement delivered: {procurement.po_number}")
-            return procurement           
+            db.refresh(procurement)
+
+            logger.info(f"Procurement status updated: {procurement.reference}")
+
+            return procurement
+
         except Exception as e:
             db.rollback()
-            logger.error(f"Error delivering procurement {procurement_id}: {str(e)}")
+            logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
-    
+
     @staticmethod
     def cancel_procurement(
         db: Session,

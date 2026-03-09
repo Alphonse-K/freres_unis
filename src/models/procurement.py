@@ -7,11 +7,11 @@ import enum
 
 
 class ProcurementStatus(str, enum.Enum):
-    PENDING = "pending"
+    PENDING = "PENDING"
     APPROVED = "APPROVED"
-    SHIPPED = "shipped"
-    RECEIVED = "received"
-    CANCELLED = "cancelled"
+    SHIPPED = "SHIPPED"
+    RECEIVED = "RECEIVED"
+    CANCELLED = "CANCELLED"
 
 
 class Procurement(Base):
