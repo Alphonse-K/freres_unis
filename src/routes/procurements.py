@@ -145,7 +145,7 @@ def change_procurement_status(
     return ProcurementService.change_procurement_status(
         db=db,
         procurement_id=procurement_id,
-        status=new_status,
+        new_status=new_status,
         user_id=current_user.id,
         delivery_notes=delivery_notes,
         driver_name=driver_name,

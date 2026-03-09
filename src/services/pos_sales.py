@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, desc, asc, and_, or_, extract
+from sqlalchemy import func, desc
 import logging
 
 from src.models.pos import (

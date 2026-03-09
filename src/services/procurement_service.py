@@ -447,7 +447,7 @@ class ProcurementService:
         summary["recent_procurements"] = [
             {
                 "id": p.id,
-                "reference": p.po_number,
+                "reference": p.reference,
                 "provider_id": p.provider_id,
                 "status": p.status.value,
                 "total_amount": float(p.total_amount),
