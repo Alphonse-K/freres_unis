@@ -428,7 +428,7 @@ class ProcurementService:
         summary["recent_procurements"] = [
             {
                 "id": p.id,
-                "po_number": p.po_number,
+                "reference": p.po_number,
                 "provider_id": p.provider_id,
                 "status": p.status.value,
                 "total_amount": float(p.total_amount),
@@ -583,7 +583,7 @@ class ProcurementService:
         return {
             "can_deliver": True,
             "procurement_id": procurement_id,
-            "po_number": procurement.po_number,
+            "reference": procurement.po_number,
             "pos_id": procurement.pos_id,
             "warehouse_id": pos.warehouse_id,
             "item_count": len(items),

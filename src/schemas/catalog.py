@@ -46,9 +46,9 @@ class ProductLight(BaseModel):
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
     category_id: int
-    brand: Optional[str] = None
-    is_active: Optional[bool] = True
-    type: Optional[str] = "unique"
+    brand: str | None = None
+    is_active: bool | None = True
+    type: str | None = "unique"
 
     tax_id: Optional[int] = None
     tax_inclusion: Optional[str] = "exclusive"
@@ -59,19 +59,19 @@ class ProductCreate(ProductBase):
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    category_id: Optional[int] = None
-    brand: Optional[str] = None
-    is_active: Optional[bool] = None
-    type: Optional[str] = None
-    tax_id: Optional[int] = None
-    tax_inclusion: Optional[str] = None
+    name: str | None = None
+    category_id: str | None = None
+    brand: str | None = None
+    is_active: str | None = None
+    type: str | None = None
+    tax_id: str | None = None
+    tax_inclusion: str | None = None
 
 
 class ProductOut(ProductBase):
     id: int
     category: Optional[CategoryLight] = None
-    image_url: Optional[str] = None
+    image_url: str | None = None
     variants: List["ProductVariantLight"] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -94,7 +94,6 @@ class ProductPriceLight(BaseModel):
     retail_sale_quantity: int
     purchase_price: Decimal
     sale_price: Decimal
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -109,7 +108,6 @@ class ProductVariantOut(BaseModel):
     tax_amount: Optional[Decimal] = None
     total_stock: Optional[Decimal] = None
     prices: list[ProductPriceLight] = []
-
     model_config = ConfigDict(from_attributes=True)
 
 

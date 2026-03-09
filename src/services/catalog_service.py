@@ -110,7 +110,10 @@ class CatalogService:
     def create_product(db: Session, data: ProductCreate) -> Product:
         category = db.query(Category).filter(Category.id == data.category_id).first()
         if not category:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Category not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Category not found"
+            )
 
         product = Product(**data.model_dump())
         db.add(product)
