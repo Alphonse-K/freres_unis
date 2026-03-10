@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from src.schemas.inventory import WarehouseOut
+from src.schemas.catalog import ProductVariantOut
 from enum import Enum
 import re
 
@@ -249,7 +250,7 @@ class SaleItemCreate(SaleItemBase):
 class SaleItemOut(SaleItemBase):
     id: int
     sale_id: int
-    product_variant: Optional[dict] = None
+    product_variant: Optional[ProductVariantOut] = None
 
     model_config = ConfigDict(from_attributes=True)
 
