@@ -74,7 +74,7 @@ class SaleService:
             user = POSUserService.get_pos_user_by_id(db, data.created_by_id)
             if not user:
                 raise SaleValidationException(f"User {data.created_by_id} not found")
-
+            
             # 3️⃣ Verify customer if provided
             customer = None
             if data.customer_id:
@@ -110,6 +110,8 @@ class SaleService:
 
             total_amount = subtotal + tax - discount
 
+            print("Processing sales ++++++++++++++++++++++ Before")
+
             # 6️⃣ Create sale
             sale = Sale(
                 pos_id=data.pos_id,
@@ -120,7 +122,7 @@ class SaleService:
                 discount_amount=discount,
                 total_amount=total_amount,
                 payment_mode=data.payment_mode,
-                status=SaleStatus.PENDING,
+                status=SaleStatus.COMPLETED,
                 transaction_date=data.transaction_date or datetime.now(timezone.utc),
                 notes=data.notes,
                 created_at=datetime.now(timezone.utc)
@@ -222,6 +224,7 @@ class SaleService:
                 f"Error creating sale: {str(e)}"
             )    
         
+
     @staticmethod
     def get_sale(db: Session, sale_id: int) -> Sale:
         """Get sale by ID with all relationships"""
