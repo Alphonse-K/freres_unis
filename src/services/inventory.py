@@ -903,13 +903,6 @@ class InventoryService:
         received_by_id: int
     ) -> Dict[str, Any]:
 
-        # procurement = (
-        #     db.query(Procurement)
-        #     .options(joinedload(Procurement.items))
-        #     .filter(Procurement.id == procurement_id)
-        #     .with_for_update()
-        #     .first()
-        # )
         procurement = (
             db.query(Procurement)
             .options(selectinload(Procurement.items))
@@ -946,13 +939,13 @@ class InventoryService:
                     db,
                     warehouse_id,
                     proc_item.product_variant_id,
-                    proc_item.quantity,
+                    proc_item.qty,
                     source=f"procurement_{procurement_id}"
                 )
 
                 results.append({
                     "product_variant_id": proc_item.product_variant_id,
-                    "quantity": proc_item.quantity,
+                    "quantity": proc_item.qty,
                     "inventory_item_id": item.id
                 })
 
