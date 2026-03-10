@@ -166,7 +166,8 @@ class SaleService:
                 InventoryService.process_sale_items(
                     db,
                     data.pos_id,
-                    sale_items_data
+                    sale_items_data,
+                    user
                 )
 
             except Exception as e:
