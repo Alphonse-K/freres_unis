@@ -162,7 +162,7 @@ class InventoryService:
             )
         return warehouse    
     
-    
+
     @staticmethod
     def list_warehouses(
         db: Session,
@@ -981,7 +981,8 @@ class InventoryService:
     def process_sale_items(
         db: Session,
         pos_id: int,
-        sale_items: List[Dict[str, Any]]
+        sale_items: List[Dict[str, Any]], 
+        current_user: int
     ) -> Dict[str, Any]:
         """Process sale items and update inventory"""
         try:
@@ -995,7 +996,7 @@ class InventoryService:
                 
                 # Check stock availability
                 stock_check = InventoryService.check_stock_availability(
-                    db, warehouse.id, product_variant_id, quantity
+                    db, warehouse.id, product_variant_id, quantity, current_user
                 )
                 if not stock_check["is_available"]:
                     raise InsufficientStockException(

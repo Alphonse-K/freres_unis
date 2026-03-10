@@ -540,7 +540,7 @@ def process_sale_items(
     - **items**: List of sale items with product variant and quantity
     """
     try:
-        return InventoryService.process_sale_items(db, data.pos_id, data.items)
+        return InventoryService.process_sale_items(db, data.pos_id, data.items, current_account)
     except NotFoundException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ValidationException as e:
