@@ -154,11 +154,14 @@ class InventoryService:
     
     @staticmethod
     def get_warehouse_by_pos(db: Session, pos_id: int) -> Warehouse:
-        """Get warehouse associated with a POS"""
-        warehouse = db.query(Warehouse).filter(Warehouse.pos.id == pos_id).first()
+        warehouse = db.query(Warehouse).join(POS).filter(POS.id == pos_id).first()
         if not warehouse:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"No warehouse associated with POS {pos_id}")
-        return warehouse
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail=f"No warehouse associated with POS {pos_id}"
+            )
+        return warehouse    
+    
     
     @staticmethod
     def list_warehouses(

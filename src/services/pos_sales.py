@@ -65,17 +65,17 @@ class SaleService:
         """Create a new sale with inventory reservation and final deduction"""
         
         try:
-            # 1️⃣ Verify POS
+            # 1️Verify POS
             pos = POSService.get_pos(db, data.pos_id)
             if not pos:
                 raise SaleValidationException(f"POS {data.pos_id} not found")
 
-            # 2️⃣ Verify POS user
+            # 2️Verify POS user
             user = POSUserService.get_pos_user_by_id(db, data.created_by_id)
             if not user:
                 raise SaleValidationException(f"User {data.created_by_id} not found")
             
-            # 3️⃣ Verify customer if provided
+            # 3️Verify customer if provided
             customer = None
             if data.customer_id:
                 customer = db.query(Client).filter(
@@ -87,7 +87,7 @@ class SaleService:
                         f"Customer {data.customer_id} not found"
                     )
 
-            # 4️⃣ Validate sale items
+            # 4️Validate sale items
             if not data.items or len(data.items) == 0:
                 raise SaleValidationException("Sale must contain at least one item")
 
@@ -97,7 +97,7 @@ class SaleService:
                         f"Invalid quantity for product {item.product_variant_id}"
                     )
 
-            # 5️⃣ Calculate totals
+            # 5️Calculate totals
             subtotal = sum(
                 item.qty * item.unit_price
                 for item in data.items
@@ -110,9 +110,7 @@ class SaleService:
 
             total_amount = subtotal + tax - discount
 
-            print("Processing sales ++++++++++++++++++++++ Before")
-
-            # 6️⃣ Create sale
+            # 6️Create sale
             sale = Sale(
                 pos_id=data.pos_id,
                 created_by_id=data.created_by_id,
@@ -131,7 +129,7 @@ class SaleService:
             db.add(sale)
             db.flush()  # generates sale.id
 
-            # 7️⃣ Create sale items
+            # 7️Create sale items
             sale_items_data = []
 
             for item in data.items:
@@ -150,7 +148,7 @@ class SaleService:
                     "quantity": item.qty
                 })
 
-            # 8️⃣ Store customer info (for walk-in customers)
+            # 8️Store customer info (for walk-in customers)
             if data.customer_info:
 
                 customer_info = SaleCustomerInfo(
@@ -162,7 +160,7 @@ class SaleService:
 
                 db.add(customer_info)
 
-            # 9️⃣ Reserve inventory
+            # 9️Reserve inventory
             try:
 
                 InventoryService.process_sale_items(
@@ -177,7 +175,7 @@ class SaleService:
                     f"Stock reservation failed: {str(e)}"
                 )
 
-            # 🔟 Finalize sale (deduct reserved stock)
+            # Finalize sale (deduct reserved stock)
             try:
 
                 InventoryService.finalize_sale(
@@ -541,10 +539,8 @@ class SaleService:
             
             db.commit()
             db.refresh(sale_return)
-            
             logger.info(f"Sale return created: {sale_return.id} for sale {data.sale_id}")
-            return sale_return
-            
+            return sale_return           
         except SaleException:
             db.rollback()
             raise
