@@ -125,10 +125,8 @@ class AuthService:
                         account.last_login_ip = ip
                         account.last_login_user_agent = ua
                         account.failed_login_attempts = 0
-                        db.commit()
-                    
+                        db.commit()                   
                     return account
-
                 return None
 
             # -------- PIN AUTH --------

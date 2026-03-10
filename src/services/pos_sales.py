@@ -62,49 +62,55 @@ class SaleService:
     
     @staticmethod
     def create_sale(db: Session, data: SaleCreate) -> Sale:
-        """Create a new sale with inventory validation"""
+        """Create a new sale with inventory reservation and final deduction"""
+        
         try:
-            # Verify POS exists and get warehouse
+            # 1️⃣ Verify POS
             pos = POSService.get_pos(db, data.pos_id)
             if not pos:
-                raise SaleNotFoundException(f"POS {data.pos_id} not found")
-            
-            # Get warehouse for inventory validation
-            try:
-                warehouse = InventoryService.get_warehouse_by_pos(db, data.pos_id)
-            except Exception:
-                raise SaleValidationException(f"POS {data.pos_id} has no associated warehouse")
-            
-            # Verify user exists
+                raise SaleValidationException(f"POS {data.pos_id} not found")
+
+            # 2️⃣ Verify POS user
             user = POSUserService.get_pos_user_by_id(db, data.created_by_id)
             if not user:
-                raise SaleNotFoundException(f"User {data.created_by_id} not found")
-            
-            # Verify customer if provided
+                raise SaleValidationException(f"User {data.created_by_id} not found")
+
+            # 3️⃣ Verify customer if provided
             customer = None
             if data.customer_id:
-                customer = db.query(Client).filter(Client.id == data.customer_id).first()
+                customer = db.query(Client).filter(
+                    Client.id == data.customer_id
+                ).first()
+
                 if not customer:
-                    raise SaleNotFoundException(f"Customer {data.customer_id} not found")
-            
-            # Check stock availability for all items
-            for item in data.items:
-                stock_check = InventoryService.check_stock_availability(
-                    db, warehouse.id, item.product_variant_id, item.qty
-                )
-                if not stock_check["is_available"]:
                     raise SaleValidationException(
-                        f"Insufficient stock for product variant {item.product_variant_id}. "
-                        f"Available: {stock_check['available']}, Required: {item.qty}"
+                        f"Customer {data.customer_id} not found"
                     )
-            
-            # Calculate totals
-            subtotal = sum(item.qty * item.unit_price for item in data.items)
-            tax = subtotal * (data.tax_rate or Decimal('0')) / 100
-            discount = data.discount_amount or Decimal('0')
+
+            # 4️⃣ Validate sale items
+            if not data.items or len(data.items) == 0:
+                raise SaleValidationException("Sale must contain at least one item")
+
+            for item in data.items:
+                if item.qty <= 0:
+                    raise SaleValidationException(
+                        f"Invalid quantity for product {item.product_variant_id}"
+                    )
+
+            # 5️⃣ Calculate totals
+            subtotal = sum(
+                item.qty * item.unit_price
+                for item in data.items
+            )
+
+            tax_rate = data.tax_rate or Decimal("0")
+            tax = subtotal * tax_rate / 100
+
+            discount = data.discount_amount or Decimal("0")
+
             total_amount = subtotal + tax - discount
-            
-            # Create sale
+
+            # 6️⃣ Create sale
             sale = Sale(
                 pos_id=data.pos_id,
                 created_by_id=data.created_by_id,
@@ -114,63 +120,98 @@ class SaleService:
                 discount_amount=discount,
                 total_amount=total_amount,
                 payment_mode=data.payment_mode,
-                status=SaleStatus.COMPLETED,
+                status=SaleStatus.PENDING,
                 transaction_date=data.transaction_date or datetime.now(timezone.utc),
                 notes=data.notes,
                 created_at=datetime.now(timezone.utc)
             )
+
             db.add(sale)
-            db.flush()
-            
-            # Create sale items
+            db.flush()  # generates sale.id
+
+            # 7️⃣ Create sale items
             sale_items_data = []
-            for item_data in data.items:
+
+            for item in data.items:
+
                 sale_item = SaleItem(
                     sale_id=sale.id,
-                    product_variant_id=item_data.product_variant_id,
-                    qty=item_data.qty,
-                    unit_price=item_data.unit_price
+                    product_variant_id=item.product_variant_id,
+                    qty=item.qty,
+                    unit_price=item.unit_price
                 )
+
                 db.add(sale_item)
+
                 sale_items_data.append({
-                    "product_variant_id": item_data.product_variant_id,
-                    "quantity": item_data.qty
+                    "product_variant_id": item.product_variant_id,
+                    "quantity": item.qty
                 })
-            
-            # Create customer info if provided (for counter sales)
+
+            # 8️⃣ Store customer info (for walk-in customers)
             if data.customer_info:
+
                 customer_info = SaleCustomerInfo(
                     sale_id=sale.id,
                     first_name=data.customer_info.first_name,
                     last_name=data.customer_info.last_name,
                     phone=data.customer_info.phone
                 )
+
                 db.add(customer_info)
-            
-            # Update inventory (reserve and then deduct)
+
+            # 9️⃣ Reserve inventory
             try:
-                # Process sale items in inventory
-                InventoryService.process_sale_items(db, data.pos_id, sale_items_data)               
-                # Finalize sale (deduct from reserved)
-                InventoryService.finalize_sale(db, sale.id, data.pos_id, sale_items_data)
-                
+
+                InventoryService.process_sale_items(
+                    db,
+                    data.pos_id,
+                    sale_items_data
+                )
+
             except Exception as e:
-                # If inventory update fails, cancel the sale
                 db.rollback()
-                raise SaleValidationException(f"Inventory update failed: {str(e)}")
-            
+                raise SaleValidationException(
+                    f"Stock reservation failed: {str(e)}"
+                )
+
+            # 🔟 Finalize sale (deduct reserved stock)
+            try:
+                InventoryService.finalize_sale(
+                    db,
+                    sale.id,
+                    data.pos_id,
+                    sale_items_data
+                )
+                sale.status = SaleStatus.COMPLETED
+
+            except Exception as e:
+                # release reserved stock
+                InventoryService.cancel_sale_reservations(
+                    db,
+                    data.pos_id,
+                    sale_items_data
+                )
+                db.rollback()
+                raise SaleValidationException(
+                    f"Sale finalization failed: {str(e)}"
+                )
+
             db.commit()
-            db.refresh(sale)           
-            logger.info(f"Sale created: {sale.id} at POS {data.pos_id}")
-            return sale           
+            db.refresh(sale)
+            logger.info(f"Sale created successfully: {sale.id}")
+            return sale
         except SaleException:
             db.rollback()
             raise
+
         except Exception as e:
             db.rollback()
-            logger.error(f"Error creating sale: {str(e)}")
-            raise SaleValidationException(f"Error creating sale: {str(e)}")
-    
+            logger.error(f"Unexpected error creating sale: {str(e)}")
+            raise SaleValidationException(
+                f"Error creating sale: {str(e)}"
+            )    
+        
     @staticmethod
     def get_sale(db: Session, sale_id: int) -> Sale:
         """Get sale by ID with all relationships"""
@@ -178,7 +219,9 @@ class SaleService:
             joinedload(Sale.pos),
             joinedload(Sale.created_by),
             joinedload(Sale.customer),
-            joinedload(Sale.items).joinedload(SaleItem.product_variant).joinedload(ProductVariant.product),
+            joinedload(Sale.items)
+            .joinedload(SaleItem.product_variant)
+            .joinedload(ProductVariant.product),
             joinedload(Sale.counter_customer),
             joinedload(Sale.returns)
         ).filter(

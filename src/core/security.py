@@ -198,6 +198,15 @@ class SecurityUtils:
     @staticmethod
     def enforce_login_policies(account) -> None:
         now = datetime.now(timezone.utc)
+        # +++++++++++++++++
+        # Detect admin
+        # +++++++++++++++++
+        is_admin = False
+        if hasattr(account, "roles"):
+            is_admin = any(
+                role.name in ("SUPER_ADMIN") 
+                for role in account.roles
+            )
 
         # -----------------
         # Check active status
@@ -211,7 +220,7 @@ class SecurityUtils:
                 # fallback if status is a string
                 if str(account.status).upper() != "ACTIVE":
                     raise HTTPException(403, "Account not active")
-
+                
         # POSUser
         if hasattr(account, "is_active"):
             if not account.is_active:
@@ -240,19 +249,20 @@ class SecurityUtils:
         # -----------------
         # Check login time restrictions
         # -----------------
-        if hasattr(account, "allowed_login_start") and hasattr(account, "allowed_login_end"):
-            start = getattr(account, "allowed_login_start")
-            end = getattr(account, "allowed_login_end")
-            if start and end:
-                current = now.time()
-                if start <= end:
-                    allowed = start <= current <= end
-                else:
-                    allowed = current >= start or current <= end
+        if not is_admin:
+            if hasattr(account, "allowed_login_start") and hasattr(account, "allowed_login_end"):
+                start = getattr(account, "allowed_login_start")
+                end = getattr(account, "allowed_login_end")
+                if start and end:
+                    current = now.time()
+                    if start <= end:
+                        allowed = start <= current <= end
+                    else:
+                        allowed = current >= start or current <= end
 
-                if not allowed:
-                    raise HTTPException(403, "Login not allowed at this time")
-
+                    if not allowed:
+                        raise HTTPException(403, "Login not allowed at this time")
+        
     @staticmethod
     def update_login_metadata(
         user,

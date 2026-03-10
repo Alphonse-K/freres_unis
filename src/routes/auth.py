@@ -82,8 +82,6 @@ def login_password(
     if not account:
         raise HTTPException(401, "Invalid credentials")
     
-    # Rest of your code remains the same...    
-    # Rest of your code...    
     # SYSTEM USER → OTP FLOW
     if isinstance(account, User) and AuthService.is_otp_required(account, ip, ua):
         AuthService.generate_otp(db, account, "login")
@@ -101,8 +99,6 @@ def login_password(
 
     # Create tokens
     tokens = AuthService.create_tokens(db, account, {"ip_address": ip, "user_agent": ua})
-
-    # Return proper schema
     return {
         **tokens,
         "user": _get_user_schema(account)
