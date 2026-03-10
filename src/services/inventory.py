@@ -3,7 +3,7 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 from fastapi import HTTPException, status
 from typing import List, Optional, Dict, Any, Tuple
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, desc, asc, and_, or_, case, text, select
 import logging
 
@@ -894,7 +894,7 @@ class InventoryService:
     #         db.rollback()
     #         logger.error(f"Error receiving procurement with ID {procurement_id}: {str(e)}")
     #         raise ValidationException(f"Error recieving procurement: {str(e)}")
-    
+
     @staticmethod
     def receive_procurement(
         db: Session,
@@ -903,14 +903,20 @@ class InventoryService:
         received_by_id: int
     ) -> Dict[str, Any]:
 
+        # procurement = (
+        #     db.query(Procurement)
+        #     .options(joinedload(Procurement.items))
+        #     .filter(Procurement.id == procurement_id)
+        #     .with_for_update()
+        #     .first()
+        # )
         procurement = (
             db.query(Procurement)
-            .options(joinedload(Procurement.items))
+            .options(selectinload(Procurement.items))
             .filter(Procurement.id == procurement_id)
             .with_for_update()
             .first()
         )
-
         if not procurement:
             raise NotFoundException(f"Procurement with {procurement_id} not found.")
 
