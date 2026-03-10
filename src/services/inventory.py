@@ -833,6 +833,68 @@ class InventoryService:
     # ================================
     # PROCUREMENT TO INVENTORY
     # ================================
+    # @staticmethod
+    # def receive_procurement(
+    #     db: Session,
+    #     procurement_id: int,
+    #     warehouse_id: int,
+    #     received_by_id: int
+    # ) -> Dict[str, Any]:
+        
+    #     procurement = db.query(Procurement).options(
+    #         joinedload(Procurement.items).filter(
+    #             Procurement.id == procurement_id
+    #         )
+    #     ).with_for_update().first()
+    #     if not procurement:
+    #         raise NotFoundException(f"Procurement with {procurement_id} not found.")
+        
+    #     if procurement.status != ProcurementStatus.SHIPPED:
+    #         raise BusinessRuleException("Procurement must be SHIPPED before it's received.")
+        
+    #     if procurement.status == ProcurementStatus.CANCELLED:
+    #         raise BusinessRuleException("Cannot receive cancelled procurement.")
+        
+    #     warehouse = db.query(Warehouse).filter(
+    #         Warehouse.id == warehouse_id
+    #     ).first()
+    #     if not warehouse:
+    #         raise NotFoundException(f"Warehous with ID {warehouse_id} not found")
+        
+    #     results = []
+    #     try:
+    #         for proc_item in procurement.items:
+    #             item = InventoryService.increase_stock(
+    #                 db,
+    #                 warehouse_id,
+    #                 proc_item.product_variant_id,
+    #                 proc_item.quantity,
+    #                 source=f"procurement_{procurement_id}"
+    #             )
+
+    #             results.append({
+    #                 "product_variant_id": proc_item.product_variant_id,
+    #                 "quantity": proc_item.quantity,
+    #                 "inventory_item_id": item.id
+    #             })
+
+    #         procurement.warehouse_id = warehouse_id
+    #         procurement.status = ProcurementStatus.RECEIVED
+    #         procurement.updated_at = datetime.now(timezone.utc)
+    #         procurement.received_by_id = received_by_id
+
+    #         db.commit()
+    #         return {
+    #             "procurement_id": procurement_id,
+    #             "warehouse_id": warehouse_id,
+    #             "items_received": len(results),
+    #             "details": results
+    #         }
+    #     except Exception as e:
+    #         db.rollback()
+    #         logger.error(f"Error receiving procurement with ID {procurement_id}: {str(e)}")
+    #         raise ValidationException(f"Error recieving procurement: {str(e)}")
+    
     @staticmethod
     def receive_procurement(
         db: Session,
@@ -840,30 +902,40 @@ class InventoryService:
         warehouse_id: int,
         received_by_id: int
     ) -> Dict[str, Any]:
-        
-        procurement = db.query(Procurement).options(
-            joinedload(Procurement.items).filter(
-                Procurement.id == procurement_id
-            )
-        ).with_for_update().first()
+
+        procurement = (
+            db.query(Procurement)
+            .options(joinedload(Procurement.items))
+            .filter(Procurement.id == procurement_id)
+            .with_for_update()
+            .first()
+        )
+
         if not procurement:
             raise NotFoundException(f"Procurement with {procurement_id} not found.")
-        
-        if procurement.status != ProcurementStatus.SHIPPED:
-            raise BusinessRuleException("Procurement must be SHIPPED before it's received.")
-        
+
         if procurement.status == ProcurementStatus.CANCELLED:
             raise BusinessRuleException("Cannot receive cancelled procurement.")
-        
+
+        if procurement.status != ProcurementStatus.SHIPPED:
+            raise BusinessRuleException(
+                "Procurement must be SHIPPED before it's received."
+            )
+
         warehouse = db.query(Warehouse).filter(
             Warehouse.id == warehouse_id
         ).first()
+
         if not warehouse:
-            raise NotFoundException(f"Warehous with ID {warehouse_id} not found")
-        
+            raise NotFoundException(
+                f"Warehouse with ID {warehouse_id} not found"
+            )
+
         results = []
+
         try:
             for proc_item in procurement.items:
+
                 item = InventoryService.increase_stock(
                     db,
                     warehouse_id,
@@ -878,23 +950,27 @@ class InventoryService:
                     "inventory_item_id": item.id
                 })
 
-            procurement.warehouse_id = warehouse_id
             procurement.status = ProcurementStatus.RECEIVED
             procurement.updated_at = datetime.now(timezone.utc)
             procurement.received_by_id = received_by_id
-
             db.commit()
+
             return {
                 "procurement_id": procurement_id,
                 "warehouse_id": warehouse_id,
                 "items_received": len(results),
                 "details": results
             }
+
         except Exception as e:
             db.rollback()
-            logger.error(f"Error receiving procurement with ID {procurement_id}: {str(e)}")
-            raise ValidationException(f"Error recieving procurement: {str(e)}")
-    
+            logger.error(
+                f"Error receiving procurement with ID {procurement_id}: {str(e)}"
+            )
+            raise ValidationException(
+                f"Error receiving procurement: {str(e)}"
+            )
+        
     # ================================
     # SALE STOCK OPERATIONS
     # ================================

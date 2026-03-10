@@ -119,39 +119,6 @@ def update_procurement(
     return ProcurementService.update_procurement(db, procurement_id, current_user, data)
 
 
-# @procurement_router.post("/{procurement_id}/deliver", response_model=ProcurementResponse)
-# def change_procurement_status(
-#     procurement_id: int,
-#     incoming_status: ProcurementUpdateStatus,
-#     delivery_notes: Optional[str] = None,
-#     driver_name: Optional[str] = None,
-#     driver_phone: Optional[str] = None,
-#     current_user: POSUser = Depends(require_permission(Permissions.RECEIVE_PROCUREMENT)),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Change procurement as status
-#     - Creates purchase invoice if not exists
-#     - Requires appropriate permissions
-#     """
-#     procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
-    
-#     if not procurement:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Procurement not found"
-#         )
-        
-#     return ProcurementService.change_procurement_status(
-#         db=db,
-#         procurement_id=procurement_id,
-#         new_status=incoming_status,
-#         user_id=current_user.id,
-#         delivery_notes=delivery_notes,
-#         driver_name=driver_name,
-#         driver_phone=driver_phone
-#     )
-
 @procurement_router.post(
     "/{procurement_id}/deliver",
     response_model=ProcurementResponse
