@@ -291,14 +291,15 @@ class SaleOut(SaleBase):
     total_amount: Decimal
     status: SaleStatus
     created_at: datetime
-    items: List[SaleItemOut] = []
+    items: List[SaleItemOut] = Field(default_factory=list)
     customer: Optional[dict] = None
     counter_customer: Optional[CustomerInfoOut] = None
-    pos: Optional[dict] = None
-    created_by: Optional[dict] = None
+
+    # Use your existing Pydantic schemas here instead of dict
+    pos: Optional[POSMini] = None
+    created_by: Optional[POSUserOut] = None
 
     model_config = ConfigDict(from_attributes=True)
-
 
 # -------------------------------
 # SALE RETURN SCHEMAS
