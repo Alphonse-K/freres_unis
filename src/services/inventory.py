@@ -1128,71 +1128,132 @@ class InventoryService:
     # INVENTORY REPORTS & ANALYTICS
     # ================================
     
+    # @staticmethod
+    # def get_inventory_summary(
+    #     db: Session,
+    #     warehouse_id: Optional[int] = None
+    # ) -> Dict[str, Any]:
+    #     """Get inventory summary statistics"""
+    #     query = db.query(Inventory)
+        
+    #     if warehouse_id:
+    #         query = query.filter(Inventory.warehouse_id == warehouse_id)
+        
+    #     # Get total items count
+    #     total_items = query.count()
+        
+    #     # # Calculate totals
+    #     # total_quantity = db.session.execute(
+    #     #     select(func.coalesce(func.sum(Inventory.quantity), Decimal('0')))
+    #     #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
+    #     # ).scalar() or Decimal('0')
+        
+    #     # total_reserved = db.session.execute(
+    #     #     select(func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0')))
+    #     #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
+    #     # ).scalar() or Decimal('0')
+    #     query = select(
+    #         func.coalesce(func.sum(Inventory.quantity), Decimal('0')),
+    #         func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0'))
+    #     )
+
+    #     if warehouse_id:
+    #         query = query.where(Inventory.warehouse_id == warehouse_id)
+
+    #     total_quantity, total_reserved = db.execute(query).first()      
+    #     total_available = total_quantity - total_reserved
+        
+    #     # Get low stock items (less than 10 units available)
+    #     low_stock_query = query.filter(
+    #         Inventory.quantity - Inventory.reserved_quantity < 10
+    #     )
+    #     low_stock_count = low_stock_query.count()
+        
+    #     # Get out of stock items
+    #     out_of_stock_query = query.filter(
+    #         Inventory.quantity == 0
+    #     )
+    #     out_of_stock_count = out_of_stock_query.count()
+        
+    #     # Get recently updated items
+    #     recent_updates = query.order_by(desc(Inventory.updated_at)).limit(5).all()
+        
+    #     return {
+    #         "total_items": total_items,
+    #         "total_quantity": float(total_quantity),
+    #         "total_reserved": float(total_reserved),
+    #         "total_available": float(total_available),
+    #         "low_stock_items": low_stock_count,
+    #         "out_of_stock_items": out_of_stock_count,
+    #         "recent_updates": [
+    #             {
+    #                 "id": item.id,
+    #                 "product_variant_id": item.product_variant_id,
+    #                 "quantity": item.quantity,
+    #                 "reserved_quantity": item.reserved_quantity,
+    #                 "updated_at": item.updated_at
+    #             } for item in recent_updates
+    #         ]
+    #     }
+
     @staticmethod
     def get_inventory_summary(
         db: Session,
         warehouse_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Get inventory summary statistics"""
-        query = db.query(Inventory)
         
+        # -------------------------
+        # Aggregate totals & counts
+        # -------------------------
+        query = db.query(
+            func.count(Inventory.id).label("total_items"),
+            func.coalesce(func.sum(Inventory.quantity), 0).label("total_quantity"),
+            func.coalesce(func.sum(Inventory.reserved_quantity), 0).label("total_reserved"),
+            func.coalesce(
+                func.sum(Inventory.quantity - Inventory.reserved_quantity), 0
+            ).label("total_available"),
+            func.count().filter(
+                Inventory.quantity - Inventory.reserved_quantity < 10
+            ).label("low_stock_items"),
+            func.count().filter(
+                Inventory.quantity == 0
+            ).label("out_of_stock_items")
+        )
+
         if warehouse_id:
             query = query.filter(Inventory.warehouse_id == warehouse_id)
-        
-        # Get total items count
-        total_items = query.count()
-        
-        # # Calculate totals
-        # total_quantity = db.session.execute(
-        #     select(func.coalesce(func.sum(Inventory.quantity), Decimal('0')))
-        #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
-        # ).scalar() or Decimal('0')
-        
-        # total_reserved = db.session.execute(
-        #     select(func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0')))
-        #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
-        # ).scalar() or Decimal('0')
-        query = select(
-            func.coalesce(func.sum(Inventory.quantity), Decimal('0')),
-            func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0'))
-        )
 
+        result = query.first()
+
+        # -------------------------
+        # Recent updates (last 5 items)
+        # -------------------------
+        recent_query = db.query(Inventory)
         if warehouse_id:
-            query = query.where(Inventory.warehouse_id == warehouse_id)
+            recent_query = recent_query.filter(Inventory.warehouse_id == warehouse_id)
 
-        total_quantity, total_reserved = db.execute(query).first()      
-        total_available = total_quantity - total_reserved
-        
-        # Get low stock items (less than 10 units available)
-        low_stock_query = query.filter(
-            Inventory.quantity - Inventory.reserved_quantity < 10
-        )
-        low_stock_count = low_stock_query.count()
-        
-        # Get out of stock items
-        out_of_stock_query = query.filter(
-            Inventory.quantity == 0
-        )
-        out_of_stock_count = out_of_stock_query.count()
-        
-        # Get recently updated items
-        recent_updates = query.order_by(desc(Inventory.updated_at)).limit(5).all()
-        
+        recent_updates = recent_query.order_by(desc(Inventory.updated_at)).limit(5).all()
+
+        # -------------------------
+        # Build response
+        # -------------------------
         return {
-            "total_items": total_items,
-            "total_quantity": float(total_quantity),
-            "total_reserved": float(total_reserved),
-            "total_available": float(total_available),
-            "low_stock_items": low_stock_count,
-            "out_of_stock_items": out_of_stock_count,
+            "total_items": result.total_items,
+            "total_quantity": float(result.total_quantity),
+            "total_reserved": float(result.total_reserved),
+            "total_available": float(result.total_available),
+            "low_stock_items": result.low_stock_items,
+            "out_of_stock_items": result.out_of_stock_items,
             "recent_updates": [
                 {
                     "id": item.id,
                     "product_variant_id": item.product_variant_id,
-                    "quantity": item.quantity,
-                    "reserved_quantity": item.reserved_quantity,
+                    "quantity": float(item.quantity),
+                    "reserved_quantity": float(item.reserved_quantity),
                     "updated_at": item.updated_at
-                } for item in recent_updates
+                }
+                for item in recent_updates
             ]
         }
     
