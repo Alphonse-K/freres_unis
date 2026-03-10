@@ -587,39 +587,48 @@ class SaleService:
     def get_daily_sales_report(
         db: Session,
         pos_id: Optional[int] = None,
-        date: Optional[date] = None
+        report_date: Optional[date] = None
     ) -> Dict[str, Any]:
         """Get daily sales report"""
-        report_date = date or datetime.utcnow().date()
+        report_date = report_date or datetime.utcnow().date()
         
-        # Get sales for the day
-        sales = db.query(Sale).filter(
+        # 1️⃣ Get sales for the day
+        sales_query = db.query(Sale).filter(
             func.date(Sale.transaction_date) == report_date,
-            Sale.status == SaleStatus.COMPLETED,
-            Sale.pos_id == pos_id if pos_id else True
-        ).all()
-        
-        # Calculate totals
+            Sale.status == SaleStatus.COMPLETED
+        )
+
+        if pos_id:
+            sales_query = sales_query.filter(Sale.pos_id == pos_id)
+
+        sales = sales_query.all()
+
+        # 2️⃣ Calculate totals
         total_sales = len(sales)
         total_revenue = sum(sale.total_amount for sale in sales)
-        
-        # Get top selling products
-        top_products = db.execute(
+
+        # 3️⃣ Top selling products
+        top_products_query = (
             db.query(
                 ProductVariant.product_id,
                 func.sum(SaleItem.qty).label('total_qty'),
                 func.sum(SaleItem.qty * SaleItem.unit_price).label('total_value')
-            ).join(SaleItem, Sale.id == SaleItem.sale_id)
-            .join(ProductVariant, SaleItem.product_variant_id == ProductVariant.id)
-            .filter(
-                func.date(Sale.transaction_date) == report_date,
-                Sale.status == SaleStatus.COMPLETED,
-                Sale.pos_id == pos_id if pos_id else True
-            ).group_by(ProductVariant.product_id)
-            .order_by(desc('total_qty'))
-            .limit(5)
-        ).all()
-        
+            )
+            .join(SaleItem, SaleItem.product_variant_id == ProductVariant.id)
+            .join(Sale, Sale.id == SaleItem.sale_id)
+            .filter(func.date(Sale.transaction_date) == report_date)
+            .filter(Sale.status == SaleStatus.COMPLETED)
+        )
+
+        if pos_id:
+            top_products_query = top_products_query.filter(Sale.pos_id == pos_id)
+
+        top_products = top_products_query.group_by(ProductVariant.product_id) \
+                                        .order_by(desc('total_qty')) \
+                                        .limit(5) \
+                                        .all()
+
+        # 4️⃣ Build report
         return {
             "date": report_date,
             "total_sales": total_sales,
@@ -629,7 +638,8 @@ class SaleService:
                     "product_id": product_id,
                     "total_quantity": float(total_qty),
                     "total_value": float(total_value or Decimal('0'))
-                } for product_id, total_qty, total_value in top_products
+                }
+                for product_id, total_qty, total_value in top_products
             ],
             "sales": [
                 {
@@ -638,9 +648,10 @@ class SaleService:
                     "amount": float(sale.total_amount),
                     "payment_method": sale.payment_mode.value,
                     "customer": sale.customer.name if sale.customer else "Walk-in"
-                } for sale in sales
+                }
+                for sale in sales
             ]
-        }
+        }    
     
     @staticmethod
     def get_sales_trend(
