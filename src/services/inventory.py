@@ -1142,17 +1142,25 @@ class InventoryService:
         # Get total items count
         total_items = query.count()
         
-        # Calculate totals
-        total_quantity = db.session.execute(
-            select(func.coalesce(func.sum(Inventory.quantity), Decimal('0')))
-            .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
-        ).scalar() or Decimal('0')
+        # # Calculate totals
+        # total_quantity = db.session.execute(
+        #     select(func.coalesce(func.sum(Inventory.quantity), Decimal('0')))
+        #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
+        # ).scalar() or Decimal('0')
         
-        total_reserved = db.session.execute(
-            select(func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0')))
-            .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
-        ).scalar() or Decimal('0')
-        
+        # total_reserved = db.session.execute(
+        #     select(func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0')))
+        #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
+        # ).scalar() or Decimal('0')
+        query = select(
+            func.coalesce(func.sum(Inventory.quantity), Decimal('0')),
+            func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0'))
+        )
+
+        if warehouse_id:
+            query = query.where(Inventory.warehouse_id == warehouse_id)
+
+        total_quantity, total_reserved = db.execute(query).first()      
         total_available = total_quantity - total_reserved
         
         # Get low stock items (less than 10 units available)
@@ -1290,11 +1298,11 @@ class InventoryService:
             query = query.filter(Inventory.warehouse_id == warehouse_id)
         
         total_items = query.count()
-        total_quantity = db.session.execute(
+        total_quantity = db.execute(
             select(func.coalesce(func.sum(Inventory.quantity), Decimal('0')))
             .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
         ).scalar() or Decimal('0')
-        
+
         return {
             "total_items": total_items,
             "total_quantity": float(total_quantity),
