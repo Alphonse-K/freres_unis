@@ -402,3 +402,13 @@ class POSUserService:
 
         logger.info(f"POS user updated", extra={"pos_user_id": str(user.id)})
         return user
+
+    @staticmethod
+    def get_pos_user_by_id(db: Session, user_id: int):
+        user = db.query(POSUser).filter(POSUser.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with ID {user_id} not found"
+            )
+        return user

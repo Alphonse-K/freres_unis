@@ -160,11 +160,15 @@ class Sale(Base):
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)
     customer_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
+    subtotal_amount = Column(Numeric(12, 2), nullable=False)
     total_amount = Column(Numeric(12, 2), nullable=False)
     payment_mode = Column(Enum(PaymentMethod), nullable=False)
     status = Column(Enum(SaleStatus), default=SaleStatus.COMPLETED)
     transaction_date = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    tax_amount = Column(Numeric(12, 2), nullable=True)
+    discount_amount = Column(Numeric(12, 2), nullable=True)
+    notes = Column(String(255), nullable=True)
 
     # relationships
     pos = relationship("POS", back_populates="sales")

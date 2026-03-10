@@ -177,37 +177,47 @@ class SaleService:
 
             # 🔟 Finalize sale (deduct reserved stock)
             try:
+
                 InventoryService.finalize_sale(
                     db,
                     sale.id,
                     data.pos_id,
                     sale_items_data
                 )
+
                 sale.status = SaleStatus.COMPLETED
 
             except Exception as e:
+
                 # release reserved stock
                 InventoryService.cancel_sale_reservations(
                     db,
                     data.pos_id,
                     sale_items_data
                 )
+
                 db.rollback()
+
                 raise SaleValidationException(
                     f"Sale finalization failed: {str(e)}"
                 )
 
             db.commit()
             db.refresh(sale)
+
             logger.info(f"Sale created successfully: {sale.id}")
+
             return sale
+
         except SaleException:
             db.rollback()
             raise
 
         except Exception as e:
             db.rollback()
+
             logger.error(f"Unexpected error creating sale: {str(e)}")
+
             raise SaleValidationException(
                 f"Error creating sale: {str(e)}"
             )    
