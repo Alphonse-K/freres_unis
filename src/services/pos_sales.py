@@ -232,8 +232,8 @@ class SaleService:
             joinedload(Sale.created_by),
             joinedload(Sale.customer),
             joinedload(Sale.items)
-            .joinedload(SaleItem.product_variant_id)
-            .joinedload(ProductVariant.product),
+                .joinedload(SaleItem.product_variant)
+                .joinedload(ProductVariant.product),
             joinedload(Sale.counter_customer),
             joinedload(Sale.returns)
         ).filter(

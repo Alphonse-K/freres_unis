@@ -95,6 +95,7 @@ class ProductVariant(Base):
         back_populates="variant",
         cascade="all, delete-orphan"
     )
+    sale_items = relationship("SaleItem", back_populates="product_variant")
 
     # ---------------- PRICING HELPERS ----------------
     @property

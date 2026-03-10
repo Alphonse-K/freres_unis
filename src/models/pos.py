@@ -201,6 +201,7 @@ class SaleItem(Base):
     unit_price = Column(Numeric(12, 2))
 
     sale = relationship("Sale", back_populates="items")
+    product_variant = relationship("ProductVariant", back_populates="sale_items")
 
 
 class SaleReturn(Base):
