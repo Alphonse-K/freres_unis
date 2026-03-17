@@ -176,29 +176,18 @@ class ExpenseService:
             )
 
         update_data = data.model_dump(exclude_unset=True)
+        print("updated expense", update_data)
         try:
             for field, value in update_data.items():
                 if field == "amount" and value <= Decimal('0'):
                     raise ExpenseBusinessRuleException(
                         "Amount must be positive"
                     )
-                
-                if field == "status":
-                    if value == POSExpenseStatus.APPROVED and not expense.approved_by:
-                        raise ExpenseBusinessRuleException(
-                            "Cannot approve expense without approval"
-                        )
-                
-                if field == "approved_by_id":
-                    approver = POSUserService.get_pos_user_by_id(db, value)
-                    if not approver:
-                        raise ExpenseNotFoundException(
-                            "Approver user not found"
-                        )
-
+                                
                 setattr(expense, field, value)
-                db.commit()
-                return expense
+            db.commit()
+            db.refresh(expense)
+            return expense
             
         except ExpenseException as e:
             db.rollback()
@@ -448,18 +437,18 @@ class ExpenseService:
         days: int = 30
     ) -> List[Dict[str, Any]]:
         """Get expenses trend over time"""
-        end_date = datetime.utcnow().date()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days - 1)
         
         # Generate date range
         date_range = []
         current_date = start_date
         while current_date <= end_date:
-            date_range.append(current_date)
+            date_range.append(current_date.date())
             current_date += timedelta(days=1)
         
         # Get daily expenses
-        daily_expenses = db.session.execute(
+        daily_expenses = db.execute(
             db.query(
                 func.date(POSExpense.expense_date).label('expense_date'),
                 func.count(POSExpense.id).label('expense_count'),
@@ -495,7 +484,7 @@ class ExpenseService:
     ) -> Dict[str, Any]:
         """Get detailed expense breakdown by category"""
         # Get expenses by category
-        category_data = db.session.execute(
+        category_data = db.execute(
             db.query(
                 POSExpense.category,
                 func.count(POSExpense.id).label('count'),

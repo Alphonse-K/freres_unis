@@ -254,7 +254,7 @@ class POSExpense(Base):
         nullable=False
     )
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)
-    approved_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)
+    approved_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     # relationships
     pos = relationship("POS", back_populates="expenses")

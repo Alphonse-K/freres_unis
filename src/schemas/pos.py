@@ -150,6 +150,11 @@ class POSOut(POSBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+# class POSLightOut(BaseModel):
+#     id: int,
+#     pos_business_name: str = Field(..., max_length=255)
+#     phone: str = Field(..., max_length=40)
+
 
 class POSStats(BaseModel):
     pos_id: int
@@ -168,36 +173,6 @@ class POSStats(BaseModel):
 # -------------------------------
 # POS EXPENSE SCHEMAS
 # -------------------------------
-
-class POSExpenseBase(BaseModel):
-    reference: str
-    category: POSExpenseCategory
-    amount: Decimal
-    description: Optional[str] = None
-    expense_date: datetime
-    status: Optional[POSExpenseStatus] = POSExpenseStatus.DRAFT
-    created_by_id: int
-    approved_by_id: int
-
-
-class POSExpenseCreate(POSExpenseBase):
-    pos_id: int
-
-
-class POSExpenseUpdate(BaseModel):
-    category: Optional[POSExpenseCategory] = None
-    amount: Optional[Decimal] = None
-    description: Optional[str] = None
-    expense_date: Optional[datetime] = None
-    status: Optional[POSExpenseStatus] = None
-    approved_by_id: Optional[int] = None
-
-
-class POSExpenseOut(POSExpenseBase):
-    id: int
-    pos_id: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class POSMini(POSBase):
@@ -383,8 +358,8 @@ class POSExpenseUpdate(BaseModel):
     amount: Optional[Decimal] = None
     description: Optional[str] = None
     expense_date: Optional[datetime] = None
-    status: Optional[POSExpenseStatus] = None
-    approved_by_id: Optional[int] = None
+    # status: Optional[POSExpenseStatus] = None
+    # approved_by_id: Optional[int] = None
 
 
 class POSExpenseOut(POSExpenseBase):
@@ -392,9 +367,9 @@ class POSExpenseOut(POSExpenseBase):
     reference: str
     created_by_id: int
     created_at: datetime
-    pos: Optional[dict] = None
-    created_by: Optional[dict] = None
-    approved_by: Optional[dict] = None
+    pos: Optional[POSMini] = None
+    created_by: Optional[POSUserOut] = None
+    approved_by: Optional[POSUserOut] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -465,3 +440,5 @@ class ExpenseApproveRequest(BaseModel):
 
 class ExpenseRejectRequest(BaseModel):
     reason: Optional[str] = None
+
+
