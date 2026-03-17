@@ -496,7 +496,7 @@ class ProcurementService:
         return_request = ProcurementReturn(
             reference=f"RRR-{uuid.uuid4().hex[:8]}",
             procurement_id=procurement_id,
-            initiator_pos_id=initiator_pos.id,
+            initiator_pos_id=initiator_pos.pos_id,
             provider_pos_id=procurement.provider_id,
             status=ProcurementReturnStatus.PENDING,
             reason=reason,
