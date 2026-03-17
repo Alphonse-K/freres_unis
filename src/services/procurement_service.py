@@ -535,18 +535,22 @@ class ProcurementService:
         return return_request    
     
     @staticmethod
-    def list_returns(
-        db: Session,
-        procurement_id: int,
-        current_user
-    ):
-        returns = db.query(ProcurementReturn).filter(
-            (ProcurementReturn.procurement_id == procurement_id) &
-            (ProcurementReturn.initiator_pos_id == current_user.pos_id) |
-            (ProcurementReturn.provider_pos_id == current_user.pos_id)
-        ).all()
-        return returns
+    def list_returns(db: Session, procurement_id: int, current_user):
 
+        returns = db.query(ProcurementReturn).options(
+            joinedload(ProcurementReturn.items)
+        ).filter(
+            and_(
+                ProcurementReturn.procurement_id == procurement_id,
+                or_(
+                    ProcurementReturn.initiator_pos_id == current_user.pos_id,
+                    ProcurementReturn.provider_pos_id == current_user.pos_id
+                )
+            )
+        ).all()
+
+        return returns
+    
     @staticmethod
     def update_return(
         db: Session,
