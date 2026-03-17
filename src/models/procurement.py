@@ -14,6 +14,13 @@ class ProcurementStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 
+class ProcurementReturnStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+
+
 class Procurement(Base):
     __tablename__ = "procurements"    
     id = Column(Integer, primary_key=True)    
@@ -71,7 +78,7 @@ class Procurement(Base):
         back_populates="procurement",
         cascade="all, delete-orphan"
     )
-    # supplying_pos = relationship("POS", foreign_keys=[supplying_pos_id])
+    returns = relationship("ProcurementReturn", back_populates="procurement")
         
     @property
     def warehouse(self):
@@ -146,3 +153,38 @@ class ProcurementItem(Base):
     returned_qty = Column(Numeric(12,2), default=0)
     procurement = relationship("Procurement", back_populates="items")
     product_variant = relationship("ProductVariant")
+
+
+class ProcurementReturn(Base):
+    __tablename__ = "procurement_returns"
+
+    id = Column(Integer, primary_key=True)
+    reference = Column(String(50), unique=True, nullable=False)
+    procurement_id = Column(Integer, ForeignKey("procurements.id"), nullable=False)
+    initiator_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
+    provider_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
+    status = Column(PgEnum(ProcurementReturnStatus), default=ProcurementReturnStatus.PENDING)
+    reason = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), onupdate=datetime.now(timezone.utc))
+
+    # relationships
+    procurement = relationship("Procurement", back_populates="returns")
+    initiator_pos = relationship("POS", foreign_keys=[initiator_pos_id])
+    provider_pos = relationship("POS", foreign_keys=[provider_pos_id])
+    items = relationship(
+        "ProcurementReturnItem",
+        back_populates="return_request",
+        cascade="all, delete-orphan"
+    )
+
+class ProcurementReturnItem(Base):
+    __tablename__ = "procurement_return_items"
+
+    id = Column(Integer, primary_key=True)
+    return_id = Column(Integer, ForeignKey("procurement_returns.id"), nullable=False)
+    product_variant_id = Column(Integer, ForeignKey("product_variants.id"), nullable=False)
+    quantity = Column(Numeric(12, 2), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+
+    return_request = relationship("ProcurementReturn", back_populates="items")

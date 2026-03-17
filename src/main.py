@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from src.core.database import Base, engine, SessionLocal
 from src.core.seed_permissions import seed_permissions, seed_role
 
-import src.models  # Ensure models are registered
+import src.models
 
 from src.routes.auth import auth_router
 from src.routes.system_user import user_router
@@ -26,7 +26,7 @@ from src.routes import files
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ---- STARTUP ----
+    # +++++ STARTUP +++++
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -34,7 +34,6 @@ async def lifespan(app: FastAPI):
         seed_role(db)
     finally:
         db.close()
-
     yield
 
 app = FastAPI(
@@ -62,7 +61,6 @@ app.include_router(address_router, prefix=API_PREFIX)
 app.include_router(id_type_router, prefix=API_PREFIX)
 app.include_router(role_router, prefix=API_PREFIX)
 app.include_router(files.router, prefix=API_PREFIX)
-
 
 @app.get(f"{API_PREFIX}/")
 def root():

@@ -24,7 +24,7 @@ def seed_role(db: Session):
     Create SUPER_ADMIN role if it doesn't exist and
     assign all permissions to it
     """
-    admin_role = db.query(Role).filter_by(name="SUPER_ADMIN")
+    admin_role = db.query(Role).filter_by(name="SUPER_ADMIN").first()
     if not admin_role:
         admin_role = Role(name="SUPER_ADMIN")
         db.add(admin_role)
@@ -33,33 +33,3 @@ def seed_role(db: Session):
     all_permissions = db.query(Permission).all()
     admin_role.permissions = all_permissions
     db.commit()
-
-# def seed_default_client_role_and_permissions(db: Session):
-#     from src.core.permissions import Permissions
-#     from src.models.permission import Permission
-#     from src.models.role import Role
-
-#     default_permissions = [
-#         Permissions.READ_POS,
-#         Permissions.CREATE_ORDER,
-#         Permissions.READ_ORDER,
-#         Permissions.CANCEL_ORDER,
-#         Permissions.UPDATE_ORDER,
-#         Permissions.RETURN_ORDER
-#     ]
-    
-#     for perm_name in default_permissions:
-#         perm = db.query(Permission).filter_by(name=perm_name).first()
-#         if not perm:
-#             perm = Permission(name=perm_name)
-#             db.add(perm)
-#         db.commit()
-    
-#     client_role = db.query(Role).filter_by(name="CLIENT_BASIC").first()
-#     if not client_role:
-#         client_role = Role(name="CLIENT_BASIC")
-#         db.add(client_role)
-#         db.commit()
-#         db.refresh(client_role)
-#     client_role.permissions = db.query(Permission).filter(Permission.name.in_(default_permissions)).all()
-#     db.commit()

@@ -1,5 +1,5 @@
 # src/routes/procurements.py
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -12,7 +12,10 @@ from src.schemas.procurement import (
     ProcurementUpdate,
     ProcurementResponse,
     ProcurementStatus,
-    ProcurementUpdateStatus
+    ProcurementUpdateStatus,
+    ReturnItem,
+    CreateReturnRequest,
+    UpdateReturn
 )
 from src.services.procurement_service import (
     ProcurementService,
@@ -119,47 +122,25 @@ def update_procurement(
     return ProcurementService.update_procurement(db, procurement_id, current_user, data)
 
 
-@procurement_router.post(
-    "/{procurement_id}/deliver",
+@procurement_router.put(
+    "/{procurement_id}/add/receipt",
     response_model=ProcurementResponse
 )
-def change_procurement_status(
+def attach_procurement_receipt(
     procurement_id: int,
-    incoming_status: ProcurementUpdateStatus,
-    delivery_notes: Optional[str] = None,
-    driver_name: Optional[str] = None,
-    driver_phone: Optional[str] = None,
+    file: UploadFile,
     current_user: POSUser = Depends(
-        require_permission(Permissions.RECEIVE_PROCUREMENT)
+        require_permission(Permissions.ADD_PROCUREMENT_RECEIPT)
     ),
     db: Session = Depends(get_db)
 ):
     """
     Change procurement status
     """
-
-    procurement = ProcurementService.get_procurement(
-        db,
-        procurement_id,
-        current_user,
-        include_details=False
+    return ProcurementService.attach_procurement_receipt(
+        db, procurement_id, file, current_user
     )
 
-    if not procurement:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Procurement not found"
-        )
-
-    return ProcurementService.change_procurement_status(
-        db=db,
-        procurement_id=procurement_id,
-        new_status=incoming_status.status,
-        user_id=current_user.id,
-        delivery_notes=delivery_notes,
-        driver_name=driver_name,
-        driver_phone=driver_phone
-    )
 
 @procurement_router.post("/{procurement_id}/cancel", response_model=ProcurementResponse)
 def cancel_procurement(
@@ -187,6 +168,88 @@ def cancel_procurement(
         procurement_id=procurement_id,
         reason=reason
     )
+@procurement_router.post(
+    "/return/{procurement_id}/create",
+    status_code=status.HTTP_201_CREATED
+)
+def create_return(
+    procurement_id: int,
+    data: CreateReturnRequest,
+    current_user = Depends(require_permission(Permissions.RETURN_PROCUREMENT)),
+    db: Session = Depends(get_db)
+):
+    return ProcurementService.create_return(
+        db, 
+        procurement_id, 
+        current_user, 
+        data.items, 
+        data.reason
+    )
+
+
+@procurement_router.get(
+    "/{procurement_id}/returns",
+)
+def list_returns(
+    procurement_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_PROCUREMENT_RETURN))
+):
+    return ProcurementService.list_returns(
+        db,
+        procurement_id,
+        current_user
+    )
+
+@procurement_router.patch(
+    "/{return_id}/review",
+)
+def review_return(
+    return_id: int,
+    approve: bool,
+    note: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.APPROVE_PROCUREMEMNT_RETURN))
+):
+    return ProcurementService.review_return(
+        db,
+        return_id,
+        current_user,
+        approve,
+        note
+    )
+
+@procurement_router.put(
+    "/{return_id}/return",
+)
+def update_return(
+    return_id: int,
+    data: UpdateReturn,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.UPDATE_PROCUREMENT_RETURN))
+):
+    return ProcurementService.update_return(
+        db=db,
+        return_id=return_id,
+        initiator_pos=current_user,
+        items=data.items,
+        reason=data.reason
+    )
+
+@procurement_router.patch(
+    "/{return_id}/cancel",
+)
+def cancel_return(
+    return_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CANCEL_PROCUREMENT_RETURN))
+):
+    return ProcurementService.cancel_return(
+        db=db,
+        return_id=return_id,
+        initiator_pos=current_user
+    )
+
 
 @procurement_router.get("/pos/{pos_id}/summary")
 def get_pos_procurement_summary(

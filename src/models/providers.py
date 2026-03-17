@@ -51,7 +51,7 @@ class Provider(Base):
     linked_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
 
     # --- Relationships ---
-    linked_pos = relationship("POS")
+    linked_pos = relationship("POS", back_populates="provider")
     addresses = relationship(
         "Address",
         back_populates="provider",
@@ -168,11 +168,10 @@ class ProviderPayment(Base):
         ForeignKey("purchase_invoices.id"),
         nullable=True
     )
-    payment_method = Column(PgEnum(PaymentMethod), nullable=False)  # cash, bank, mobile, etc.
-    reference = Column(String(100))      # receipt / transaction id
+    payment_method = Column(PgEnum(PaymentMethod), nullable=False)
+    reference = Column(String(100))     
     notes = Column(String(255))
 
-    # relationships
     provider = relationship("Provider", back_populates="payments")
     purchase_invoice = relationship(
             "PurchaseInvoice",

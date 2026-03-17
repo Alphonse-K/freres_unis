@@ -331,79 +331,85 @@ class InventoryService:
             raise ValidationException(f"Error creating inventory item: {str(e)}")
     
     @staticmethod
+    def _validate_inventory_update(
+            db: Session,
+            item: Inventory,
+            update_data: dict
+    ):
+        new_quantity = update_data.get('quantity', item.quantity)
+        new_reserved_quantity = update_data.get('reserved_quantity', item.reserved_quantity)
+        new_variant = update_data.get('product_variant_id', item.product_variant_id)
+        new_warehouse = update_data.get('warehouse_id', item.warehouse_id)
+
+        if new_quantity is None:
+            raise ValidationException('Quantity cannot be null')
+        
+        if new_reserved_quantity is None:
+            raise ValidationException('Reserved quantity cannot be null')
+
+        if new_quantity < Decimal('0'):
+            raise ValidationException('Quantity cannot be negative')
+        
+        if new_reserved_quantity < Decimal('0'):
+            raise ValidationException('Reserved quantity cannot be negative')
+        
+        if new_reserved_quantity > new_quantity:
+            raise ValidationException('Reserved quantity cannot exceed quantity')
+        
+        if 'product_variant_id' in update_data:
+            exists = db.query(ProductVariant).filter(
+                ProductVariant.id == new_variant
+            ).first()
+            if not exists:
+                raise NotFoundException(f"Product variant {new_variant} not found")
+            
+        if 'warehouse_id' in update_data:
+            exists = db.query(Warehouse).filter(
+                Warehouse.id == new_warehouse
+            ).first()
+            if not exists:
+                raise NotFoundException(f"Warehouse {new_warehouse} not found")
+            
+        duplicate = db.query(Inventory).filter(
+            Inventory.product_variant_id == new_variant,
+            Inventory.warehouse_id == new_warehouse,
+            Inventory.id != item.id
+        )
+
+    @staticmethod
     def update_inventory_item(
-        db: Session, 
-        inventory_id: int, 
+        db: Session,
+        inventory_id: int,
         data: InventoryUpdate
     ) -> Inventory:
         """Update inventory item"""
-        item = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+        item = db.query(Inventory).filter(
+            Inventory.id == inventory_id
+        ).first()
+
         if not item:
-            raise NotFoundException(f"Inventory item {inventory_id} not found")
-        
+            raise NotFoundException(f"Inventory {inventory_id} not found")
         try:
-            # Update fields
-            if data.quantity is not None:
-                if data.quantity < Decimal('0'):
-                    raise ValidationException("Quantity cannot be negative")
-                item.quantity = data.quantity
-            
-            if data.reserved_quantity is not None:
-                if data.reserved_quantity < Decimal('0'):
-                    raise ValidationException("Reserved quantity cannot be negative")
-                if data.reserved_quantity > item.quantity:
-                    raise ValidationException("Reserved quantity cannot exceed available quantity")
-                item.reserved_quantity = data.reserved_quantity
-            
-            if data.product_variant_id is not None:
-                # Check if product variant exists
-                product_variant = db.query(ProductVariant).filter(
-                    ProductVariant.id == data.product_variant_id
-                ).first()
-                if not product_variant:
-                    raise NotFoundException(f"Product variant {data.product_variant_id} not found")
-                
-                # Check for duplicate in same warehouse
-                duplicate = db.query(Inventory).filter(
-                    Inventory.warehouse_id == item.warehouse_id,
-                    Inventory.product_variant_id == data.product_variant_id,
-                    Inventory.id != inventory_id
-                ).first()
-                if duplicate:
-                    raise ValidationException(f"Product variant already exists in this warehouse")
-                
-                item.product_variant_id = data.product_variant_id
-            
-            if data.warehouse_id is not None and data.warehouse_id != item.warehouse_id:
-                # Check if warehouse exists
-                warehouse = db.query(Warehouse).filter(Warehouse.id == data.warehouse_id).first()
-                if not warehouse:
-                    raise NotFoundException(f"Warehouse {data.warehouse_id} not found")
-                
-                # Check for duplicate in new warehouse
-                duplicate = db.query(Inventory).filter(
-                    Inventory.warehouse_id == data.warehouse_id,
-                    Inventory.product_variant_id == item.product_variant_id
-                ).first()
-                if duplicate:
-                    raise ValidationException(f"Product variant already exists in warehouse {data.warehouse_id}")
-                
-                item.warehouse_id = data.warehouse_id
+            update_data = data.model_dump(exclude_unset=True)
+            InventoryService._validate_inventory_update(db, item, update_data)
+            for field, value in update_data.items():
+                setattr(item, field, value)
             
             item.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(item)
-            
-            logger.info(f"Inventory item updated: {inventory_id}")
+            logger.info(f"Inventory item {inventory_id} updated successfully")
             return item
-            
         except InventoryException:
             db.rollback()
             raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating inventory item {inventory_id}: {str(e)}")
-            raise ValidationException(f"Error updating inventory item: {str(e)}")
+            raise ValidationException(
+                f"Error updating inventory item {str(e)}"
+            )
+        pass
     
     @staticmethod
     def get_inventory_item(db: Session, inventory_id: int) -> Inventory:
@@ -514,42 +520,53 @@ class InventoryService:
     
     @staticmethod
     def check_stock_availability(
-        db: Session,
-        warehouse_id: int,
-        product_variant_id: int,
-        quantity: Decimal,
-        current_account
+            db: Session,
+            warehouse_id: int,
+            product_variant_id: int,
+            quantity: Decimal,
+            current_user
     ) -> Dict[str, Any]:
         """Check if sufficient stock is available for sale"""
-        
-        user_warehouse_id = current_account.pos.warehouse_id
-        if user_warehouse_id and warehouse_id != user_warehouse_id:
+        user_warehouse_id = getattr(
+            getattr(current_user, 'pos', None),
+            'warehouse_id',
+            None
+        )
+        if user_warehouse_id and user_warehouse_id != warehouse_id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view these inventories"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not authorized to access this warehouse inventory"
             )
         
-        item = db.query(Inventory).filter(
-            Inventory.warehouse_id == warehouse_id,
-            Inventory.product_variant_id == product_variant_id
-        ).first()
-        
+        item = (
+            db.query(Inventory)
+            .filter(
+                Inventory.warehouse_id == warehouse_id,
+                Inventory.product_variant_id == product_variant_id
+            )
+            .first()
+        )
+
         if not item:
-            raise NotFoundException(f"Product variant {product_variant_id} not found in warehouse {warehouse_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product variant with ID {product_variant_id} not found"
+            )
         
         available = item.quantity - item.reserved_quantity
-        is_available = available >= quantity
-        
+        shortage = max(Decimal('0'), available - quantity)
+
         return {
             "inventory_item_id": item.id,
             "available": available,
             "required": quantity,
-            "is_available": is_available,
-            "shortage": max(Decimal('0'), quantity - available) if not is_available else Decimal('0'),
+            "shortage": shortage,
+            "is_available": available >= quantity,
             "total_quantity": item.quantity,
             "reserved_quantity": item.reserved_quantity,
-            "product_variant_id": product_variant_id,
-            "warehouse_id": warehouse_id
+            "product_variant_id": item.product_variant_id,
+            "warehouse_id": item.warehouse_id
+
         }
     
     # ================================
@@ -836,68 +853,6 @@ class InventoryService:
     # ================================
     # PROCUREMENT TO INVENTORY
     # ================================
-    # @staticmethod
-    # def receive_procurement(
-    #     db: Session,
-    #     procurement_id: int,
-    #     warehouse_id: int,
-    #     received_by_id: int
-    # ) -> Dict[str, Any]:
-        
-    #     procurement = db.query(Procurement).options(
-    #         joinedload(Procurement.items).filter(
-    #             Procurement.id == procurement_id
-    #         )
-    #     ).with_for_update().first()
-    #     if not procurement:
-    #         raise NotFoundException(f"Procurement with {procurement_id} not found.")
-        
-    #     if procurement.status != ProcurementStatus.SHIPPED:
-    #         raise BusinessRuleException("Procurement must be SHIPPED before it's received.")
-        
-    #     if procurement.status == ProcurementStatus.CANCELLED:
-    #         raise BusinessRuleException("Cannot receive cancelled procurement.")
-        
-    #     warehouse = db.query(Warehouse).filter(
-    #         Warehouse.id == warehouse_id
-    #     ).first()
-    #     if not warehouse:
-    #         raise NotFoundException(f"Warehous with ID {warehouse_id} not found")
-        
-    #     results = []
-    #     try:
-    #         for proc_item in procurement.items:
-    #             item = InventoryService.increase_stock(
-    #                 db,
-    #                 warehouse_id,
-    #                 proc_item.product_variant_id,
-    #                 proc_item.quantity,
-    #                 source=f"procurement_{procurement_id}"
-    #             )
-
-    #             results.append({
-    #                 "product_variant_id": proc_item.product_variant_id,
-    #                 "quantity": proc_item.quantity,
-    #                 "inventory_item_id": item.id
-    #             })
-
-    #         procurement.warehouse_id = warehouse_id
-    #         procurement.status = ProcurementStatus.RECEIVED
-    #         procurement.updated_at = datetime.now(timezone.utc)
-    #         procurement.received_by_id = received_by_id
-
-    #         db.commit()
-    #         return {
-    #             "procurement_id": procurement_id,
-    #             "warehouse_id": warehouse_id,
-    #             "items_received": len(results),
-    #             "details": results
-    #         }
-    #     except Exception as e:
-    #         db.rollback()
-    #         logger.error(f"Error receiving procurement with ID {procurement_id}: {str(e)}")
-    #         raise ValidationException(f"Error recieving procurement: {str(e)}")
-
     @staticmethod
     def receive_procurement(
         db: Session,
@@ -1128,74 +1083,6 @@ class InventoryService:
     # INVENTORY REPORTS & ANALYTICS
     # ================================
     
-    # @staticmethod
-    # def get_inventory_summary(
-    #     db: Session,
-    #     warehouse_id: Optional[int] = None
-    # ) -> Dict[str, Any]:
-    #     """Get inventory summary statistics"""
-    #     query = db.query(Inventory)
-        
-    #     if warehouse_id:
-    #         query = query.filter(Inventory.warehouse_id == warehouse_id)
-        
-    #     # Get total items count
-    #     total_items = query.count()
-        
-    #     # # Calculate totals
-    #     # total_quantity = db.session.execute(
-    #     #     select(func.coalesce(func.sum(Inventory.quantity), Decimal('0')))
-    #     #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
-    #     # ).scalar() or Decimal('0')
-        
-    #     # total_reserved = db.session.execute(
-    #     #     select(func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0')))
-    #     #     .where(Inventory.warehouse_id == warehouse_id if warehouse_id else True)
-    #     # ).scalar() or Decimal('0')
-    #     query = select(
-    #         func.coalesce(func.sum(Inventory.quantity), Decimal('0')),
-    #         func.coalesce(func.sum(Inventory.reserved_quantity), Decimal('0'))
-    #     )
-
-    #     if warehouse_id:
-    #         query = query.where(Inventory.warehouse_id == warehouse_id)
-
-    #     total_quantity, total_reserved = db.execute(query).first()      
-    #     total_available = total_quantity - total_reserved
-        
-    #     # Get low stock items (less than 10 units available)
-    #     low_stock_query = query.filter(
-    #         Inventory.quantity - Inventory.reserved_quantity < 10
-    #     )
-    #     low_stock_count = low_stock_query.count()
-        
-    #     # Get out of stock items
-    #     out_of_stock_query = query.filter(
-    #         Inventory.quantity == 0
-    #     )
-    #     out_of_stock_count = out_of_stock_query.count()
-        
-    #     # Get recently updated items
-    #     recent_updates = query.order_by(desc(Inventory.updated_at)).limit(5).all()
-        
-    #     return {
-    #         "total_items": total_items,
-    #         "total_quantity": float(total_quantity),
-    #         "total_reserved": float(total_reserved),
-    #         "total_available": float(total_available),
-    #         "low_stock_items": low_stock_count,
-    #         "out_of_stock_items": out_of_stock_count,
-    #         "recent_updates": [
-    #             {
-    #                 "id": item.id,
-    #                 "product_variant_id": item.product_variant_id,
-    #                 "quantity": item.quantity,
-    #                 "reserved_quantity": item.reserved_quantity,
-    #                 "updated_at": item.updated_at
-    #             } for item in recent_updates
-    #         ]
-    #     }
-
     @staticmethod
     def get_inventory_summary(
         db: Session,

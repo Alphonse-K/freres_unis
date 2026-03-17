@@ -51,6 +51,7 @@ class ProcurementResponse(BaseModel):
     delivery_date: Optional[datetime]
     payment_status: str
     due_amount: Decimal
+    receipt_photo: str | None = None
     items: List[ProcurementItemResponse]
     created_at: datetime
     updated_at: Optional[datetime]
@@ -60,3 +61,15 @@ class ProcurementResponse(BaseModel):
 
 class ProcurementUpdateStatus(BaseModel):
     status: ProcurementStatus
+
+
+class ReturnItem(BaseModel):
+    product_variant_id: int = Field(..., example=1)
+    qty: int = Field(..., gt=0, example=5)
+
+class CreateReturnRequest(BaseModel):
+    items: List[ReturnItem]
+    reason: str = Field(None, example="Damaged goods")
+
+class UpdateReturn(CreateReturnRequest):
+    pass

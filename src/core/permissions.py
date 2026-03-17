@@ -77,6 +77,11 @@ class Permissions(str, Enum):
     CANCEL_PROCUREMENT = "procurement:cancel"
     RECEIVE_PROCUREMENT = "procurement:receive"
     RETURN_PROCUREMENT = "procurement:return"
+    UPDATE_PROCUREMENT_RETURN = "procurement_return:update"
+    APPROVE_PROCUREMEMNT_RETURN = "procurement_return:approve"
+    READ_PROCUREMENT_RETURN = "procurement_return:read"
+    CANCEL_PROCUREMENT_RETURN = "procurement_return:cancel"
+    ADD_PROCUREMENT_RECEIPT = "procurement_receipt:add"
 
     # =========================
     # PURCHASE INVOICE

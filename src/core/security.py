@@ -52,18 +52,14 @@ class SecurityUtils:
     
         
     @staticmethod
-    def verify_password(password: str, stored_hash: str) -> bool:
-        
-        # Try SHA256 + bcrypt first
-        sha = hashlib.sha256(password.encode()).digest()
-        
+    def verify_password(password: str, stored_hash: str) -> bool:        
+        sha = hashlib.sha256(password.encode()).digest()        
         try:
             if bcrypt.checkpw(sha, stored_hash.encode()):
                 return True
         except Exception as e:
             print(f"DEBUG: SHA256+bcrypt check failed: {e}")
         
-        # Try legacy bcrypt
         try:
             if bcrypt.checkpw(password.encode(), stored_hash.encode()):
                 print("DEBUG: Legacy bcrypt verification successful")
@@ -208,10 +204,9 @@ class SecurityUtils:
                 for role in account.roles
             )
 
-        # -----------------
+        # -------------------
         # Check active status
-        # -----------------
-        # User
+        # -------------------
         if hasattr(account, "status"):
             if isinstance(account.status, enum.Enum):
                 if account.status.name.upper() != "ACTIVE" and account.status.value.upper() != "ACTIVE":

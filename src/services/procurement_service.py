@@ -1,14 +1,16 @@
 # src/services/procurement_service.py
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, asc, and_, or_, extract
 import logging
-
+import uuid
 from src.models.procurement import (
-    Procurement, ProcurementItem, ProcurementStatus,
+    Procurement, ProcurementItem, ProcurementStatus, 
+    ProcurementReturn, ProcurementReturnItem, ProcurementReturnStatus
+    
 )
 from src.models.providers import ProviderType
 from src.models.pos import POS, POSUser, PosType
@@ -254,41 +256,40 @@ class ProcurementService:
         data: ProcurementUpdate
     ) -> Procurement:
         """Update procurement information"""
-        procurement = ProcurementService.get_procurement(db, procurement_id, include_details=False)
+        procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
         if not procurement:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Procurement {procurement_id} not found")
         
         # Check if procurement can be modified
-        if procurement.status in [ProcurementStatus.DELIVERED, ProcurementStatus.CANCELLED]:
+        if procurement.status in [ProcurementStatus.RECEIVED, ProcurementStatus.CANCELLED]:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail=f"Cannot update procurement with status {procurement.status.value}"
             )
-        
-        if procurement.pos_id != current_user.pos.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only update your own procurement."
-            )
-        
+        is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_user.roles)
+        provider = current_user.pos.provider
+        if not is_super_admin:
+            if not provider:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="POS not linked to a provider"
+                ) 
+            if provider and procurement.provider_id != provider.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to update this procurement"
+                )      
         try:
             # Update fields
-            if data.expected_delivery_date is not None:
-                procurement.expected_delivery_date = data.expected_delivery_date
-            
-            if data.delivery_address is not None:
-                procurement.delivery_address = data.delivery_address
-            
-            if data.notes is not None:
-                procurement.notes = data.notes
+            update_data = data.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(procurement, field, value)
             
             procurement.updated_at = datetime.now(timezone.utc)
             db.commit()
-            db.refresh(procurement)
-            
+            db.refresh(procurement)            
             logger.info(f"Procurement updated: {procurement_id}")
-            return procurement
-            
+            return procurement            
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
@@ -297,57 +298,55 @@ class ProcurementService:
     # ================================
     # PROCUREMENT WORKFLOW
     # ================================
-    
-    # @staticmethod
-    # def change_procurement_status(
-    #     db: Session,
-    #     procurement_id: int,
-    #     new_status: ProcurementStatus,
-    #     user_id: int,
-    #     delivery_notes: Optional[str] = None,
-    #     driver_name: Optional[str] = None,
-    #     driver_phone: Optional[str] = None
-    # ) -> Procurement:
-    #     """
-    #     Mark procurement as delivered and update inventory.
-    #     """
-
-    #     # Get procurement with lock for update
-    #     procurement = db.query(Procurement).filter(
-    #         Procurement.id == procurement_id
-    #     ).with_for_update().first()
+    @staticmethod
+    def attach_procurement_receipt(
+            db: Session,
+            procurement_id: int,
+            file: UploadFile,
+            current_user,
+    ):
+        """Update procurement with delivery receipt"""
+        procurement = db.query(Procurement).filter(
+            Procurement.id == procurement_id
+        ).first()
+        if not procurement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Procurement {procurement_id} not found"
+            )
         
-    #     if not procurement:
-    #         raise NotFoundException(f"Procurement {procurement_id} not found")
+        # Authorization
+        is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_user.roles)
+        pos = current_user.pos   
+        if not is_super_admin:            
+            if pos and pos.id != procurement.pos_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to update this procurement"
+                )
         
-    #     # Check if already delivered OR cancelled
-    #     if procurement.status in [
-    #         ProcurementStatus.CANCELLED,
-    #         ProcurementStatus.RECEIVED
-    #     ]:
-    #         raise BusinessRuleException("Procurement is already delivered or cancelled")
-        
-    #     try:
-    #         # Update procurement status
-    #         procurement.status = new_status
-    #         procurement.delivery_notes = delivery_notes
-    #         procurement.driver_name = driver_name
-    #         procurement.driver_phone = driver_phone
-    #         # procurement.warehouse_id = procurement.pos.warehouse_id  # Link to POS warehouse
-    #         procurement.updated_at = datetime.now(timezone.utc)
-                        
-    #         # Check if POS has warehouse
-    #         if not procurement.pos.warehouse_id:
-    #             raise BusinessRuleException(f"POS {procurement.pos_id} has no associated warehouse")
-            
-    #         db.commit()
-    #         db.refresh(procurement)           
-    #         logger.info(f"Procurement delivered: {procurement.po_number}")
-    #         return procurement           
-    #     except Exception as e:
-    #         db.rollback()
-    #         logger.error(f"Error delivering procurement {procurement_id}: {str(e)}")
-    #         raise
+        if procurement.status not in [
+            ProcurementStatus.RECEIVED, 
+            ProcurementStatus.SHIPPED
+        ]:
+            raise HTTPException(
+               status_code=status.HTTP_403_FORBIDDEN,
+               detail=f"Cannot update procurement with status {procurement.status.value}"
+            )
+        try:
+            from src.utils.file_upload import save_image
+            file_path = save_image(file, "procurement_receipts")
+            procurement.receipt_photo = file_path
+            procurement.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(procurement)
+            logger.info(f"Procurement {procurement_id} delivery receipt successfully attached")
+            return procurement
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error attaching delivery receipt: {str(e)}")
+            raise
+        pass
     @staticmethod
     def change_procurement_status(
         db: Session,
@@ -446,6 +445,246 @@ class ProcurementService:
             db.rollback()
             logger.error(f"Error cancelling procurement {procurement_id}: {str(e)}")
             raise
+    
+    @staticmethod
+    def create_return(
+        db: Session,
+        procurement_id: int,
+        initiator_pos,
+        items: list[dict],
+        reason: str
+    ):
+        # Load procurement with items
+        procurement = (
+            db.query(Procurement)
+            .options(joinedload(Procurement.items))
+            .filter(Procurement.id == procurement_id)
+            .first()
+        )
+
+        if not procurement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Procurement {procurement_id} not found"
+            )
+
+        if procurement.pos_id != initiator_pos.pos_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot return items from a procurement you did not initiate"
+            )
+
+        # Map of procured items: product_variant_id -> qty
+        procurement_items_map = {
+            item.product_variant_id: item.qty for item in procurement.items
+        }
+
+        # Map of already returned qty per product_variant
+        existing_returns = db.query(ProcurementReturnItem).join(
+            ProcurementReturn
+        ).filter(
+            ProcurementReturn.procurement_id == procurement_id
+        ).all()
+
+        returned_qty_map = {}
+        for r in existing_returns:
+            returned_qty_map[r.product_variant_id] = (
+                returned_qty_map.get(r.product_variant_id, 0) + r.quantity
+            )
+
+        # Create return request
+        return_request = ProcurementReturn(
+            reference=f"RRR-{uuid.uuid4().hex[:8]}",
+            procurement_id=procurement_id,
+            initiator_pos_id=initiator_pos.id,
+            provider_pos_id=procurement.provider_id,
+            status=ProcurementReturnStatus.PENDING,
+            reason=reason,
+            created_at=datetime.now(timezone.utc)
+        )
+
+        for item in items:
+            product_variant = item.product_variant_id
+            qty = Decimal(item.qty)
+
+            if product_variant not in procurement_items_map:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Product variant {product_variant} not found in this procurement"
+                )
+
+            # Total returned including previous returns
+            already_returned = returned_qty_map.get(product_variant, 0)
+            if qty + already_returned > procurement_items_map[product_variant]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot return {qty} for product {product_variant}. "
+                        f"Already returned: {already_returned}, procured: {procurement_items_map[product_variant]}"
+                )
+
+            return_item = ProcurementReturnItem(
+                product_variant_id=product_variant,
+                quantity=qty
+            )
+            return_request.items.append(return_item)
+
+        db.add(return_request)
+        db.commit()
+        db.refresh(return_request)
+
+        return return_request    
+    
+    @staticmethod
+    def list_returns(
+        db: Session,
+        procurement_id: int,
+        current_user
+    ):
+        returns = db.query(ProcurementReturn).filter(
+            (ProcurementReturn.procurement_id == procurement_id) &
+            (ProcurementReturn.initiator_pos_id == current_user.pos_id) |
+            (ProcurementReturn.provider_pos_id == current_user.pos_id)
+        ).all()
+        return returns
+
+    @staticmethod
+    def update_return(
+        db: Session,
+        return_id: int,
+        initiator_pos, 
+        items: list[dict],
+        reason: str
+    ):
+        # Load return
+        return_request = db.query(ProcurementReturn).filter(
+            ProcurementReturn.id == return_id
+        ).first()
+        if not return_request:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Not procurement return {return_id} not found"
+            )
+
+        if return_request.initiator_pos_id != initiator_pos.pos_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot update others' return"
+            )
+        
+        if return_request.status != ProcurementReturnStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot update return that has been Approved/Rejected"
+            )
+        procurement = return_request.procurement
+        procurement_item_maps = {
+            item.product_variant_id: item.qty
+            for item in procurement.items
+        }
+        if reason:
+            return_request.reason = reason
+
+        if items:
+            return_request.items.clear()
+            for item in items:
+                product_variant = item.product_variant_id
+                qty = item.qty
+                if product_variant not in procurement_item_maps:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Product variant {product_variant} not found"
+                    )
+                
+                if qty > procurement_item_maps[product_variant]:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Return quantity cannot be greater than quantity procured"
+                    )
+                return_item = ProcurementReturnItem(
+                    product_variant_id=item.product_variant_id,
+                    quantity=item.qty
+                )
+                db.add(return_item)
+                return_request.items.append(return_item)
+
+
+        return_request.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(return_request)
+        return return_request
+
+    @staticmethod
+    def cancel_return(
+        db: Session,
+        return_id: int,
+        initiator_pos, 
+    ):
+        return_request = db.query(ProcurementReturn).filter(
+            ProcurementReturn.id == return_id
+        ).first()
+        
+        if not return_request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Return with {return_id} not found"
+            )
+        
+        if return_request.initiator_pos_id != initiator_pos.pos_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Can only cancel your own returns"
+            )
+        
+        if return_request.status != ProcurementReturnStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot cancel return that has already been approved/rejected/cancelled"
+            )
+        
+        return_request.status = ProcurementReturnStatus.CANCELLED
+        return_request.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(return_request)
+        return return_request
+    
+    @staticmethod
+    def review_return(
+        db: Session,
+        return_id: int,
+        approver,
+        approve: bool,
+        note: str = None
+    ):
+        return_request = db.query(ProcurementReturn).filter(
+            ProcurementReturn.id == return_id
+        ).first()
+        if not return_request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Return {return_id} not found"
+            )
+        
+        if return_request.provider_pos_id != approver.pos_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot review a return not assigned to you"
+            )
+        
+        if return_request.status != ProcurementReturnStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Return already reviewed"
+            )
+        
+        return_request.status = (
+            ProcurementReturnStatus.APPROVED 
+            if approve 
+            else ProcurementReturnStatus.REJECTED
+        )
+        return_request.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(return_request)
+        return return_request
     
     # ================================
     # REPORTS & ANALYTICS

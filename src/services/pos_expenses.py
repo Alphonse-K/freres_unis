@@ -56,7 +56,7 @@ class ExpenseService:
     @staticmethod
     def generate_expense_reference(db: Session, pos_id: int) -> str:
         """Generate unique expense reference number"""
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         year = today.year % 100
         month = today.month
         
@@ -163,72 +163,65 @@ class ExpenseService:
     
     @staticmethod
     def update_expense(db: Session, expense_id: int, data: POSExpenseUpdate) -> POSExpense:
-        """Update expense information"""
+        """Update expense informations"""
         expense = ExpenseService.get_expense(db, expense_id)
-        
-        # Check if expense can be modified
-        if expense.status in [POSExpenseStatus.APPROVED, POSExpenseStatus.PAID]:
-            raise ExpenseBusinessRuleException(f"Cannot update expense with status {expense.status.value}")
-        
+        if not expense:
+            raise ExpenseNotFoundException(
+                "Expense does not exists"
+            )
+
+        if expense and expense.status in [POSExpenseStatus.APPROVED, POSExpenseStatus.PAID]:
+            raise ExpenseBusinessRuleException(
+                f"Cannot update expense with status: {expense.status.value}"
+            )
+
+        update_data = data.model_dump(exclude_unset=True)
         try:
-            # Update fields
-            if data.category is not None:
-                expense.category = data.category
-            
-            if data.amount is not None:
-                if data.amount <= Decimal('0'):
-                    raise ExpenseValidationException("Amount must be positive")
-                expense.amount = data.amount
-            
-            if data.description is not None:
-                expense.description = data.description
-            
-            if data.expense_date is not None:
-                expense.expense_date = data.expense_date
-            
-            if data.status is not None:
-                # Validate status transition
-                if data.status == POSExpenseStatus.APPROVED and not expense.approved_by_id:
-                    raise ExpenseValidationException("Cannot approve expense without approver")
+            for field, value in update_data.items():
+                if field == "amount" and value <= Decimal('0'):
+                    raise ExpenseBusinessRuleException(
+                        "Amount must be positive"
+                    )
                 
-                expense.status = data.status
+                if field == "status":
+                    if value == POSExpenseStatus.APPROVED and not expense.approved_by:
+                        raise ExpenseBusinessRuleException(
+                            "Cannot approve expense without approval"
+                        )
+                
+                if field == "approved_by_id":
+                    approver = POSUserService.get_pos_user_by_id(db, value)
+                    if not approver:
+                        raise ExpenseNotFoundException(
+                            "Approver user not found"
+                        )
+
+                setattr(expense, field, value)
+                db.commit()
+                return expense
             
-            if data.approved_by_id is not None:
-                # Verify approver exists
-                approver = POSUserService.get_pos_user_by_id(db, data.approved_by_id)
-                if not approver:
-                    raise ExpenseNotFoundException(f"Approver user {data.approved_by_id} not found")
-                expense.approved_by_id = data.approved_by_id
-            
-            db.commit()
-            db.refresh(expense)
-            
-            logger.info(f"Expense updated: {expense_id}")
-            return expense
-            
-        except ExpenseException:
+        except ExpenseException as e:
             db.rollback()
             raise
         except Exception as e:
             db.rollback()
-            logger.error(f"Error updating expense {expense_id}: {str(e)}")
-            raise ExpenseValidationException(f"Error updating expense: {str(e)}")
-    
+            logger.error(f"Error updating the expense {expense_id}: {str(e)}")
+            raise ExpenseValidationException(
+                f"Error updating the expense {expense_id}: {str(e)}"
+            )
+
     @staticmethod
     def delete_expense(db: Session, expense_id: int) -> bool:
         """Delete an expense (only if in draft status)"""
-        expense = ExpenseService.get_expense(db, expense_id)
-        
+        expense = ExpenseService.get_expense(db, expense_id)        
         if expense.status != POSExpenseStatus.DRAFT:
             raise ExpenseBusinessRuleException("Can only delete expenses in draft status")
         
         try:
             db.delete(expense)
-            db.commit()
-            
+            db.commit()           
             logger.info(f"Expense deleted: {expense_id}")
-            return True
-            
+            return True            
         except Exception as e:
             db.rollback()
             logger.error(f"Error deleting expense {expense_id}: {str(e)}")
@@ -237,26 +230,26 @@ class ExpenseService:
     @staticmethod
     def approve_expense(db: Session, expense_id: int, approver_id: int) -> POSExpense:
         """Approve an expense"""
-        expense = ExpenseService.get_expense(db, expense_id)
-        
+        expense = ExpenseService.get_expense(db, expense_id)       
         if expense.status != POSExpenseStatus.DRAFT:
-            raise ExpenseBusinessRuleException("Can only approve expenses in draft status")
+            raise ExpenseBusinessRuleException(
+                "Can only approve expenses in draft status"
+            )
         
-        # Verify approver exists
         approver = POSUserService.get_pos_user_by_id(db, approver_id)
         if not approver:
-            raise ExpenseNotFoundException(f"Approver user {approver_id} not found")
+            raise ExpenseNotFoundException(
+                f"Approver user {approver_id} not found"
+            )
         
         try:
             expense.status = POSExpenseStatus.APPROVED
-            expense.approved_by_id = approver_id
-            
+            expense.approved_by_id = approver_id            
             db.commit()
-            db.refresh(expense)
-            
+            db.refresh(expense)            
             logger.info(f"Expense approved: {expense_id} by user {approver_id}")
-            return expense
-            
+            return expense 
+                   
         except Exception as e:
             db.rollback()
             logger.error(f"Error approving expense {expense_id}: {str(e)}")
@@ -265,8 +258,7 @@ class ExpenseService:
     @staticmethod
     def reject_expense(db: Session, expense_id: int, reason: str = None) -> POSExpense:
         """Reject an expense"""
-        expense = ExpenseService.get_expense(db, expense_id)
-        
+        expense = ExpenseService.get_expense(db, expense_id)       
         if expense.status != POSExpenseStatus.DRAFT:
             raise ExpenseBusinessRuleException("Can only reject expenses in draft status")
         
@@ -276,8 +268,7 @@ class ExpenseService:
                 expense.description = f"{expense.description or ''}\nRejected: {reason}".strip()
             
             db.commit()
-            db.refresh(expense)
-            
+            db.refresh(expense)           
             logger.info(f"Expense rejected: {expense_id}")
             return expense
             
@@ -290,19 +281,15 @@ class ExpenseService:
     def mark_expense_as_paid(db: Session, expense_id: int) -> POSExpense:
         """Mark an expense as paid"""
         expense = ExpenseService.get_expense(db, expense_id)
-        
         if expense.status != POSExpenseStatus.APPROVED:
             raise ExpenseBusinessRuleException("Can only mark approved expenses as paid")
         
         try:
-            expense.status = POSExpenseStatus.PAID
-            
+            expense.status = POSExpenseStatus.PAID            
             db.commit()
-            db.refresh(expense)
-            
+            db.refresh(expense)            
             logger.info(f"Expense marked as paid: {expense_id}")
-            return expense
-            
+            return expense            
         except Exception as e:
             db.rollback()
             logger.error(f"Error marking expense as paid: {expense_id}: {str(e)}")
@@ -349,10 +336,7 @@ class ExpenseService:
         if approved_by_id:
             query = query.filter(POSExpense.approved_by_id == approved_by_id)
         
-        # Get total count
         total = query.count()
-        
-        # Apply pagination
         expenses = query.order_by(desc(POSExpense.expense_date)).offset(skip).limit(limit).all()
         
         return expenses, total
@@ -562,9 +546,7 @@ class ExpenseService:
         """Get monthly expense report"""
         current_date = datetime.now(timezone.utc)
         report_year = year or current_date.year
-        report_month = month or current_date.month
-        
-        # Calculate date range for the month
+        report_month = month or current_date.month      
         start_date = date(report_year, report_month, 1)
         if report_month == 12:
             end_date = date(report_year + 1, 1, 1) - timedelta(days=1)

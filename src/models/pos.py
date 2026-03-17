@@ -116,6 +116,7 @@ class POS(Base):
         cascade="all, delete-orphan"
     )
     warehouse = relationship("Warehouse", back_populates="pos", uselist=False, foreign_keys=[warehouse_id])
+    provider = relationship("Provider", back_populates="linked_pos", uselist=False)
 
 
 class POSUser(Base):
