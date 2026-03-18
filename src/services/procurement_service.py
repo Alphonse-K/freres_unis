@@ -685,6 +685,28 @@ class ProcurementService:
             if approve 
             else ProcurementReturnStatus.REJECTED
         )
+
+        if approve:
+            warehouse = return_request.initiator_pos.warehouse
+            print(warehouse)
+            for item in return_request.items:
+                inventory = db.query(Inventory).filter(
+                    Inventory.warehouse_id == warehouse.id,
+                    Inventory.product_variant_id == item.product_variant_id
+                ).first()
+                if not inventory:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Inventory not found {item.product_variant_id}"
+                    )
+                
+                if inventory.quantity < item.quantity:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Insufficiant stock for product variant {item.product_variant_id}"
+                    )
+                inventory.quantity -= item.quantity
+
         return_request.updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(return_request)
