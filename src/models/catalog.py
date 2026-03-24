@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Boolean, ForeignKey, Numeric, Enum, DateTime, func, UniqueConstraint
+    Column, Integer, String, Boolean, ForeignKey, Numeric, Enum, DateTime, func, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship
 from src.core.database import Base
@@ -164,6 +164,10 @@ class ProductVariant(Base):
         return f"<Variant {self.sku}>"
 
 
+class PriceType(enum.Enum):
+    RETAIL = "retail"
+    WHOLESALE = "wholesale"
+
 class ProductPrice(Base):
     __tablename__ = "product_prices"
     id = Column(Integer, primary_key=True)
@@ -172,9 +176,10 @@ class ProductPrice(Base):
         ForeignKey("product_variants.id"),
         nullable=False
     )
-    qualification = Column(String(255), nullable=False)
-    whole_sale_quantity = Column(Integer, nullable=False)
-    retail_sale_quantity = Column(Integer, nullable=False)
+    qualification = Column(Enum(PriceType), default=PriceType.WHOLESALE, nullable=False)
+    type_sold_in = Column(String(100), nullable=True)
+    quantity = Column(Integer, nullable=False)
+    content = Column(Integer, nullable=True)
     purchase_price = Column(Numeric(12, 2), nullable=False)
     sale_price = Column(Numeric(12, 2), nullable=False)
     is_active = Column(Boolean, default=True)
@@ -185,6 +190,16 @@ class ProductPrice(Base):
     variant = relationship(
         "ProductVariant",
         back_populates="prices"
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_active_price_per_type",
+            "product_variant_id",
+            "qualification",
+            unique=True,
+            postgresql_where=(is_active == True)
+        ),
     )
 
     def __repr__(self):

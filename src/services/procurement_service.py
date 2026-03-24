@@ -688,7 +688,6 @@ class ProcurementService:
 
         if approve:
             warehouse = return_request.initiator_pos.warehouse
-            print(warehouse)
             for item in return_request.items:
                 inventory = db.query(Inventory).filter(
                     Inventory.warehouse_id == warehouse.id,

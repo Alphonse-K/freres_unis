@@ -59,6 +59,7 @@ class ReturnStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
 
 
 class Client(Base):
@@ -95,19 +96,17 @@ class Client(Base):
         cascade="all, delete-orphan"
     )
     sales = relationship("Sale", back_populates="customer")
-    carts = relationship("Cart", back_populates="client")
+    cart = relationship("Cart", back_populates="client")
     orders = relationship("Order", back_populates="client")
+    invoices = relationship("ClientInvoice", back_populates="client")
+    ledgers = relationship("LedgerEntry", back_populates="client")
+    payments = relationship("ClientPayment", back_populates='client')
+    returns = relationship("ClientReturn", back_populates="client")
     approval = relationship(
         "ClientApproval",
         uselist=False,
         back_populates="client"
     )
-    # roles = relationship(
-    #     "Role",
-    #     secondary=client_roles,
-    #     back_populates="clients"
-    # )
-
 
 
 class ClientApproval(Base):
@@ -162,15 +161,16 @@ class ClientInvoice(Base):
     total_amount = Column(Numeric(14, 2), nullable=False)
     paid_amount = Column(Numeric(14, 2), default=0)
     status = Column(PgEnum(ClientInvoiceStatus), default=ClientInvoiceStatus.DRAFT)
-    client = relationship("Client")
-    order = relationship("Order")
+    client = relationship("Client", back_populates="invoices")
+    order = relationship("Order", back_populates="invoices")
+    payments = relationship("ClientPayment", back_populates="invoice")
 
 
 class ClientPayment(Base):
     __tablename__ = "client_payments"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
-    client_invoice_id = Column(
+    invoice_id = Column(
         Integer,
         ForeignKey("client_invoices.id"),
         nullable=True
@@ -180,8 +180,8 @@ class ClientPayment(Base):
     payment_method = Column(PgEnum(PaymentMethod), nullable=False)
     reference = Column(String(100))
     notes = Column(String(255))
-    client = relationship("Client")
-    invoice = relationship("ClientInvoice")
+    client = relationship("Client", back_populates="payments")
+    invoice = relationship("ClientInvoice", back_populates="payments")
 
 
 class ClientReturn(Base):
@@ -197,14 +197,18 @@ class ClientReturn(Base):
         default=ReturnStatus.PENDING,
         index=True,
     )
-    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_by = Column(Integer, ForeignKey("pos_user.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
     items = relationship(
         "ClientReturnItem",
         back_populates="client_return",
         cascade="all, delete-orphan",
     )
+    client = relationship("Client", back_populates="returns")
+    order = relationship("Order")
+    approved_by_user = relationship("POSUser", foreign_keys=[approved_by], back_populates="approved_returns")
 
 
 class ClientReturnItem(Base):
@@ -224,4 +228,18 @@ class ClientReturnItem(Base):
     unit_price = Column(Numeric(12, 2), nullable=False)
     line_total = Column(Numeric(12, 2), nullable=False)
     client_return = relationship("ClientReturn", back_populates="items")
-    order_item = relationship("OrderItem")
+    order_item = relationship("OrderItem", back_populates="return_items")
+
+
+class LedgerEntry(Base):
+    __tablename__ = "client_ledger_entries"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"))
+    amount = Column(Numeric(14, 2), nullable=False)
+    entry_type = Column(String(10), nullable=False)
+    balance_before = Column(Numeric(14, 2), nullable=False)
+    balance_after = Column(Numeric(14, 2), nullable=False)
+    reason = Column(String(255), nullable=False)
+    reference_id = Column(String(100), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    client = relationship("Client", back_populates="ledgers")

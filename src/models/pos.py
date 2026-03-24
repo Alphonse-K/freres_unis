@@ -117,6 +117,7 @@ class POS(Base):
     )
     warehouse = relationship("Warehouse", back_populates="pos", uselist=False, foreign_keys=[warehouse_id])
     provider = relationship("Provider", back_populates="linked_pos", uselist=False)
+    ledgers = relationship("POSLedger", back_populates="pos")
 
 
 class POSUser(Base):
@@ -152,7 +153,11 @@ class POSUser(Base):
         secondary=posuser_roles,
         back_populates="posusers"
     )
-
+    approved_returns = relationship(
+        "ClientReturn",
+        foreign_keys="ClientReturn.approved_by",
+        back_populates="approved_by_user"
+    )
 
 
 class Sale(Base):
@@ -267,4 +272,14 @@ class POSExpense(Base):
         foreign_keys=[approved_by_id]
     )
 
-
+class POSLedger(Base):
+    __tablename__ = "ledger_entries"
+    id = Column(Integer, primary_key=True)
+    pos_id = Column(Integer, ForeignKey("pos.id", ondelete="CASCADE"))
+    amount = Column(Numeric(14, 2), nullable=False)
+    entry_type = Column(String(10), nullable=False)
+    balance_before = Column(Numeric(14, 2), nullable=False)
+    balance_after = Column(Numeric(14, 2), nullable=False)
+    reason = Column(String(255), nullable=False)
+    reference_id = Column(DateTime(timezone=True), server_default=func.now())
+    pos = relationship("POS", back_populates="ledgers")

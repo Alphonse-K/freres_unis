@@ -220,7 +220,7 @@ class SecurityUtils:
         if hasattr(account, "is_active"):
             if not account.is_active:
                 raise HTTPException(403, "Account not active")
-
+            
         # Client
         if hasattr(account, "status") and isinstance(account.status, enum.Enum):
             if account.status.name not in ("APPROVED", "ACTIVE"):

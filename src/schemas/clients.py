@@ -154,7 +154,6 @@ class ClientInvoiceBase(BaseModel):
     total_amount: Decimal = Field(..., max_digits=14, decimal_places=2)
     paid_amount: Decimal = Field(default=0, max_digits=14, decimal_places=2)
     status: ClientInvoiceStatus = Field(default=ClientInvoiceStatus.DRAFT)
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -263,7 +262,7 @@ class ClientReturnFiler(BaseModel):
 
 
 class ClientReturnFilter(BaseModel):
-    client_id: Optional[int] = None
+    client_id: int
     order_id: Optional[int] = None
     min_amount: Optional[Decimal] = None
     max_amount: Optional[Decimal] = None
@@ -278,5 +277,16 @@ class ClientSchema(BaseModel):
     email: Optional[str] = None
     status: str
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClientLedgerResponse(BaseModel):
+    id: int
+    client_id: int
+    amount: Decimal
+    entry_type: str
+    balance_before: Decimal
+    balance_after: Decimal
+    reason: str | None = None
+    reference_id: str | None = None
 
 

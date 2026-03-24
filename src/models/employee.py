@@ -12,7 +12,6 @@ class Gender(str, enum.Enum):
 
 class Employee(Base):
     __tablename__ = "employees"
-
     id = Column(Integer, primary_key=True)
     first_name = Column(String(120))
     last_name = Column(String(120))
@@ -38,7 +37,6 @@ class Employee(Base):
 
 class Contract(Base):
     __tablename__ = "contracts"
-
     id = Column(Integer, primary_key=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
     title = Column(String(200))
@@ -46,53 +44,44 @@ class Contract(Base):
     end_date = Column(Date)
     salary_amount = Column(Numeric(12, 2))
     is_active = Column(Boolean, default=True)
-
     employee = relationship("Employee", back_populates="contracts")
 
 
 class Attendance(Base):
     __tablename__ = "attendance"
-
     id = Column(Integer, primary_key=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
     attendance_date = Column(Date)
     check_in = Column(DateTime)
     check_out = Column(DateTime)
-
     employee = relationship("Employee", back_populates="attendances")
 
 
 class LeaveRequest(Base):
     __tablename__ = "leave_requests"
-
     id = Column(Integer, primary_key=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
     start_date = Column(Date)
     end_date = Column(Date)
     reason = Column(Text)
     status = Column(String(30), default="pending")
-
     employee = relationship("Employee", back_populates="leaves")
 
 
 class Salary(Base):
     __tablename__ = "salaries"
-
     id = Column(Integer, primary_key=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
     base_salary = Column(Numeric(12, 2))
     bonus = Column(Numeric(12, 2))
     deductions = Column(Numeric(12, 2))
-
     employee = relationship("Employee", back_populates="salaries")
 
 
 class Payslip(Base):
     __tablename__ = "payslips"
-
     id = Column(Integer, primary_key=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
     period = Column(String(20))
     total_paid = Column(Numeric(12, 2))
-
     employee = relationship("Employee")

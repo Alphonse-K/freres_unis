@@ -138,4 +138,31 @@ class PaginatedResponse(BaseModel, Generic[T]):
     items: List[T]
 
 
+class CompanyBase(BaseModel):
+    name: str
+    address: Optional[str]
+    registration_number: str
+    email: Optional[EmailStr]
+    phone: Optional[str]
+    website: Optional[str]
+    description: Optional[str]
 
+
+class CompanyCreate(CompanyBase):
+    creation_date: datetime  
+
+
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+    creation_date: datetime | None = None
+
+
+class CompanyOut(CompanyBase):
+    id: int
+    creation_date: datetime
+    model_config = ConfigDict(from_attributes=True)

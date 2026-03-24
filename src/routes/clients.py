@@ -1,10 +1,11 @@
 # src/routes/clients.py
 from fastapi import APIRouter, Depends, status, Query, HTTPException, Form, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse, UserRole
-from src.models.clients import ClientApproval, ClientPayment, Client, ClientStatus
+from src.models.clients import ClientApproval, Client, ClientStatus, ClientReturn
+from src.models.ecommerce import Order
 from src.schemas.clients import (
     ClientResponse,
     ClientUpdate,
@@ -18,17 +19,26 @@ from src.schemas.clients import (
     ClientReturnCreate,
     ClientReturnResponse,
     ClientReturnFilter,
-    ClientActivationSetPassword
+    ClientActivationSetPassword,
+    ClientPaymentBase,
+    ClientLedgerResponse
 )
 from src.services.client_return_service import ClientReturnService
 
-from src.services.client_service import ClientService
+from src.services.client_service import (
+    ClientService, 
+    ClientInvoiceService, 
+    ClientPaymentService, 
+    CartService,
+    OrderService,
+    LedgerService
+)
+from src.services.pos import POSService
 from src.services.client_approval_service import ClientApprovalService
-from src.services.client_invoice_service import ClientInvoiceService
-from src.services.client_payment_service import ClientPaymentService
 from src.core.security import SecurityUtils
-from src.core.auth_dependencies import require_role, require_permission
+from src.core.auth_dependencies import require_role, require_permission, get_current_account
 from src.core.permissions import Permissions
+from decimal import Decimal
 
 client_router = APIRouter(
     prefix="/clients",
@@ -225,60 +235,88 @@ def activate_client(
             detail=f"Cannot activate client with status: {client.status}"
         )
     
-
 @client_router.post(
-    "/{client_id}/invoices",
-    response_model=ClientInvoiceResponse,
-    status_code=status.HTTP_201_CREATED,
+    "/cart/{client_id}/{warehouse_id}/create"
 )
-def create_client_invoice(
-    client_id: int,
-    data: ClientInvoiceCreate,
-    db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.CREATE_PURCHASE_INVOICE))
-):
-    return ClientInvoiceService.create(db, data)
+def create_cart(client_id: int, warehouse_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    return CartService.create_cart(db, client_id, warehouse_id)
 
 @client_router.get(
-    "/{client_id}/invoices",
-    response_model=list[ClientInvoiceResponse],
+    "/cart/{client_id}"
 )
-def list_client_invoices(
-    client_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_PURCHASE_INVOICE))
-):
-    return ClientInvoiceService.list_by_client(db, client_id)
+def get_cart(client_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    return CartService.get_cart(db, client_id)
 
 @client_router.post(
-    "/{client_id}/payments",
-    response_model=ClientPaymentResponse,
-    status_code=status.HTTP_201_CREATED,
+    "/cart/{client_id}/add/product-variant/{product_variant_id}"
 )
-def create_client_payment(
-    client_id: int,
-    data: ClientPaymentCreate,
-    db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.CREATE_CLIENT_PAYMENT))
-):
-    return ClientPaymentService.create(db, data)
+def add_to_cart(client_id: int, product_variant_id: int, qty: Decimal, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    return CartService.add_item(db, client_id, product_variant_id, qty)
+
+@client_router.delete(
+    "/cart/{cart_id}/remove/{product_variant_id}"
+)
+def remove_from_cart(client_id: int, product_variant_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    return CartService.remove_item(db, client_id, product_variant_id)
+
+@client_router.post(
+    "/cart/{client_id}/clear"
+)
+def clear_cart(client_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    return CartService.clear_cart(db, client_id)
+
+@client_router.post(
+        "/cart/{cart_id}/pay",
+)
+def checkout(client_id: int, pos_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    cart = CartService.get_cart(db, client_id)    
+    pos = POSService.get_pos(db, pos_id, include_warehouse=False)
+    order = OrderService.checkout_cart(db, cart, pos)
+    return order
 
 @client_router.get(
-    "/{client_id}/payments",
-    response_model=list[ClientPaymentResponse],
+        "/orders/{client_id}/client"
 )
-def list_client_payments(
-    client_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CLIENT_PAYMENT))
+def client_oders(
+    client_id: int, 
+    offset: int | None = 1, 
+    limit: int | None = 20, 
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_account)
 ):
-    return (
-        db.query(ClientPayment)
-        .filter_by(client_id=client_id)
-        .order_by(ClientPayment.payment_date.desc())
-        .all()
+    client = db.query(Client).filter_by(id=client_id).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {client_id} not found"
+        )
+    offset =(offset - 1) * limit
+    return OrderService.list_client_order(db, client, offset, limit)
+
+@client_router.get(
+    "/{client_id}/ledger/paginated",
+    response_model=PaginatedResponse[ClientLedgerResponse],
+)
+def get_client_ledger_paginated(
+    client_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, le=100),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+
+):
+    offset = (page - 1) * page_size
+
+    total, items = LedgerService.list_paginated(
+        db, client_id, offset, page_size
     )
-
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": items,
+    }
+        
 @client_router.post(
     "/client-returns",
     response_model=ClientReturnResponse,
@@ -286,13 +324,12 @@ def list_client_payments(
 def create_client_return(
     payload: ClientReturnCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.CREATE_CLIENT_RETURN))
+    current_user = Depends(get_current_account)
 ):
     return ClientReturnService.create_return(db, payload)
 
-
 @client_router.get(
-    "/client-returns",
+    "/client-returns/{client_id}",
     response_model=PaginatedResponse[ClientReturnResponse],
 )
 def list_client_returns(
@@ -300,11 +337,11 @@ def list_client_returns(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, le=100),
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CLIENT_RETURN))
+    current_user = Depends(get_current_account)
 ):
     offset = (page - 1) * page_size
     total, items = ClientReturnService.list_returns(
-        db, filters, offset, page_size
+        db, filters, current_user, offset, page_size
     )
 
     return {
@@ -321,14 +358,25 @@ def list_client_returns(
 def get_client_return(
     return_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CLIENT_RETURN))
+    current_user = Depends(get_current_account)
 ):
     return ClientReturnService.get_return(db, return_id)
 
 @client_router.post(
+        "/client-return/{return_id}/cancel"
+)
+def cancel_return(return_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+    client_return = db.query(ClientReturn).filter_by(id=return_id).first()
+    if not client_return:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Return not found"
+        )
+    return ClientReturnService.cancel_return(db, client_return, client_return.client)
+    
+@client_router.post(
     "/client-returns/{return_id}/approve",
     response_model=ClientReturnResponse,
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER"]))],
 )
 def approve_client_return(
     return_id: int,
@@ -338,13 +386,12 @@ def approve_client_return(
     return ClientReturnService.approve_return(
         db=db,
         return_id=return_id,
-        approver_id=current_user.id,
+        approver_by=current_user
     )
 
 @client_router.post(
     "/client-returns/{return_id}/reject",
     response_model=ClientReturnResponse,
-    dependencies=[Depends(require_role(["ADMIN", "CHECKER"]))],
 )
 def reject_client_return(
     return_id: int,
@@ -353,6 +400,6 @@ def reject_client_return(
     current_user = Depends(require_permission(Permissions.REJECT_CLIENT_RETURN))
 ):
     return ClientReturnService.reject_return(
-        db, return_id, current_user.id, reason
+        db, return_id, current_user, reason
     )
 

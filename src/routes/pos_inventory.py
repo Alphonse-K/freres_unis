@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account, require_permission
+from src.core.auth_dependencies import get_current_account, require_permission, optional_permission_for_client
 from src.core.permissions import Permissions
 from src.schemas.inventory import (
     WarehouseCreate, WarehouseUpdate, WarehouseOut,
@@ -266,7 +266,7 @@ def get_warehouse_inventory(
     low_stock_threshold: Optional[Decimal] = Query(None, description="Show items below threshold"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(100, ge=1, le=200, description="Items per page"),
-    current_account = Depends(require_permission(Permissions.READ_INVENTORY_ITEM)),
+    current_account = Depends(optional_permission_for_client(Permissions.READ_INVENTORY_ITEM)),
     db: Session = Depends(get_db)
 ):
     """

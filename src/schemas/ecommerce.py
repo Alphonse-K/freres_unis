@@ -33,11 +33,9 @@ class CartOut(CartBase):
     id: int
     created_at: datetime
     items: List[CartItemOut] = []
-
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- ORDER ITEM ---
 class OrderItemBase(BaseModel):
     product_variant_id: int
     qty: Decimal
@@ -50,7 +48,6 @@ class OrderItemCreate(OrderItemBase):
 
 class OrderItemOut(OrderItemBase):
     id: int
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -71,5 +68,4 @@ class OrderOut(OrderBase):
     id: int
     created_at: datetime
     items: List[OrderItemOut] = []
-
     model_config = ConfigDict(from_attributes=True)

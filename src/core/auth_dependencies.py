@@ -102,3 +102,19 @@ def api_key_permission(required_permission: str):
             )
         return api_key
     return checker
+
+
+def optional_permission_for_client(permission_name: Permissions):
+    """
+    Enforce a permission only for staff/admins. Clients bypass permission checks.
+    """
+    def dependency(current_user: dict = Depends(get_current_account)):
+        account = current_user["account"]
+
+        if getattr(account, "magnetic_card_status", None):
+            return account
+
+        # Otherwise enforce the normal permission
+        return require_permission(permission_name)(current_user)
+    
+    return dependency

@@ -21,6 +21,7 @@ from src.routes.provider import provider_router
 from src.routes.catalog_route import product_router
 from src.routes.role import role_router
 from src.routes.tax import tax_router
+from src.routes.company import company_router
 from src.routes import files
 
 
@@ -61,6 +62,8 @@ app.include_router(address_router, prefix=API_PREFIX)
 app.include_router(id_type_router, prefix=API_PREFIX)
 app.include_router(role_router, prefix=API_PREFIX)
 app.include_router(files.router, prefix=API_PREFIX)
+app.include_router(company_router, prefix=API_PREFIX)
+
 
 @app.get(f"{API_PREFIX}/")
 def root():

@@ -3,7 +3,7 @@ from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-
+from src.models.catalog import PriceType
 
 # -------------------------------
 # CATEGORY SCHEMAS
@@ -89,9 +89,10 @@ class ProductVariantBase(BaseModel):
 
 class ProductPriceLight(BaseModel):
     id: int
-    qualification: str
-    whole_sale_quantity: int 
-    retail_sale_quantity: int
+    qualification: PriceType
+    type_sold_in: str
+    quantity: int
+    content: int
     purchase_price: Decimal
     sale_price: Decimal
     model_config = ConfigDict(from_attributes=True)
@@ -131,9 +132,10 @@ class ProductVariantLight(BaseModel):
 
 class ProductPriceBase(BaseModel):
     product_variant_id: int
-    qualification: str = Field(..., example="carton")
-    whole_sale_quantity: int
-    retail_sale_quantity: int
+    qualification: PriceType = Field(..., example="retail")
+    type_sold_in: str = Field(..., example="Carton")
+    quantity: int
+    content: int
     purchase_price: Decimal = Field(..., ge=0)
     sale_price: Decimal = Field(..., ge=0)
 
@@ -143,8 +145,9 @@ class ProductPriceCreate(ProductPriceBase):
 
 class ProductPriceUpdate(BaseModel):
     qualification: Optional[str] = None
-    whole_sale_quantity: Optional[str] = None
-    retail_sale_quantity: Optional[str] = None
+    type_sold_int: str | None = None
+    quantity: Optional[str] = None
+    content: Optional[str] = None
     purchase_price: Optional[Decimal] = None
     sale_price: Optional[Decimal] = None
 
