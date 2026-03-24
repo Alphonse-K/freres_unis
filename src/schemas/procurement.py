@@ -33,7 +33,6 @@ class ProcurementItemResponse(BaseModel):
     product_variant_id: int
     product_name: Optional[str] = None
     qty: Decimal
-    
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -55,7 +54,6 @@ class ProcurementResponse(BaseModel):
     items: List[ProcurementItemResponse]
     created_at: datetime
     updated_at: Optional[datetime]
-    
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -73,3 +71,21 @@ class CreateReturnRequest(BaseModel):
 
 class UpdateReturn(CreateReturnRequest):
     pass
+
+class ReturnItemResponse(BaseModel):
+    product_variant_id: int
+    quantity: int  
+
+    model_config = ConfigDict(from_attributes=True)
+class ProcurementReturnResponse(BaseModel):
+    id: int
+    reference: str
+    procurement_id: int
+    initiator_pos_id: int
+    provider_pos_id: int
+    status: str
+    reason: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
+    items: List[ReturnItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)

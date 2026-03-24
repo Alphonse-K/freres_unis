@@ -537,19 +537,19 @@ class ProcurementService:
     @staticmethod
     def list_returns(db: Session, procurement_id: int, current_user):
 
-        returns = db.query(ProcurementReturn).options(
+        query = db.query(ProcurementReturn).options(
             joinedload(ProcurementReturn.items)
-        ).filter(
-            and_(
-                ProcurementReturn.procurement_id == procurement_id,
+        ).filter(ProcurementReturn.procurement_id == procurement_id)
+
+        is_admin = any(role.name == "SUPER_ADMIN" for role in current_user.roles)
+        if not is_admin:
+            query.filter(
                 or_(
                     ProcurementReturn.initiator_pos_id == current_user.pos_id,
                     ProcurementReturn.provider_pos_id == current_user.pos_id
                 )
             )
-        ).all()
-
-        return returns
+        return query
     
     @staticmethod
     def update_return(

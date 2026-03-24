@@ -15,7 +15,8 @@ from src.schemas.procurement import (
     ProcurementUpdateStatus,
     ReturnItem,
     CreateReturnRequest,
-    UpdateReturn
+    UpdateReturn,
+    ProcurementReturnResponse
 )
 from src.services.procurement_service import (
     ProcurementService,
@@ -186,9 +187,9 @@ def create_return(
         data.reason
     )
 
-
 @procurement_router.get(
     "/{procurement_id}/returns",
+    response_model=List[ProcurementReturnResponse]
 )
 def list_returns(
     procurement_id: int,
