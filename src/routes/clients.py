@@ -5,6 +5,7 @@ from typing import Optional, List
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse, UserRole
 from src.models.clients import ClientApproval, Client, ClientStatus, ClientReturn
+from src.models.id import IDType
 from src.models.ecommerce import Order
 from src.schemas.clients import (
     ClientResponse,
@@ -72,6 +73,14 @@ def submit_client_approval(
     magnetic_card_photo: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
+    
+    card_id = db.query(IDType).filter_by(id=id_type_id).first()
+    if not card_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ID {id_type_id} not found"
+        )
+    
     data = {
         "type": type,
         "first_name": first_name,

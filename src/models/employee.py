@@ -10,6 +10,12 @@ class Gender(str, enum.Enum):
     FEMALE = "female"
 
 
+class LeaveStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    IN_PROGRESS = "in_progress"
+
+
 class Employee(Base):
     __tablename__ = "employees"
     id = Column(Integer, primary_key=True)
@@ -27,12 +33,8 @@ class Employee(Base):
     attendances = relationship("Attendance", back_populates="employee")
     leaves = relationship("LeaveRequest", back_populates="employee")
     salaries = relationship("Salary", back_populates="employee")
-
-    addresses = relationship(
-        "Address",
-        back_populates="employee",
-        cascade="all, delete-orphan"
-    )
+    addresses = relationship("Address", back_populates="employee", cascade="all, delete-orphan")
+    payslips = relationship("Payslip", back_populates="employee")
 
 
 class Contract(Base):
@@ -64,7 +66,7 @@ class LeaveRequest(Base):
     start_date = Column(Date)
     end_date = Column(Date)
     reason = Column(Text)
-    status = Column(String(30), default="pending")
+    status = Column(Enum(LeaveStatus), default=LeaveStatus.PENDING)
     employee = relationship("Employee", back_populates="leaves")
 
 
@@ -84,4 +86,4 @@ class Payslip(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"))
     period = Column(String(20))
     total_paid = Column(Numeric(12, 2))
-    employee = relationship("Employee")
+    employee = relationship("Employee", back_populates="payslips")

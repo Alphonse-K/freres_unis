@@ -15,18 +15,24 @@ class Gender(str, enum.Enum):
     FEMALE = "female"
 
 
+class LeaveStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    IN_PROGRESS = "in_progress"
+
+
 # -------------------------------
 # EMPLOYEE SCHEMAS
 # -------------------------------
 class EmployeeBase(BaseModel):
     first_name: str
     last_name: str
-    gender: Optional[Gender] = None
-    birth_date: Optional[date] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    hire_date: Optional[date] = None
+    gender: Gender
+    birth_date: date
+    phone: str
+    email: str | None = None
+    address: str
+    hire_date: date
 
 
 class EmployeeCreate(EmployeeBase):
@@ -34,14 +40,14 @@ class EmployeeCreate(EmployeeBase):
 
 
 class EmployeeUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    gender: Optional[Gender] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    gender: Gender | None = None
     birth_date: Optional[date] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    hire_date: Optional[date] = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    hire_date: date | None = None
 
 
 class EmployeeOut(EmployeeBase):
@@ -51,10 +57,20 @@ class EmployeeOut(EmployeeBase):
     leaves: List["LeaveRequestOut"] = []
     salaries: List["SalaryOut"] = []
     addresses: List["AddressOut"] = []
-
     model_config = ConfigDict(from_attributes=True)
 
-
+class EmployeeSimple(BaseModel):
+    id: int
+    first_name: str 
+    last_name: str 
+    gender: Gender 
+    birth_date: date
+    phone: str 
+    email: str 
+    address: str 
+    hire_date: date 
+    
+    model_config = ConfigDict(from_attributes=True)
 # -------------------------------
 # CONTRACT SCHEMAS
 # -------------------------------
@@ -63,7 +79,7 @@ class ContractBase(BaseModel):
     start_date: date
     end_date: date
     salary_amount: Decimal
-    is_active: Optional[bool] = True
+    is_active: bool | None = True
 
 
 class ContractCreate(ContractBase):
@@ -71,17 +87,16 @@ class ContractCreate(ContractBase):
 
 
 class ContractUpdate(BaseModel):
-    title: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    salary_amount: Optional[Decimal] = None
-    is_active: Optional[bool] = None
+    title: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    salary_amount: Decimal | None = None
+    is_active: bool | None = None
 
 
 class ContractOut(ContractBase):
     id: int
-    employee: Optional[EmployeeOut] = None
-
+    employee: EmployeeSimple | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -89,7 +104,7 @@ class ContractOut(ContractBase):
 # ATTENDANCE SCHEMAS
 # -------------------------------
 class AttendanceBase(BaseModel):
-    date: date
+    attendance_date: date
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
 
@@ -106,8 +121,7 @@ class AttendanceUpdate(BaseModel):
 
 class AttendanceOut(AttendanceBase):
     id: int
-    employee: Optional[EmployeeOut] = None
-
+    employee: EmployeeSimple | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -117,25 +131,23 @@ class AttendanceOut(AttendanceBase):
 class LeaveRequestBase(BaseModel):
     start_date: date
     end_date: date
-    reason: Optional[str] = None
-    status: Optional[str] = "pending"
-
+    reason: str | None = None
 
 class LeaveRequestCreate(LeaveRequestBase):
     employee_id: int
 
 
 class LeaveRequestUpdate(BaseModel):
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    reason: Optional[str] = None
-    status: Optional[str] = None
+    start_date: date | None = None
+    end_date: date | None = None
+    reason: str | None = None
+    status: LeaveStatus | None = None
 
 
 class LeaveRequestOut(LeaveRequestBase):
     id: int
-    employee: Optional[EmployeeOut] = None
-
+    status: LeaveStatus
+    employee: EmployeeSimple | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -144,8 +156,8 @@ class LeaveRequestOut(LeaveRequestBase):
 # -------------------------------
 class SalaryBase(BaseModel):
     base_salary: Decimal
-    bonus: Optional[Decimal] = 0
-    deductions: Optional[Decimal] = 0
+    bonus: Decimal | None = 0
+    deductions: Decimal | None = 0
 
 
 class SalaryCreate(SalaryBase):
@@ -153,15 +165,14 @@ class SalaryCreate(SalaryBase):
 
 
 class SalaryUpdate(BaseModel):
-    base_salary: Optional[Decimal] = None
-    bonus: Optional[Decimal] = None
-    deductions: Optional[Decimal] = None
+    base_salary: Decimal | None = None
+    bonus: Decimal | None = None
+    deductions: Decimal | None = None
 
 
 class SalaryOut(SalaryBase):
     id: int
-    employee: Optional[EmployeeOut] = None
-
+    employee: EmployeeSimple | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -178,14 +189,13 @@ class PayslipCreate(PayslipBase):
 
 
 class PayslipUpdate(BaseModel):
-    period: Optional[str] = None
-    total_paid: Optional[Decimal] = None
+    period: str | None = None
+    total_paid: Decimal | None = None
 
 
 class PayslipOut(PayslipBase):
     id: int
-    employee: Optional[EmployeeOut] = None
-
+    employee: EmployeeSimple | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
