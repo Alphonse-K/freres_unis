@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Numeric
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Numeric, Index, text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from src.core.database import Base
 import enum
 
@@ -31,6 +31,16 @@ class Cart(Base):
         cascade="all, delete-orphan"
     )
     warehouse = relationship("Warehouse")
+
+    __table_args__ = (
+        Index(
+            "uq_open_cart_per_client_warehouse",
+            "client_id",
+            "warehouse_id",
+            unique=True,
+            postgresql_where=text("status = 'OPEN'")
+        ),
+    )
 
 
 class CartItem(Base):

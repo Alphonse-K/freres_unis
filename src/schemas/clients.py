@@ -2,7 +2,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, model_validator, EmailStr
-from src.models.clients import ClientType, ClientStatus, MagneticCardStatus, ApprovalStatus, ClientInvoiceStatus, PaymentMethod
+from src.models.clients import (
+    ClientType, 
+    ClientStatus, 
+    MagneticCardStatus, 
+    ApprovalStatus, 
+    ClientInvoiceStatus, 
+    PaymentMethod,
+    ReturnStatus
+)
 
 
 class ClientBase(BaseModel):
@@ -249,6 +257,7 @@ class ClientReturnResponse(ClientReturnBase):
     client_id: int
     order_id: int
     total_amount: Decimal
+    status: ReturnStatus
     created_at: datetime
     items: list[ClientReturnItemResponse]
 
@@ -288,5 +297,6 @@ class ClientLedgerResponse(BaseModel):
     balance_after: Decimal
     reason: str | None = None
     reference_id: str | None = None
+    created_at: datetime
 
 

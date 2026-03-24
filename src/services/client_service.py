@@ -1,6 +1,7 @@
 # src/services/client_service.py
 from fastapi import status, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from src.models.clients import Client
 from src.schemas.clients import ClientUpdate
 from src.models.inventory import Inventory
@@ -222,11 +223,12 @@ class LedgerService:
 
 
 class CartService:
-
+    
     @staticmethod
-    def create_cart(db: Session, client_id: int, warehouse_id: int):
+    def get_or_create_cart(db: Session, client_id: int, warehouse_id: int):
         client = db.query(Client).filter(Client.id==client_id).first()
         warehouse = db.query(Warehouse).filter(Warehouse.id==warehouse_id).first()
+
         if not client:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -238,119 +240,129 @@ class CartService:
                 detail=f"warehouse {client_id} not found"
             )
 
+        cart = db.query(Cart).filter(
+            Cart.client_id == client_id,
+            Cart.warehouse_id == warehouse_id,
+            Cart.status == CartStatus.OPEN
+        ).first()
+
+        if cart:
+            return cart
+
+        cart = CartService.create_cart(db, client_id, warehouse_id)
+
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            # race condition fallback
+            cart = db.query(Cart).filter(
+                Cart.client_id == client_id,
+                Cart.warehouse_id == warehouse_id,
+                Cart.status == CartStatus.OPEN
+            ).first()
+
+        db.refresh(cart)
+        return cart
+    
+    @staticmethod
+    def create_cart(db: Session, client_id: int, warehouse_id: int):
         cart = Cart(
             client_id=client_id,
             warehouse_id=warehouse_id,
             status=CartStatus.OPEN
         )
         db.add(cart)
-        db.commit()
-        db.refresh(cart)
         return cart
     
     @staticmethod
-    def get_cart(db: Session, client_id: int) -> Cart:
-        cart = db.query(Cart).filter_by(client_id=client_id).first()
-        if not cart:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="cart not found"
-            )
-        return cart
+    def add_item(
+        db: Session,
+        client_id: int,
+        warehouse_id: int,
+        product_variant_id: int,
+        qty: Decimal
+    ):
 
-    @staticmethod    
-    def add_item(db: Session, client_id: int, product_variant_id: int, qty: Decimal):
-        cart = CartService.get_cart(db, client_id)
-
-        print("This is the cart", cart.__dict__)
         if qty <= 0:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="quantity cannot be less than or equal to 0"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Quantity must be greater than 0"
             )
+
+        cart = CartService.get_or_create_cart(db, client_id, warehouse_id)
         if cart.status != CartStatus.OPEN:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Cart status is not open"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cart is not open"
+            )
 
-            )
-        
-        product_variant = (
-            db
-            .query(ProductVariant)
-            .filter_by(id=product_variant_id)
-            .first()
-        )
+        product_variant = db.query(ProductVariant).filter_by(
+            id=product_variant_id
+        ).first()
+
         if not product_variant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="product variant not found"
-            )
-        
-        inventory_item = (
-            db.query(Inventory)
-            .filter_by(
-                warehouse_id=cart.warehouse_id,
-                product_variant_id=product_variant_id
-            )
-            .first()
-        )
+            raise HTTPException(404, "Product variant not found")
+
+        inventory_item = db.query(Inventory).filter_by(
+            warehouse_id=warehouse_id,
+            product_variant_id=product_variant_id
+        ).first()
 
         if not inventory_item:
-            raise HTTPException(
-                400,
-                "Product not available in this warehouse"
+            raise HTTPException(400, "Product not available in this warehouse")
+
+        existing_item = next(
+            (item for item in cart.items if item.product_variant_id == product_variant_id),
+            None
         )
 
-        existsting_item = next(
-            (item for item in cart.items if item.product_variant_id== product_variant_id
-        ), None)
-    
-        if existsting_item:
-            existsting_item += qty
-        else: 
+        if existing_item:
+            existing_item.qty += qty
+        else:
             cart_item = CartItem(
                 cart_id=cart.id,
                 product_variant_id=product_variant_id,
                 qty=qty
-            )  
+            )
             db.add(cart_item)
+
         db.commit()
         db.refresh(cart)
         return cart
 
     @staticmethod
-    def remove_item(db: Session, client_id: int, product_variant_id: int):
-        cart = CartService.get_cart(db, client_id)
-        if not cart:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cart not found"
-            )
-        
-        item = next((
-            i for i in cart.items if i.product_variant_id== product_variant_id
-        ), None)
+    def remove_item(
+        db: Session,
+        client_id: int,
+        warehouse_id: int,
+        product_variant_id: int
+    ):
+        cart = CartService.get_or_create_cart(db, client_id, warehouse_id)
 
+        item = next(
+            (i for i in cart.items if i.product_variant_id == product_variant_id),
+            None
+        )
         if not item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Item not found"
-            )
-        
+            raise HTTPException(404, "Item not found")
+
         db.delete(item)
         db.commit()
         db.refresh(cart)
         return cart
+    
+    @staticmethod
+    def clear_cart(db: Session, client_id: int, warehouse_id: int):
+        cart = CartService.get_or_create_cart(db, client_id, warehouse_id)
 
-    @staticmethod    
-    def clear_cart(db: Session, client_id: int):
-        cart = CartService.get_cart(db, client_id)
         for item in cart.items:
             db.delete(item)
+
         db.commit()
-        return cart
-    
+        db.refresh(cart)
+        return cart    
+
 
 class PricingService:
     
@@ -410,7 +422,7 @@ class OrderService:
         # 1. PRICING
         # =========================
         pricing = PricingService.calculate_oder_total(db, cart)
-
+        
         # =========================
         # 2. STOCK VALIDATION + DEDUCTION
         # =========================

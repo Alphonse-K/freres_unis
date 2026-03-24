@@ -234,42 +234,80 @@ def activate_client(
             status_code=400,
             detail=f"Cannot activate client with status: {client.status}"
         )
-    
-@client_router.post(
-    "/cart/{client_id}/{warehouse_id}/create"
-)
-def create_cart(client_id: int, warehouse_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
-    return CartService.create_cart(db, client_id, warehouse_id)
 
 @client_router.get(
-    "/cart/{client_id}"
+    "/cart/{client_id}/warehouse/{warehouse_id}"
 )
-def get_cart(client_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
-    return CartService.get_cart(db, client_id)
+def get_cart(
+    client_id: int,
+    warehouse_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+):
+    return CartService.get_or_create_cart(db, client_id, warehouse_id)
 
 @client_router.post(
-    "/cart/{client_id}/add/product-variant/{product_variant_id}"
+    "/cart/{client_id}/warehouse/{warehouse_id}/add/{product_variant_id}"
 )
-def add_to_cart(client_id: int, product_variant_id: int, qty: Decimal, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
-    return CartService.add_item(db, client_id, product_variant_id, qty)
+def add_to_cart(
+    client_id: int,
+    warehouse_id: int,
+    product_variant_id: int,
+    qty: Decimal,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+):
+    return CartService.add_item(
+        db,
+        client_id,
+        warehouse_id,
+        product_variant_id,
+        qty
+    )
 
 @client_router.delete(
-    "/cart/{cart_id}/remove/{product_variant_id}"
+    "/cart/{client_id}/warehouse/{warehouse_id}/remove/{product_variant_id}"
 )
-def remove_from_cart(client_id: int, product_variant_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
-    return CartService.remove_item(db, client_id, product_variant_id)
+def remove_from_cart(
+    client_id: int,
+    warehouse_id: int,
+    product_variant_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+):
+    return CartService.remove_item(
+        db,
+        client_id,
+        warehouse_id,
+        product_variant_id
+    )
 
 @client_router.post(
-    "/cart/{client_id}/clear"
+    "/cart/{client_id}/warehouse/{warehouse_id}/clear"
 )
-def clear_cart(client_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
-    return CartService.clear_cart(db, client_id)
+def clear_cart(
+    client_id: int,
+    warehouse_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+):
+    return CartService.clear_cart(
+        db,
+        client_id,
+        warehouse_id
+    )
 
 @client_router.post(
-        "/cart/{cart_id}/pay",
+        "/cart/{client_id}/warehouse/{warehouse_id}/place-order",
 )
-def checkout(client_id: int, pos_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
-    cart = CartService.get_cart(db, client_id)    
+def checkout(
+    client_id: int, 
+    warehouse_id: int, 
+    pos_id: int, 
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_account)
+):
+    cart = CartService.get_or_create_cart(db, client_id, warehouse_id)    
     pos = POSService.get_pos(db, pos_id, include_warehouse=False)
     order = OrderService.checkout_cart(db, cart, pos)
     return order
