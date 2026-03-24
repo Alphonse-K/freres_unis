@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Optional
 import logging
 from decimal import Decimal
+from sqlalchemy.exc import IntegrityError
 
 
 from src.utils.file_upload import save_image
@@ -252,18 +253,12 @@ class CatalogService:
                 "tax_amount": None,  # you can compute based on product tax
                 "total_stock": sum(inv.quantity for inv in variant.inventory_items),
                 "prices": [
-                    # {
-                    #     "id": p.id,
-                    #     "qualification": p.qualification,
-                    #     "purchase_price": p.purchase_price,
-                    #     "sale_price": p.sale_price,
-                    #     "is_active": p.is_active
-                    # } for p in variant.prices
                     {
                     "id": p.id,
                     "qualification": p.qualification,
-                    "whole_sale_quantity": p.whole_sale_quantity,
-                    "retail_sale_quantity": p.retail_sale_quantity,
+                    "type_sold_in": p.type_sold_in,
+                    "quantity": p.quantity,
+                    "content": p.content,
                     "purchase_price": p.purchase_price,
                     "sale_price": p.sale_price,
                     "is_active": p.is_active
@@ -290,12 +285,27 @@ class ProductPriceService:
             )
 
         price = ProductPrice(**data.model_dump())
-        db.add(price)
-        db.commit()
-        db.refresh(price)
+
+        try:
+            db.add(price)
+            db.commit()
+            db.refresh(price)
+
+        except IntegrityError as e:
+            db.rollback()
+
+            if "uq_active_price_per_type" in str(e.orig):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A price with this qualification already exists for this product variant"
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database integrity error"
+            )
 
         return price
-
 
     @staticmethod
     def list_prices(db: Session, variant_id: int) -> List[ProductPrice]:
@@ -303,7 +313,6 @@ class ProductPriceService:
         return db.query(ProductPrice).filter(
             ProductPrice.product_variant_id == variant_id
         ).all()
-
 
     @staticmethod
     def update_price(db: Session, price_id: int, data: ProductPriceUpdate):
@@ -320,20 +329,46 @@ class ProductPriceService:
 
         update_data = data.model_dump(exclude_unset=True)
 
-        # if update_data.get("is_active") is True:
-        #     db.query(ProductPrice).filter(
-        #         ProductPrice.product_variant_id == price.product_variant_id,
-        #         ProductPrice.is_active == True
-        #     ).update({"is_active": False})
+        # Determine target values after update
+        new_variant_id = update_data.get("product_variant_id", price.product_variant_id)
+        new_qualification = update_data.get("qualification", price.qualification)
 
+        # Pre-check (avoid obvious conflict)
+        existing_price = db.query(ProductPrice).filter(
+            ProductPrice.product_variant_id == new_variant_id,
+            ProductPrice.qualification == new_qualification,
+            ProductPrice.id != price.id  # exclude current record
+        ).first()
+
+        if existing_price:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A price with this qualification already exists for this product variant"
+            )
+
+        # Apply updates
         for key, value in update_data.items():
             setattr(price, key, value)
 
-        db.commit()
-        db.refresh(price)
+        try:
+            db.commit()
+            db.refresh(price)
+
+        except IntegrityError as e:
+            db.rollback()
+
+            if "uq_active_price_per_type" in str(e.orig):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A price with this qualification already exists for this product variant"
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database integrity error"
+            )
 
         return price
-
 
     @staticmethod
     def delete_price(db: Session, price_id: int):
