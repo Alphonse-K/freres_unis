@@ -6,30 +6,25 @@ from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse, UserRole
 from src.models.clients import ClientApproval, Client, ClientStatus, ClientReturn
 from src.models.id import IDType
-from src.models.ecommerce import Order
 from src.schemas.clients import (
     ClientResponse,
     ClientUpdate,
-    ClientApprovalCreate,
     ClientApprovalUpdate,
     ClientApprovalResponse,
-    ClientInvoiceCreate,
-    ClientInvoiceResponse,
-    ClientPaymentCreate,
-    ClientPaymentResponse,
     ClientReturnCreate,
     ClientReturnResponse,
     ClientReturnFilter,
     ClientActivationSetPassword,
-    ClientPaymentBase,
     ClientLedgerResponse
+)
+from src.schemas.ecommerce import (
+    CartOut,
+    OrderOut
 )
 from src.services.client_return_service import ClientReturnService
 
 from src.services.client_service import (
     ClientService, 
-    ClientInvoiceService, 
-    ClientPaymentService, 
     CartService,
     OrderService,
     LedgerService
@@ -245,7 +240,8 @@ def activate_client(
         )
 
 @client_router.get(
-    "/cart/{client_id}/warehouse/{warehouse_id}"
+    "/cart/{client_id}/warehouse/{warehouse_id}",
+    response_model=CartOut
 )
 def get_cart(
     client_id: int,
@@ -256,7 +252,8 @@ def get_cart(
     return CartService.get_or_create_cart(db, client_id, warehouse_id)
 
 @client_router.post(
-    "/cart/{client_id}/warehouse/{warehouse_id}/add/{product_variant_id}"
+    "/cart/{client_id}/warehouse/{warehouse_id}/add/{product_variant_id}",
+    response_model=CartOut
 )
 def add_to_cart(
     client_id: int,
@@ -275,7 +272,8 @@ def add_to_cart(
     )
 
 @client_router.delete(
-    "/cart/{client_id}/warehouse/{warehouse_id}/remove/{product_variant_id}"
+    "/cart/{client_id}/warehouse/{warehouse_id}/remove/{product_variant_id}",
+    response_model=CartOut
 )
 def remove_from_cart(
     client_id: int,
@@ -308,6 +306,7 @@ def clear_cart(
 
 @client_router.post(
         "/cart/{client_id}/warehouse/{warehouse_id}/place-order",
+        response_model=OrderOut
 )
 def checkout(
     client_id: int, 
@@ -322,7 +321,8 @@ def checkout(
     return order
 
 @client_router.get(
-        "/orders/{client_id}/client"
+        "/orders/{client_id}/client",
+        response_model=list[OrderOut]
 )
 def client_oders(
     client_id: int, 

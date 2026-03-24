@@ -31,6 +31,7 @@ class CartCreate(CartBase):
 
 class CartOut(CartBase):
     id: int
+    
     created_at: datetime
     items: List[CartItemOut] = []
     model_config = ConfigDict(from_attributes=True)
