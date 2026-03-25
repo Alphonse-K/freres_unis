@@ -592,7 +592,7 @@ class SaleService:
         """Get daily sales report"""
         report_date = report_date or datetime.utcnow().date()
         
-        # 1️⃣ Get sales for the day
+        # Get sales for the day
         sales_query = db.query(Sale).filter(
             func.date(Sale.transaction_date) == report_date,
             Sale.status == SaleStatus.COMPLETED
@@ -603,11 +603,11 @@ class SaleService:
 
         sales = sales_query.all()
 
-        # 2️⃣ Calculate totals
+        # Calculate totals
         total_sales = len(sales)
         total_revenue = sum(sale.total_amount for sale in sales)
 
-        # 3️⃣ Top selling products
+        # Top selling products
         top_products_query = (
             db.query(
                 ProductVariant.product_id,
@@ -628,7 +628,7 @@ class SaleService:
                                         .limit(5) \
                                         .all()
 
-        # 4️⃣ Build report
+        # Build report
         return {
             "date": report_date,
             "total_sales": total_sales,

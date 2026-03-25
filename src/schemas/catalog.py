@@ -146,8 +146,8 @@ class ProductPriceCreate(ProductPriceBase):
 class ProductPriceUpdate(BaseModel):
     qualification: Optional[str] = None
     type_sold_int: str | None = None
-    quantity: Optional[str] = None
-    content: Optional[str] = None
+    quantity: int | None = None
+    content: int | None = None
     purchase_price: Optional[Decimal] = None
     sale_price: Optional[Decimal] = None
 
