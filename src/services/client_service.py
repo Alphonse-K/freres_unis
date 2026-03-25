@@ -363,11 +363,26 @@ class CartService:
         db.refresh(cart)
         return cart    
 
+    @staticmethod
+    def build_cart_response(db: Session, cart: Cart) -> dict:
+        totals = PricingService.calculate_order_total(db, cart)
 
+        return {
+            "id": cart.id,
+            "client_id": cart.client_id,
+            "status": cart.status,
+            "created_at": cart.created_at,
+            "items": cart.items,
+            "subtotal": totals["subtotal"],
+            "tax": totals["tax"],
+            "shipping_fee": totals["shipping_fee"],
+            "total": totals["total"],
+        }
+    
 class PricingService:
     
     @staticmethod
-    def calculate_oder_total(db: Session, cart: Cart) -> dict:
+    def calculate_order_total(db: Session, cart: Cart) -> dict:
         try:
             subtotal = Decimal('0')
             tax_amount = Decimal('0')
@@ -421,7 +436,7 @@ class OrderService:
         # =========================
         # 1. PRICING
         # =========================
-        pricing = PricingService.calculate_oder_total(db, cart)
+        pricing = PricingService.calculate_order_total(db, cart)
         
         # =========================
         # 2. STOCK VALIDATION + DEDUCTION

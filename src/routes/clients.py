@@ -249,7 +249,8 @@ def get_cart(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_account)
 ):
-    return CartService.get_or_create_cart(db, client_id, warehouse_id)
+    cart = CartService.get_or_create_cart(db, client_id, warehouse_id)
+    return CartService.build_cart_response(db, cart)
 
 @client_router.post(
     "/cart/{client_id}/warehouse/{warehouse_id}/add/{product_variant_id}",
@@ -263,13 +264,14 @@ def add_to_cart(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_account)
 ):
-    return CartService.add_item(
+    cart = CartService.add_item(
         db,
         client_id,
         warehouse_id,
         product_variant_id,
         qty
     )
+    return CartService.build_cart_response(db, cart)
 
 @client_router.delete(
     "/cart/{client_id}/warehouse/{warehouse_id}/remove/{product_variant_id}",
@@ -282,12 +284,13 @@ def remove_from_cart(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_account)
 ):
-    return CartService.remove_item(
+    cart = CartService.remove_item(
         db,
         client_id,
         warehouse_id,
         product_variant_id
     )
+    return CartService.build_cart_response(db, cart)
 
 @client_router.post(
     "/cart/{client_id}/warehouse/{warehouse_id}/clear"

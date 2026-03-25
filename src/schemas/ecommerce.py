@@ -31,7 +31,10 @@ class CartCreate(CartBase):
 
 class CartOut(CartBase):
     id: int
-    
+    subtotal: Decimal
+    tax: Decimal
+    shipping_fee: Decimal
+    total: Decimal
     created_at: datetime
     items: List[CartItemOut] = []
     model_config = ConfigDict(from_attributes=True)
