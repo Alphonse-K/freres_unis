@@ -110,88 +110,105 @@ class ClientReturnService:
     # =========================
     @staticmethod
     def approve_return(db: Session, return_id: int, approver_by):
+        try:
+            client_return = db.query(ClientReturn)\
+                .filter(ClientReturn.id == return_id)\
+                .with_for_update()\
+                .first()
 
-        client_return = db.query(ClientReturn)\
-            .filter(ClientReturn.id == return_id)\
-            .with_for_update()\
-            .first()
+            if not client_return:
+                raise HTTPException(404, "Return not found")
 
-        if not client_return:
-            raise HTTPException(404, "Return not found")
+            if client_return.status != ReturnStatus.PENDING:
+                raise HTTPException(400, "Return already processed")
 
-        if client_return.status != ReturnStatus.PENDING:
-            raise HTTPException(400, "Return already processed")
+            order = db.query(Order).filter_by(id=client_return.order_id).first()
+            if not order:
+                raise HTTPException(404, "Order not found")
 
-        order = db.query(Order).filter_by(id=client_return.order_id).first()
+            client = db.query(Client)\
+                .filter_by(id=client_return.client_id)\
+                .with_for_update()\
+                .first()
 
-        client = db.query(Client)\
-            .filter_by(id=client_return.client_id)\
-            .with_for_update()\
-            .first()
+            pos = db.query(POS)\
+                .filter(POS.warehouse_id == order.warehouse_id)\
+                .with_for_update()\
+                .first()
 
-        pos = db.query(POS)\
-            .filter(POS.warehouse_id == order.warehouse_id)\
-            .with_for_update()\
-            .first()
+            if not pos:
+                raise HTTPException(404, "POS not found")
 
-        if not pos:
-            raise HTTPException(404, "POS not found for warehouse")
+            # Financial check FIRST
+            if pos.balance < client_return.total_amount:
+                raise HTTPException(400, "POS insufficient balance")
 
-        # =========================
-        # TRACK RETURNS
-        # =========================
-        for item in client_return.items:
-            order_item = db.query(OrderItem).filter_by(
-                id=item.product_variant_id
-            ).first()
-            order_item.returned_qty += item.qty_returned
+            # Lock order items
+            order_items = {
+                oi.product_variant_id: oi
+                for oi in db.query(OrderItem)
+                .filter(OrderItem.order_id == client_return.order_id)
+                .with_for_update()
+                .all()
+            }
 
-        # =========================
-        # FINANCIAL REVERSAL
-        # =========================
-        if pos.balance < client_return.total_amount:
-            raise HTTPException(400, "POS insufficient balance")
+            for item in client_return.items:
+                order_item = order_items.get(item.product_variant_id)
 
-        # Client refund
-        before = client.current_balance
-        client.current_balance += client_return.total_amount
+                if not order_item:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Order item not found for product_variant_id={item.product_variant_id}"
+                    )
 
-        # POS debit
-        pos_balance_before = pos.balance
-        pos.balance -= client_return.total_amount
+                if order_item.returned_qty + item.qty_returned > order_item.qty:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Returned quantity exceeds purchased quantity"
+                    )
 
-        # =========================
-        # LEDGER ENTRIES
-        # =========================
-        db.add(LedgerEntry(
-            client_id=client.id,
-            entry_type="credit",
-            amount=client_return.total_amount,
-            balance_before=before,
-            balance_after=client.current_balance,
-            reference_id=f"RETURN-{client_return.id}",
-            reason="remboursement de retour"
-        ))
+                order_item.returned_qty += item.qty_returned
 
-        db.add(POSLedger(
-            pos_id=pos.id,
-            entry_type="debit",
-            amount=client_return.total_amount,
-            balance_before=pos_balance_before,
-            balance_after=pos.balance,
-            reference_id=f"RETURN-{client_return.id}",
-            reason="remboursement de retour"
-        ))
+            # Financial updates
+            before = client.current_balance
+            client.current_balance += client_return.total_amount
 
-        # =========================
-        # FINALIZE
-        # =========================
-        client_return.status = ReturnStatus.APPROVED
-        client_return.approved_by = approver_by.id
-        client_return.approved_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(client_return)
-        return client_return
+            pos_balance_before = pos.balance
+            pos.balance -= client_return.total_amount
+
+            # Ledger
+            db.add(LedgerEntry(
+                client_id=client.id,
+                entry_type="credit",
+                amount=client_return.total_amount,
+                balance_before=before,
+                balance_after=client.current_balance,
+                reference_id=f"RETURN-{client_return.id}",
+                reason="remboursement de retour"
+            ))
+
+            db.add(POSLedger(
+                pos_id=pos.id,
+                entry_type="debit",
+                amount=client_return.total_amount,
+                balance_before=pos_balance_before,
+                balance_after=pos.balance,
+                reference_id=f"RETURN-{client_return.id}",
+                reason="remboursement de retour"
+            ))
+
+            # Finalize
+            client_return.status = ReturnStatus.APPROVED
+            client_return.approved_by = approver_by.id
+            client_return.approved_at = datetime.now(timezone.utc)
+
+            db.commit()
+            db.refresh(client_return)
+            return client_return
+
+        except Exception:
+            db.rollback()
+            raise
 
     # =========================
     # REJECT RETURN
