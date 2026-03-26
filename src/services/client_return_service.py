@@ -46,7 +46,7 @@ class ClientReturnService:
         return_items = []
 
         for item in data.items:
-            order_item = order_items.get(item.order_item_id)
+            order_item = order_items.get(item.product_variant_id)
             if not order_item:
                 raise HTTPException(400, "Invalid order item")
 
@@ -54,7 +54,7 @@ class ClientReturnService:
                 func.coalesce(func.sum(ClientReturnItem.qty_returned), 0)
             ).join(ClientReturn).filter(
                 ClientReturn.order_id == order.id,
-                ClientReturnItem.order_item_id == order_item.id
+                ClientReturnItem.product_variant_id == order_item.product_variant_id
             ).scalar()
 
             available_qty = order_item.qty - already_returned
@@ -65,7 +65,7 @@ class ClientReturnService:
             total_amount += line_total
 
             return_items.append(ClientReturnItem(
-                order_item_id=order_item.id,
+                product_variant_id=order_item.product_variant_id,
                 qty_returned=item.qty_returned,
                 unit_price=order_item.unit_price,
                 line_total=line_total
@@ -142,7 +142,7 @@ class ClientReturnService:
         # =========================
         for item in client_return.items:
             order_item = db.query(OrderItem).filter_by(
-                id=item.order_item_id
+                id=item.product_variant_id
             ).first()
             order_item.returned_qty += item.qty_returned
 

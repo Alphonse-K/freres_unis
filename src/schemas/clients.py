@@ -218,13 +218,13 @@ class ClientPaymentResponse(ClientPaymentBase):
 # ---- RETURNS ----
 
 class ClientReturnItemCreate(BaseModel):
-    order_item_id: int = Field(..., description="Order item being returned")
+    product_variant_id: int = Field(..., description="Order item being returned")
     qty_returned: Decimal = Field(..., gt=0)
 
 
 class ClientReturnItemResponse(BaseModel):
     id: int
-    order_item_id: int
+    product_variant_id: int
     qty_returned: Decimal
     unit_price: Decimal
     line_total: Decimal

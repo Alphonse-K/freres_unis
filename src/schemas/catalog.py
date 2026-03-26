@@ -144,7 +144,7 @@ class ProductPriceCreate(ProductPriceBase):
     pass
 
 class ProductPriceUpdate(BaseModel):
-    qualification: Optional[str] = None
+    qualification: PriceType | None = None
     type_sold_int: str | None = None
     quantity: int | None = None
     content: int | None = None

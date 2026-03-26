@@ -219,7 +219,7 @@ class ClientReturnItem(Base):
         ForeignKey("client_returns.id", ondelete="CASCADE"),
         nullable=False
     )
-    order_item_id = Column(
+    product_variant_id = Column(
         Integer,
         ForeignKey("order_items.id"),
         nullable=False
