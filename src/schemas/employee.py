@@ -78,6 +78,7 @@ class ContractBase(BaseModel):
     title: str
     start_date: date
     end_date: date
+    slip: str
     salary_amount: Decimal
     is_active: bool | None = True
 
@@ -90,6 +91,7 @@ class ContractUpdate(BaseModel):
     title: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    slip: str
     salary_amount: Decimal | None = None
     is_active: bool | None = None
 
@@ -151,13 +153,28 @@ class LeaveRequestOut(LeaveRequestBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+
 # -------------------------------
 # SALARY SCHEMAS
 # -------------------------------
 class SalaryBase(BaseModel):
+    registration_number: str
+    position: str
+    month_of_function: str
+    period: str
+
     base_salary: Decimal
-    bonus: Decimal | None = 0
-    deductions: Decimal | None = 0
+    additional_hours: Optional[Decimal] = None
+    compensations: Optional[Decimal] = None
+
+    gross_total: Decimal
+    cnss_insurances: Decimal
+    income_tax: Decimal
+    other_taxes: Optional[Decimal] = None
+    total_held: Decimal
+
+    bonus: Optional[Decimal] = None
+    net_salary_to_be_paid: Decimal
 
 
 class SalaryCreate(SalaryBase):
@@ -165,39 +182,30 @@ class SalaryCreate(SalaryBase):
 
 
 class SalaryUpdate(BaseModel):
+    registration_number: Optional[str] = None
+    position: Optional[str] = None
+    month_of_function: Optional[str] = None
+    period: Optional[str] = None
+
     base_salary: Decimal | None = None
-    bonus: Decimal | None = None
-    deductions: Decimal | None = None
+    additional_hours: Decimal | None = None
+    compensations: Decimal | None = None
+
+    gross_total: Decimal | None = None
+    cnss_insurances: Decimal | None = None
+    income_tax: Decimal | None = None
+    other_taxes: Decimal | None = None
+    total_held: Decimal | None = None
+
+    bonus: Optional[Decimal] = None
+    net_salary_to_be_paid: Optional[Decimal] = None
 
 
 class SalaryOut(SalaryBase):
     id: int
-    employee: EmployeeSimple | None = None
+    employee: EmployeeSimple
+
     model_config = ConfigDict(from_attributes=True)
-
-
-# -------------------------------
-# PAYSLIP SCHEMAS
-# -------------------------------
-class PayslipBase(BaseModel):
-    period: str
-    total_paid: Decimal
-
-
-class PayslipCreate(PayslipBase):
-    employee_id: int
-
-
-class PayslipUpdate(BaseModel):
-    period: str | None = None
-    total_paid: Decimal | None = None
-
-
-class PayslipOut(PayslipBase):
-    id: int
-    employee: EmployeeSimple | None = None
-    model_config = ConfigDict(from_attributes=True)
-
 
 # -------------------------------
 # Pydantic v2: rebuild forward references
@@ -207,4 +215,3 @@ ContractOut.model_rebuild()
 AttendanceOut.model_rebuild()
 LeaveRequestOut.model_rebuild()
 SalaryOut.model_rebuild()
-PayslipOut.model_rebuild()

@@ -73,7 +73,7 @@ def submit_client_approval(
     if not card_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="ID {id_type_id} not found"
+            detail=f"ID {id_type_id} not found"
         )
     
     data = {
@@ -123,26 +123,18 @@ def review_client_approval(
     approval_id: int,
     review: ClientApprovalUpdate,
     db: Session = Depends(get_db),
-    current_account: dict = Depends(require_permission(Permissions.APPROVE_CLIENT)),
+    current_account = Depends(require_permission(Permissions.APPROVE_CLIENT)),
 ):
     """
     Review a client approval (approve / reject).
     Only system users (admin or RH) can do this.
     """
-    account_type = current_account["account_type"]
-    account = current_account["account"]
-    # Only 'user' accounts can review approvals
-    if account_type != "user":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only system users can review client approvals"
-        )
     
     return ClientApprovalService.review(
         db=db,
         approval_id=approval_id,
         review=review,
-        reviewer_id=account.id,
+        reviewer_id=current_account.id,
     )
 
 @client_router.get(

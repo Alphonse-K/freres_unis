@@ -281,5 +281,5 @@ class POSLedger(Base):
     balance_before = Column(Numeric(14, 2), nullable=False)
     balance_after = Column(Numeric(14, 2), nullable=False)
     reason = Column(String(255), nullable=False)
-    reference_id = Column(DateTime(timezone=True), server_default=func.now())
+    reference_id = Column(String(100), nullable=False)
     pos = relationship("POS", back_populates="ledgers")

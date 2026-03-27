@@ -8,7 +8,6 @@ from src.services.employee_service import (
     AttendanceService,
     LeaveService,
     ContractService,
-    PayslipService,
     SalaryService
 )
 from src.schemas.employee import (
@@ -23,13 +22,10 @@ from src.schemas.employee import (
     LeaveRequestUpdate,
     SalaryCreate,
     SalaryUpdate,
-    PayslipCreate,
-    PayslipUpdate,
     ContractOut,
     AttendanceOut,
     SalaryOut,
     LeaveRequestOut,
-    PayslipOut
 )
 
 employee_router = APIRouter(prefix="/employees", tags=["Employees"])
@@ -142,21 +138,3 @@ def update_salary(
     # current_user = Depends(require_permission(Permissions.UPDATE_EMPLOYEE))
 ):
     return SalaryService.update(db, salary_id, data)
-
-
-@employee_router.post("/payslips", response_model=PayslipOut)
-def create_payslip(
-    data: PayslipCreate, 
-    db: Session = Depends(get_db),
-    # current_user = Depends(require_permission(Permissions.CREATE_EMPLOYEE))
-):
-    return PayslipService.create(db, data)
-
-@employee_router.patch("/salaries/{payslip_id}", response_model=PayslipOut)
-def update_payslip(
-    payslip_id: int, 
-    data: PayslipUpdate, 
-    db: Session = Depends(get_db),
-    # current_user = Depends(require_permission(Permissions.UPDATE_EMPLOYEE))
-):
-    return PayslipService.update(db, payslip_id, data)

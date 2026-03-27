@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from src.models.employee import Employee, Contract, Attendance, LeaveRequest, Salary, Payslip
+from src.models.employee import Employee, Contract, Attendance, LeaveRequest, Salary
 from src.schemas.employee import (
     EmployeeCreate, 
     EmployeeUpdate,
@@ -12,8 +12,6 @@ from src.schemas.employee import (
     LeaveRequestUpdate,
     SalaryCreate,
     SalaryUpdate,
-    PayslipCreate,
-    PayslipUpdate,
     LeaveStatus
 )
 
@@ -174,30 +172,3 @@ class SalaryService:
         db.refresh(salary)
         return salary
     
-
-class PayslipService:
-
-    @staticmethod
-    def create(db, data: PayslipCreate):
-        payslip = Payslip(**data.model_dump())
-        db.add(payslip)
-        db.commit()
-        db.refresh(payslip)
-        return payslip
-    
-    @staticmethod
-    def update(db, payslip_id: int, data: PayslipUpdate):
-        payslip = db.query(Payslip).get(payslip_id)
-        if not payslip:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Payslip not found"
-            )
-        
-        update_data = data.model_dump(exclude_unset=True)
-        for k, v in update_data.items():
-            setattr(payslip, k, v)
-
-        db.commit()
-        db.refresh(update_data)
-        return payslip
