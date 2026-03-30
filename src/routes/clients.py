@@ -120,7 +120,7 @@ def list_client_approvals(db: Session = Depends(get_db), current_user = Depends(
 def get_client_by_number(
     phone: str,
     db: Session = Depends(get_db), 
-    current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
+    # current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
 ):
     client = db.query(Client).filter_by(phone=phone).first()
     if not client:
