@@ -162,17 +162,14 @@ class SalaryBase(BaseModel):
     position: str
     month_of_function: str
     period: str
-
     base_salary: Decimal
     additional_hours: Optional[Decimal] = None
     compensations: Optional[Decimal] = None
-
     gross_total: Decimal
     cnss_insurances: Decimal
     income_tax: Decimal
     other_taxes: Optional[Decimal] = None
     total_held: Decimal
-
     bonus: Optional[Decimal] = None
     net_salary_to_be_paid: Decimal
 

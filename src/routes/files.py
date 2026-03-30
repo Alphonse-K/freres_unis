@@ -6,7 +6,7 @@ from typing import Literal
 import os
 from pathlib import Path as PathLib  # Rename pathlib Path to avoid conflict
 from src.core.permissions import Permissions
-from src.core.auth_dependencies import require_permission
+from src.core.auth_dependencies import require_permission, optional_permission_for_client
 
 from src.core.database import get_db
 from src.models.clients import Client, ClientApproval
@@ -34,7 +34,7 @@ AllowedDocType = Literal["face", "badge", "id-recto", "id-verso", "magnetic-card
 async def get_client_documents(
     client_id: int = FastAPIPath(..., description="Client ID", examples=2),
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CLIENT))
+    current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
 ):
     """
     Get ALL document URLs for a client.
@@ -137,7 +137,7 @@ async def get_client_document(
         examples="face"
     ),
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CLIENT))
+    current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
 ):
     """
     Get information about a specific client document.

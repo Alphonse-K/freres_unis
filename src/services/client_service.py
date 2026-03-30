@@ -40,7 +40,6 @@ class ClientService:
             .limit(pagination.page_size)
             .all()
         )
-
         return total, items
 
     @staticmethod

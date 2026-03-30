@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from src.models.clients import ClientApproval, Client, ClientStatus, ApprovalStatus
 from src.schemas.clients import (
-    ClientApprovalCreate,
     ClientApprovalUpdate,
 )
 from src.core.audit import audit_log
@@ -31,9 +30,8 @@ class ClientApprovalService:
             id_photo_recto=save_image(files["id_photo_recto"], "id"),
             id_photo_verso=save_image(files["id_photo_verso"], "id"),
             badge_photo=(save_image(files["badge_photo"], "badge") if files.get("badge_photo") else None),
-            magnetic_card_photo=(save_image(files["magnetic_card_photo"], "cards") if files.get("magnetic_card_photo") else None),
+            magnetic_card_photo=(save_image(files["magnetic_card_photo"], "cards") if files.get("magnetic_card_photo") else None)
         )
-
         db.add(approval)
         db.commit()
         db.refresh(approval)
@@ -46,12 +44,22 @@ class ClientApprovalService:
         review: ClientApprovalUpdate,
         reviewer_id: int,
     ) -> ClientApproval:
-        approval = db.query(ClientApproval).filter_by(id=approval_id).first()
+        
+        approval = db.query(ClientApproval)\
+                .filter_by(id=approval_id)\
+                .first()
+        
         if not approval:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Approval not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Approval not found"
+            )
 
         if approval.status != ApprovalStatus.PENDING:
-            raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, "Already reviewed")
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE, 
+                detail="Already reviewed"
+            )
 
         approval.status = review.status
         approval.rejection_reason = review.rejection_reason
@@ -73,6 +81,7 @@ class ClientApprovalService:
             db.flush()
             approval.client_id = client.id
 
+        audit_log("Approve client", "client", approval_id, reviewer_id)
         db.commit()
         db.refresh(approval)  
         return approval
