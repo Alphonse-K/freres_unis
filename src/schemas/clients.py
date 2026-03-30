@@ -300,3 +300,18 @@ class ClientLedgerResponse(BaseModel):
     created_at: datetime
 
 
+class ClientApprovalInfo(BaseModel):
+    employee_company: str | None = None
+    employee_id_number: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientResponseLight(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    phone: str
+    status: ClientStatus
+    approval: ClientApprovalInfo | None = None
+    model_config = ConfigDict(from_attributes=True)
+

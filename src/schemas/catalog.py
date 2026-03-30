@@ -3,7 +3,7 @@ from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from src.models.catalog import PriceType
+from src.models.catalog import PriceType, CategoryType
 
 # -------------------------------
 # CATEGORY SCHEMAS
@@ -11,6 +11,7 @@ from src.models.catalog import PriceType
 
 class CategoryBase(BaseModel):
     name: str = Field(..., max_length=255)
+    type: CategoryType
 
 
 class CategoryCreate(CategoryBase):
@@ -18,12 +19,14 @@ class CategoryCreate(CategoryBase):
 
 
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
+    type: CategoryType | None = None
 
 
 class CategoryLight(BaseModel):
     id: int
     name: str
+    type: CategoryType
     model_config = ConfigDict(from_attributes=True)
 
 

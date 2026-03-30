@@ -26,6 +26,9 @@ class PriceType(str, enum.Enum):
     WHOLESALE = "wholesale"
     PROMOTION = "promotion"
 
+class CategoryType(str, enum.Enum):
+    RESTAURANT = "restaurant"
+    POS = "pos"
 
 # ---------------- CATEGORY ----------------
 class Category(Base):
@@ -33,7 +36,7 @@ class Category(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
-
+    type = Column(Enum(CategoryType), default=CategoryType.POS)
     products = relationship("Product", back_populates="category")
 
     def __repr__(self):

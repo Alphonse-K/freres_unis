@@ -15,7 +15,8 @@ from src.schemas.clients import (
     ClientReturnResponse,
     ClientReturnFilter,
     ClientActivationSetPassword,
-    ClientLedgerResponse
+    ClientLedgerResponse,
+    ClientResponseLight
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -32,7 +33,7 @@ from src.services.client_service import (
 from src.services.pos import POSService
 from src.services.client_approval_service import ClientApprovalService
 from src.core.security import SecurityUtils
-from src.core.auth_dependencies import require_role, require_permission, get_current_account
+from src.core.auth_dependencies import optional_permission_for_client, require_permission, get_current_account
 from src.core.permissions import Permissions
 from decimal import Decimal
 
@@ -111,6 +112,31 @@ def list_client_approvals(db: Session = Depends(get_db), current_user = Depends(
         ClientApproval.submitted_at.desc()
     ).all()
 
+
+@client_router.get(
+        "/phone/{phone}",
+        response_model=ClientResponseLight
+)
+def get_client_by_number(
+    phone: str,
+    db: Session = Depends(get_db), 
+    current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
+):
+    client = db.query(Client).filter_by(phone=phone).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Client with {phone} not found"
+        )
+    
+    if not client.approval:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Approval not found"
+        )
+    
+    return client
+    
 # -----------------------------
 # REVIEW CLIENT APPROVAL
 # -----------------------------
