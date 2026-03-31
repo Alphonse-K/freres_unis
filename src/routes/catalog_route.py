@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from src.core.permissions import Permissions
-from src.core.auth_dependencies import require_permission, get_current_account
+from src.core.auth_dependencies import require_permission, get_current_account, optional_permission_for_client
 from src.core.permissions import Permissions
 
 from src.core.database import get_db
@@ -31,7 +31,7 @@ def create_category(
 @product_router.get("/products/category", response_model=List[CategoryOut])
 def list_categories(
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CATEGORY))
+    current_user = Depends(optional_permission_for_client(Permissions.READ_CATEGORY))
 ):
     return CategoryService.list_categories(db)
 
@@ -73,7 +73,7 @@ def upload_product_image(
 @product_router.get("/products", response_model=List[ProductOut])
 def list_products(
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_PRODUCT))
+    current_user = Depends(optional_permission_for_client(Permissions.READ_PRODUCT))
 ):
     return CatalogService.list_products(db)
 
