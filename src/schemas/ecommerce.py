@@ -71,5 +71,6 @@ class OrderCreate(OrderBase):
 class OrderOut(OrderBase):
     id: int
     created_at: datetime
+    order_code: str
     items: List[OrderItemOut] = []
     model_config = ConfigDict(from_attributes=True)

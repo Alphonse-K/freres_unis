@@ -746,7 +746,7 @@ class OrderService:
             ))
         
         cart.status = CartStatus.COMPLETED
-        db.ad(order)
+        db.add(order)
         db.commit()
         db.refresh(order)
         return order
