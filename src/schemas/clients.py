@@ -23,7 +23,7 @@ class ClientBase(BaseModel):
     anticipated_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
     current_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
     status: ClientStatus = Field(default=ClientStatus.ACTIVE)
-    magnetic_card_status: MagneticCardStatus = Field(default=MagneticCardStatus.TAKEN)
+    magnetic_card_status: MagneticCardStatus = Field(default=MagneticCardStatus.HELD_VALID)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,10 +44,16 @@ class ClientUpdate(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ClientApprovalInfo(BaseModel):
+    employee_company: str | None = None
+    magnetic_card_number: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ClientResponse(ClientBase):
     id: int
     submitted_at: Optional[datetime] = None
+    approval: ClientApprovalInfo
 
 
 # ---- APPROVAL FLOW ----
@@ -84,7 +90,6 @@ class ClientApprovalUpdate(BaseModel):
     reviewed_by_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
-
 
 class ClientApprovalResponse(ClientApprovalBase):
     id: int
@@ -302,10 +307,6 @@ class ClientLedgerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ClientApprovalInfo(BaseModel):
-    employee_company: str | None = None
-    magnetic_card_number: str | None = None
-    model_config = ConfigDict(from_attributes=True)
 
 
 class ClientResponseLight(BaseModel):

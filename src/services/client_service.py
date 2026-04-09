@@ -28,9 +28,9 @@ import uuid
 from src.core.audit import audit_log
 from ulid import ULID
 
-def generate_trx_id():
-    date_part = datetime.now(timezone.utc).strftime("%Y%m%d")
-    return f"FU-{date_part}-{str(ULID())[:14]}"
+def generate_trx_id(cart_id: int):
+    date_part = datetime.now(timezone.utc).strftime("%y%m%d")
+    return f"FU-{date_part}-{str(ULID())[:7]}{cart_id}"
 
 class ClientService:
     
@@ -84,33 +84,6 @@ class ClientService:
         audit_log("STATUS CHANGE", "Client", client.id, actor_id, {"status": status})
         return client
 
-    # @staticmethod
-    # def validate_card(db: Session, card_number: str):
-    #     client_approval = (
-    #         db.query(ClientApproval)
-    #         .filter(
-    #         ClientApproval.magnetic_card_number == card_number)
-    #         .first()
-    #     )
-    #     if not client_approval:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_404_NOT_FOUND,
-    #             detail=f"Card number {card_number} not found"
-    #         )
-    #     current_balance_before = client_approval.client.current_balance
-    #     client_approval.client.current_balance -= client_approval.company.card_amount
-    #     ledger = LedgerEntry(
-    #         client_id=client_approval.client_id,
-    #         amount=client_approval.company.card_amount,
-    #         entry_type="debit",
-    #         balance_before=current_balance_before,
-    #         balance_after=client_approval.client.current_balance,
-    #         reason="Card validation",
-    #         reference_id=f"card-{uuid.uuid4()}"
-    #     )
-    #     db.commit()
-    #     return ledger
-
     @staticmethod
     def validate_card(db: Session, card_number: str):
         try:
@@ -157,36 +130,6 @@ class ClientService:
         except Exception:
             db.rollback()
             raise
-
-    # @staticmethod
-    # def increment_client_balance(db: Session, phone: str, amount: Decimal):
-    #     client = db.query(Client).filter(Client.phone==phone).first()
-    #     if not client:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_404_NOT_FOUND,
-    #             detail=f"Phone {phone} does not exists"
-    #         )
-    #     if amount == Decimal('0') or amount < Decimal('0'):
-    #         raise HTTPException(
-    #             status_code=status.HTTP_401_UNAUTHORIZED,
-    #             detail="Amount can't less than or equal to zero"
-    #         )
-        
-    #     balance_before = client.current_balance
-    #     client.current_balance += amount
-    #     ledger = LedgerEntry(
-    #         client_id=client.id,
-    #         amount=amount,
-    #         entry_type="credit",
-    #         balance_before=balance_before,
-    #         balance_after=client.current_balance,
-    #         reason="balance increase",
-    #         reference_id=f"client-{uuid.uuid4()}"
-    #     )
-    #     db.add(ledger)
-    #     db.commit()
-    #     db.refresh(client)
-    #     return client
 
     @staticmethod
     def increment_client_balance(db: Session, phone: str, amount: Decimal):
@@ -327,6 +270,15 @@ class ClientService:
             db.rollback()
             raise
         
+    def increment_partner_client_balances_with_scheduler(db: Session, client_id: int):
+        clients = db.query(Client).filter(
+            Client.type == "partner_client",
+            Client.magnetic_card_status == "held_valid"
+        ).all()
+        for client in clients:
+            client.current_balance += client.approval.company.card_amount
+            audit_log("Balance increment", "client", client.id)
+
 class ClientInvoiceService:
 
     @staticmethod
@@ -712,7 +664,7 @@ class OrderService:
         order = Order(
             client_id=cart.client_id,
             warehouse_id=cart.warehouse_id,
-            order_code=generate_trx_id(),
+            order_code=generate_trx_id(cart.id),
             subtotal=pricing["subtotal"],
             tax_amount=pricing["tax"],
             total_amount=pricing["total"],
@@ -751,113 +703,6 @@ class OrderService:
         db.refresh(order)
         return order
     
-    # @staticmethod
-    # def create_order(db: Session, cart: Cart, pos: POS):
-    #     try:
-    #         if not cart.items:
-    #             raise HTTPException(400, "Cart is empty")
-
-    #         if cart.status != CartStatus.OPEN:
-    #             raise HTTPException(400, "Cart already processed")
-
-    #         if cart.warehouse_id != pos.warehouse_id:
-    #             raise HTTPException(400, "Cart warehouse mismatch with POS")
-
-    #         pricing = PricingService.calculate_order_total(db, cart)
-
-    #         order = Order(
-    #             client_id=cart.client_id,
-    #             warehouse_id=cart.warehouse_id,
-    #             order_code=generate_trx_id(),
-    #             subtotal=pricing["subtotal"],
-    #             tax_amount=pricing["tax"],
-    #             total_amount=pricing["total"],
-    #         )
-    #         db.add(order)
-    #         db.flush()
-
-    #         for item in cart.items:
-    #             sale_price = next(
-    #                 (
-    #                     p for p in item.product_variant.prices
-    #                     if p.is_active and p.qualification == PriceType.RETAIL
-    #                 ),
-    #                 None
-    #             )
-
-    #             if not sale_price:
-    #                 raise HTTPException(404, "No active price found")
-
-    #             db.add(OrderItem(
-    #                 order_id=order.id,
-    #                 product_variant_id=item.product_variant_id,
-    #                 qty=item.qty,
-    #                 unit_price=sale_price.sale_price
-    #             ))
-
-    #         cart.status = CartStatus.COMPLETED
-    #         db.commit()
-    #         db.refresh(order)
-    #         return order
-
-    #     except Exception:
-    #         db.rollback()
-    #         raise
-
-    # @staticmethod
-    # def checkout_order(db: Session, order_code: str):
-    #     order = db.query(Order).filter(Order.order_code==order_code).first()
-    #     if not order:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_404_NOT_FOUND,
-    #             detail=f"Order {order_code} not found"
-    #         )
-        
-    #     # STOCK DEDUCTION
-    #     for item in order.items:
-    #         inventory = db.query(Inventory).filter(
-    #             Inventory.warehouse_id == order.warehouse_id,
-    #             Inventory.product_variant_id == item.product_variant_id
-    #         ).with_for_update().first()
-
-    #         if not inventory or inventory.quantity < item.qty:
-    #             raise HTTPException(
-    #                 status_code=status.HTTP_400_BAD_REQUEST,
-    #                 detail=f"Insufficient stock for variant {item.product_variant_id}"
-    #             )
-
-    #         # Deduct stock
-    #         inventory.quantity -= item.qty
-
-    #     # FINANCIAL OPERATIONS
-    #     if order.client.current_balance < order.total_amount:
-    #         raise HTTPException(400, "Insufficient client balance")
-
-    #     balance_before = order.client.current_balance
-    #     order.client.current_balance -= order.total_amount
-    #     order.warehouse.pos.balance += order.total_amount
-
-    #     # =========================
-    #     # 6. LEDGER ENTRY (CLIENT)
-    #     # =========================
-    #     ledger = LedgerEntry(
-    #         client_id=order.client_id,
-    #         entry_type="debit",
-    #         amount=order.total_amount,
-    #         balance_before=balance_before,
-    #         balance_after=order.client.current_balance,
-    #         reference_id=f"ORDER-{uuid.uuid4()}",
-    #         reason="paying order"
-    #     )
-    #     db.add(ledger)
-
-    #     # =========================
-    #     # 8. FINALIZE
-    #     # =========================
-    #     order.status = OrderStatus.COMPLETED
-    #     db.commit()
-    #     db.refresh(ledger)
-    #     return order
     @staticmethod
     def checkout_order(db: Session, order_code: str):
         try:
@@ -870,6 +715,12 @@ class OrderService:
 
             if not order:
                 raise HTTPException(404, f"Order {order_code} not found")
+            
+            if order.status == "completed":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Order already completed"
+                )
 
             # STOCK
             for item in order.items:
@@ -937,3 +788,14 @@ class OrderService:
         )
         return orders
     
+    @staticmethod
+    def get_order_details(db: Session, order_code: str):
+        order = (
+            db.query(Order)
+            .filter(Order.order_code == order_code)
+            .first()
+        )
+
+        if not order:
+            raise HTTPException(404, "Order not found")
+        return order

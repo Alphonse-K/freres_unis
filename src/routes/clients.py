@@ -213,7 +213,7 @@ def review_client_approval(
 )
 def get_client(
     client_id: int,
-    currrent_user = Depends(require_permission(Permissions.READ_CLIENT)),
+    currrent_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT)),
     db: Session = Depends(get_db),
 ):
     return ClientService.get(db, client_id)
@@ -415,6 +415,18 @@ def client_oders(
         )
     offset =(offset - 1) * limit
     return OrderService.list_client_order(db, client, offset, limit)
+
+@client_router.get(
+        "/order/{order_code}/details",
+        response_model=OrderOut
+)
+def get_order_details(
+    order_code: str,
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_account)
+):
+    order = OrderService.get_order_details(db, order_code)
+    return order
 
 @client_router.get(
     "/{client_id}/ledger/paginated",

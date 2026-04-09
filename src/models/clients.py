@@ -32,13 +32,13 @@ class ClientRole(str, enum.Enum):
 
 
 class MagneticCardStatus(str, enum.Enum):
-    TAKEN = "taken"
-    HELD = "held"
-    NOBALANCE = "nobalance"
-    CLOSED = "closed"
-    EXPIRED = "expired"
-
-
+    VALID = "VALID"
+    TAKEN_EXPIRED = "TAKEN_EXPIRED"
+    HELD_VALID = "HELD_VALID"
+    HELD_NOBALANCE = "HELD_NOBALANCE"
+    TAKEN_NON_EXPIRED = "TAKEN_NON_EXPIRED"
+    EXPIRED_HELD = "EXPIRED_HELD"
+    
 class ClientInvoiceStatus(str, enum.Enum):
     DRAFT = "draft"
     PARTIALLY_PAID = "partially_paid"
@@ -85,7 +85,7 @@ class Client(Base):
     last_login_user_agent = Column(String, nullable=True)
     magnetic_card_status = Column(
         PgEnum(MagneticCardStatus),
-        default=MagneticCardStatus.TAKEN
+        default=MagneticCardStatus.VALID
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
