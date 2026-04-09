@@ -67,8 +67,9 @@ class ClientApprovalBase(BaseModel):
     magnetic_card_photo: Optional[str]
 
     employee_company: Optional[str] = None
-    employee_id_number: Optional[str] = None
+    magnetic_card_number: Optional[str] = None
     company_address: Optional[str] = None
+    company_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -298,11 +299,12 @@ class ClientLedgerResponse(BaseModel):
     reason: str | None = None
     reference_id: str | None = None
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClientApprovalInfo(BaseModel):
     employee_company: str | None = None
-    employee_id_number: str | None = None
+    magnetic_card_number: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -315,3 +317,14 @@ class ClientResponseLight(BaseModel):
     approval: ClientApprovalInfo | None = None
     model_config = ConfigDict(from_attributes=True)
 
+
+class TransferRequest(BaseModel):
+    phone: str = Field(..., description="Provider valid client phone number without country code")
+    amount: Decimal = Field(..., gt=0, example=1000)
+
+
+class TransferResponse(BaseModel):
+    reference_id: str
+    amount: Decimal
+    message: str
+    model_config = ConfigDict(from_attributes=True)

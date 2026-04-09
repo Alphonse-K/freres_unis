@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
-
 from src.core.database import Base, engine, SessionLocal
 from src.core.seed_permissions import seed_permissions, seed_role
 
@@ -23,12 +22,12 @@ from src.routes.role import role_router
 from src.routes.tax import tax_router
 from src.routes.company import company_router
 from src.routes.employee import employee_router
+from src.routes.partner_company import partner_company_router
 from src.routes import files
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # +++++ STARTUP +++++
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -37,6 +36,7 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     yield
+
 
 app = FastAPI(
     title="Freres Unis API",
@@ -64,6 +64,7 @@ app.include_router(id_type_router, prefix=API_PREFIX)
 app.include_router(role_router, prefix=API_PREFIX)
 app.include_router(files.router, prefix=API_PREFIX)
 app.include_router(company_router, prefix=API_PREFIX)
+app.include_router(partner_company_router, prefix=API_PREFIX)
 app.include_router(employee_router, prefix=API_PREFIX)
 
 

@@ -1,5 +1,5 @@
 # models/audit_log.py
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, func, Index, Text, JSON
+from sqlalchemy import Column, String, Integer, DateTime, func, Index, Text, JSON
 from src.core.database import Base 
 from datetime import timezone, datetime
 
@@ -11,7 +11,7 @@ class AuditLog(Base):
     
     # Who performed the action
     actor_type = Column(String(50))  # 'admin', 'system', 'user', 'client'
-    actor_id = Column(Integer)  # ID of the admin/user/client
+    actor_id = Column(Integer)
     
     # What was affected
     target_type = Column(String(50))  # 'client', 'user', 'posuser'

@@ -9,7 +9,7 @@ from src.services.company import CompanyService
 from src.core.auth_dependencies import require_permission
 from src.core.permissions import Permissions
 
-company_router = APIRouter(prefix="/companies", tags=["Companies"])
+company_router = APIRouter(prefix="/companies", tags=["Freres Unis Company"])
 
 
 @company_router.post("/", response_model=CompanyOut)

@@ -16,7 +16,9 @@ from src.schemas.clients import (
     ClientReturnFilter,
     ClientActivationSetPassword,
     ClientLedgerResponse,
-    ClientResponseLight
+    ClientResponseLight,
+    TransferRequest,
+    TransferResponse
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -60,8 +62,9 @@ def submit_client_approval(
     id_type_id: int = Form(...),
     id_number: str = Form(...),
     employee_company: Optional[str] = Form(None),
-    employee_id_number: Optional[str] = Form(None),
+    magnetic_card_number: Optional[str] = Form(None),
     company_address: Optional[str] = Form(None),
+    company_id: int | None = Form(None),
     face_photo: UploadFile = File(...),
     id_photo_recto: UploadFile = File(...),
     id_photo_verso: UploadFile = File(...),
@@ -86,8 +89,9 @@ def submit_client_approval(
         "id_type_id": id_type_id,
         "id_number": id_number,
         "employee_company": employee_company,
-        "employee_id_number": employee_id_number,
+        "magnetic_card_number": magnetic_card_number,
         "company_address": company_address,
+        "company_id": company_id,
     }
 
     files = {
@@ -135,7 +139,48 @@ def get_client_by_number(
         )
     
     return client
-    
+
+@client_router.post(
+    "/card/{card_number}/validate",
+    response_model=ClientLedgerResponse
+)    
+def validate_card(
+    card_number: str, 
+    db: Session = Depends(get_db),
+    current_account: Client = Depends(get_current_account)
+):
+    return ClientService.validate_card(db, card_number)
+
+@client_router.post(
+    "/balance/{client_phone}/increment",
+    response_model=ClientLedgerResponse
+)
+def increment_client_balance(
+    client_phone: str, 
+    amount: Decimal, 
+    db: Session = Depends(get_db),
+    current_account: Client = Depends(get_current_account)
+):
+    return ClientService.increment_client_balance(db, client_phone, amount)
+
+@client_router.post(
+    "/transfer",
+    response_model=TransferResponse,
+    status_code=status.HTTP_200_OK
+)
+def transfer_balance(
+    payload: TransferRequest,
+    db: Session = Depends(get_db),
+    current_client: Client = Depends(get_current_account)
+):
+    result = ClientService.balance_transfert_between_client(
+        db=db,
+        client_id=current_client["account"].id,
+        phone=payload.phone,
+        amount=payload.amount
+    )
+    return result
+
 # -----------------------------
 # REVIEW CLIENT APPROVAL
 # -----------------------------
@@ -325,10 +370,10 @@ def clear_cart(
     )
 
 @client_router.post(
-        "/cart/{client_id}/warehouse/{warehouse_id}/place-order",
-        response_model=OrderOut
+   "/order/{client_id}/warehouse/{warehouse_id}/create",
+   response_model=OrderOut
 )
-def checkout(
+def create_order(
     client_id: int, 
     warehouse_id: int, 
     pos_id: int, 
@@ -337,7 +382,18 @@ def checkout(
 ):
     cart = CartService.get_or_create_cart(db, client_id, warehouse_id)    
     pos = POSService.get_pos(db, pos_id, include_warehouse=False)
-    order = OrderService.checkout_cart(db, cart, pos)
+    return OrderService.create_order(db, cart, pos)
+
+@client_router.post(
+        "/order/{order_code}/place-order",
+        response_model=OrderOut
+)
+def checkout(
+    order_code: str,
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_account)
+):
+    order = OrderService.checkout_order(db, order_code)
     return order
 
 @client_router.get(

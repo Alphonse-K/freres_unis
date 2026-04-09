@@ -48,28 +48,20 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True)
-
     name = Column(String(255), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
-
     brand = Column(String(50))
     is_active = Column(Boolean, default=True)
-
     type = Column(Enum(ProductType), default=ProductType.UNIQUE)
-
     image_url = Column(String(255), nullable=True)
-
-    # Tax configuration
     tax_id = Column(Integer, ForeignKey("taxes.id"), nullable=True)
     tax_inclusion = Column(
         Enum(TaxInclusion),
         default=TaxInclusion.EXCLUSIVE
     )
-
     # Relationships
     category = relationship("Category", back_populates="products")
     tax = relationship("Tax", back_populates="products")
-
     variants = relationship(
         "ProductVariant",
         back_populates="product",

@@ -153,7 +153,6 @@ class LeaveRequestOut(LeaveRequestBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 # -------------------------------
 # SALARY SCHEMAS
 # -------------------------------

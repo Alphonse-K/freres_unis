@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Numeric, Index, text
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Numeric, Index, text, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func, text
 from src.core.database import Base
@@ -63,6 +63,7 @@ class Order(Base):
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.CREATED)
     subtotal = Column(Numeric(12, 2), nullable=False)
+    order_code = Column(String(255), unique=True, nullable=False)
     tax_amount = Column(Numeric(12, 2), default=0)
     shipping_fee = Column(Numeric(12, 2), default=0)
     total_amount = Column(Numeric(12, 2), nullable=False)

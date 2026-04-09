@@ -36,6 +36,7 @@ class MagneticCardStatus(str, enum.Enum):
     HELD = "held"
     NOBALANCE = "nobalance"
     CLOSED = "closed"
+    EXPIRED = "expired"
 
 
 class ClientInvoiceStatus(str, enum.Enum):
@@ -125,7 +126,7 @@ class ClientApproval(Base):
     id_number = Column(String(100), nullable=False)
     # Partner-only fields
     employee_company = Column(String(255))
-    employee_id_number = Column(String(120))
+    magnetic_card_number = Column(String(120), unique=True)
     company_address = Column(String(255))
     # KYC documents (paths / URLs)
     face_photo = Column(String(255), nullable=False)
@@ -145,10 +146,12 @@ class ClientApproval(Base):
         ForeignKey("clients.id", ondelete="SET NULL"),
         unique=True
     )
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
     # relationships
     id_type = relationship("IDType")
     reviewed_by = relationship("User")
     client = relationship("Client", back_populates="approval")
+    company = relationship("Company", back_populates="clients")
 
 
 class ClientInvoice(Base):

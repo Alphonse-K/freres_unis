@@ -59,7 +59,6 @@ class APIKey(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     last_used = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
     company = relationship("Company", back_populates="api_keys")
     
     __table_args__ = (

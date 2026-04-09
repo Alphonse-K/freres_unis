@@ -7,7 +7,14 @@ from src.schemas.clients import ClientUpdate
 from src.models.inventory import Inventory
 from src.models.clients import ClientInvoice
 from src.schemas.clients import ClientInvoiceCreate
-from src.models.clients import ClientPayment, Client, ClientInvoice, ClientInvoiceStatus, LedgerEntry
+from src.models.clients import (
+    ClientPayment, 
+    Client, 
+    ClientInvoice, 
+    ClientInvoiceStatus, 
+    LedgerEntry, 
+    ClientApproval
+)
 from src.models.inventory import Warehouse
 from src.schemas.clients import ClientPaymentCreate
 from src.models.ecommerce import Cart, CartItem, CartStatus, OrderStatus
@@ -19,6 +26,11 @@ from src.schemas.users import PaginationParams
 from datetime import datetime, timezone
 import uuid
 from src.core.audit import audit_log
+from ulid import ULID
+
+def generate_trx_id():
+    date_part = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return f"FU-{date_part}-{str(ULID())[:14]}"
 
 class ClientService:
     
@@ -72,7 +84,249 @@ class ClientService:
         audit_log("STATUS CHANGE", "Client", client.id, actor_id, {"status": status})
         return client
 
+    # @staticmethod
+    # def validate_card(db: Session, card_number: str):
+    #     client_approval = (
+    #         db.query(ClientApproval)
+    #         .filter(
+    #         ClientApproval.magnetic_card_number == card_number)
+    #         .first()
+    #     )
+    #     if not client_approval:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_404_NOT_FOUND,
+    #             detail=f"Card number {card_number} not found"
+    #         )
+    #     current_balance_before = client_approval.client.current_balance
+    #     client_approval.client.current_balance -= client_approval.company.card_amount
+    #     ledger = LedgerEntry(
+    #         client_id=client_approval.client_id,
+    #         amount=client_approval.company.card_amount,
+    #         entry_type="debit",
+    #         balance_before=current_balance_before,
+    #         balance_after=client_approval.client.current_balance,
+    #         reason="Card validation",
+    #         reference_id=f"card-{uuid.uuid4()}"
+    #     )
+    #     db.commit()
+    #     return ledger
 
+    @staticmethod
+    def validate_card(db: Session, card_number: str):
+        try:
+            client_approval = (
+                db.query(ClientApproval)
+                .filter(ClientApproval.magnetic_card_number == card_number)
+                .with_for_update()
+                .first()
+            )
+
+            if not client_approval:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Card number {card_number} not found"
+                )
+
+            client = client_approval.client
+
+            amount = client_approval.company.card_amount
+            if amount < Decimal('0'):
+                raise HTTPException(
+                    status_code=400,
+                    detail="amount must be positive and greater than zero"
+                )
+
+            balance_before = client.current_balance
+            client.current_balance += amount
+            reference_id = f"CARD{str(ULID())}"
+
+            ledger = LedgerEntry(
+                client_id=client.id,
+                amount=amount,
+                entry_type="credit",
+                balance_before=balance_before,
+                balance_after=client.current_balance,
+                reason="Card validation",
+                reference_id=reference_id
+            )
+
+            db.add(ledger)
+            db.commit()
+            db.refresh(ledger)
+            return ledger
+        except Exception:
+            db.rollback()
+            raise
+
+    # @staticmethod
+    # def increment_client_balance(db: Session, phone: str, amount: Decimal):
+    #     client = db.query(Client).filter(Client.phone==phone).first()
+    #     if not client:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_404_NOT_FOUND,
+    #             detail=f"Phone {phone} does not exists"
+    #         )
+    #     if amount == Decimal('0') or amount < Decimal('0'):
+    #         raise HTTPException(
+    #             status_code=status.HTTP_401_UNAUTHORIZED,
+    #             detail="Amount can't less than or equal to zero"
+    #         )
+        
+    #     balance_before = client.current_balance
+    #     client.current_balance += amount
+    #     ledger = LedgerEntry(
+    #         client_id=client.id,
+    #         amount=amount,
+    #         entry_type="credit",
+    #         balance_before=balance_before,
+    #         balance_after=client.current_balance,
+    #         reason="balance increase",
+    #         reference_id=f"client-{uuid.uuid4()}"
+    #     )
+    #     db.add(ledger)
+    #     db.commit()
+    #     db.refresh(client)
+    #     return client
+
+    @staticmethod
+    def increment_client_balance(db: Session, phone: str, amount: Decimal):
+        try:
+            client = (
+                db.query(Client)
+                .filter(Client.phone == phone)
+                .with_for_update()
+                .first()
+            )
+
+            if not client:
+                raise HTTPException(404, f"Phone {phone} not found")
+
+            if amount <= Decimal("0"):
+                raise HTTPException(400, "Amount must be greater than zero")
+
+            balance_before = client.current_balance
+            client.current_balance += amount
+
+            reference_id = f"DEP{str(ULID())}"
+
+            ledger = LedgerEntry(
+                client_id=client.id,
+                amount=amount,
+                entry_type="credit",
+                balance_before=balance_before,
+                balance_after=client.current_balance,
+                reason="Balance top-up",
+                reference_id=reference_id
+            )
+
+            db.add(ledger)
+            db.commit()
+            db.refresh(ledger)
+            return ledger
+        except Exception:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def balance_transfert_between_client(
+        db: Session, 
+        client_id: int, 
+        phone: str, 
+        amount: Decimal
+    ):
+        try:
+            # =========================
+            # 1. LOCK CLIENT ROWS
+            # =========================
+            sending_client = (
+                db.query(Client)
+                .filter(Client.id == client_id)
+                .with_for_update()
+                .first()
+            )
+
+            receiving_client = (
+                db.query(Client)
+                .filter(Client.phone == phone)
+                .with_for_update()
+                .first()
+            )
+
+            if not sending_client or not receiving_client:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Sending and/or receiving client not found"
+                )
+
+            if amount <= Decimal("0"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Amount must be greater than zero"
+                )
+
+            if sending_client.current_balance < amount:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Insufficient balance"
+                )
+
+            # =========================
+            # 2. BALANCES BEFORE
+            # =========================
+            sc_balance_before = sending_client.current_balance
+            rc_balance_before = receiving_client.current_balance
+
+            # =========================
+            # 3. UPDATE BALANCES
+            # =========================
+            sending_client.current_balance -= amount
+            receiving_client.current_balance += amount
+
+            # =========================
+            # 4. SHARED REFERENCE
+            # =========================
+            reference_id = f"TRF{str(ULID())}"
+
+            # =========================
+            # 5. LEDGER ENTRIES
+            # =========================
+
+            # Sender (DEBIT)
+            db.add(LedgerEntry(
+                client_id=sending_client.id,
+                entry_type="debit",
+                amount=amount,
+                balance_before=sc_balance_before,
+                balance_after=sending_client.current_balance,
+                reference_id=reference_id,
+                reason=f"Transfer to {receiving_client.phone}"
+            ))
+
+            # Receiver (CREDIT)
+            db.add(LedgerEntry(
+                client_id=receiving_client.id,
+                entry_type="credit",
+                amount=amount,
+                balance_before=rc_balance_before,
+                balance_after=receiving_client.current_balance,
+                reference_id=reference_id,
+                reason=f"Transfer from {sending_client.phone}"
+            ))
+
+            # =========================
+            # 6. COMMIT
+            # =========================
+            db.commit()
+
+            return {
+                "reference_id": reference_id,
+                "amount": amount,
+                "message": "Balance transfered successfully"
+            }
+        except Exception:
+            db.rollback()
+            raise
+        
 class ClientInvoiceService:
 
     @staticmethod
@@ -420,7 +674,7 @@ class PricingService:
 class OrderService:
 
     @staticmethod
-    def checkout_cart(db: Session, cart: Cart, pos: POS):
+    def create_order(db: Session, cart: Cart, pos: POS):
 
         if not cart.items:
             raise HTTPException(400, "Cart is empty")
@@ -452,15 +706,13 @@ class OrderService:
                     detail=f"Insufficient stock for variant {item.product_variant_id}"
                 )
 
-            # Deduct stock
-            inventory.quantity -= item.qty
-
         # =========================
         # 3. CREATE ORDER
         # =========================
         order = Order(
             client_id=cart.client_id,
             warehouse_id=cart.warehouse_id,
+            order_code=generate_trx_id(),
             subtotal=pricing["subtotal"],
             tax_amount=pricing["tax"],
             total_amount=pricing["total"],
@@ -492,41 +744,187 @@ class OrderService:
                 qty=item.qty,
                 unit_price=sale_price.sale_price
             ))
-
-        # =========================
-        # 5. FINANCIAL OPERATIONS
-        # =========================
-        client = db.query(Client).filter(Client.id == cart.client_id).first()
-
-        if client.current_balance < pricing["total"]:
-            raise HTTPException(400, "Insufficient client balance")
-
-        balance_before = client.current_balance
-        client.current_balance -= pricing["total"]
-        pos.balance += pricing["total"]
-
-        # =========================
-        # 6. LEDGER ENTRY (CLIENT)
-        # =========================
-        db.add(LedgerEntry(
-            client_id=client.id,
-            entry_type="debit",
-            amount=pricing["total"],
-            balance_before=balance_before,
-            balance_after=client.current_balance,
-            reference_id=f"ORDER-{order.id}",
-            reason="paying order"
-        ))
-
-        # =========================
-        # 8. FINALIZE
-        # =========================
+        
         cart.status = CartStatus.COMPLETED
-        order.status = OrderStatus.COMPLETED
+        db.ad(order)
         db.commit()
         db.refresh(order)
         return order
     
+    # @staticmethod
+    # def create_order(db: Session, cart: Cart, pos: POS):
+    #     try:
+    #         if not cart.items:
+    #             raise HTTPException(400, "Cart is empty")
+
+    #         if cart.status != CartStatus.OPEN:
+    #             raise HTTPException(400, "Cart already processed")
+
+    #         if cart.warehouse_id != pos.warehouse_id:
+    #             raise HTTPException(400, "Cart warehouse mismatch with POS")
+
+    #         pricing = PricingService.calculate_order_total(db, cart)
+
+    #         order = Order(
+    #             client_id=cart.client_id,
+    #             warehouse_id=cart.warehouse_id,
+    #             order_code=generate_trx_id(),
+    #             subtotal=pricing["subtotal"],
+    #             tax_amount=pricing["tax"],
+    #             total_amount=pricing["total"],
+    #         )
+    #         db.add(order)
+    #         db.flush()
+
+    #         for item in cart.items:
+    #             sale_price = next(
+    #                 (
+    #                     p for p in item.product_variant.prices
+    #                     if p.is_active and p.qualification == PriceType.RETAIL
+    #                 ),
+    #                 None
+    #             )
+
+    #             if not sale_price:
+    #                 raise HTTPException(404, "No active price found")
+
+    #             db.add(OrderItem(
+    #                 order_id=order.id,
+    #                 product_variant_id=item.product_variant_id,
+    #                 qty=item.qty,
+    #                 unit_price=sale_price.sale_price
+    #             ))
+
+    #         cart.status = CartStatus.COMPLETED
+    #         db.commit()
+    #         db.refresh(order)
+    #         return order
+
+    #     except Exception:
+    #         db.rollback()
+    #         raise
+
+    # @staticmethod
+    # def checkout_order(db: Session, order_code: str):
+    #     order = db.query(Order).filter(Order.order_code==order_code).first()
+    #     if not order:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_404_NOT_FOUND,
+    #             detail=f"Order {order_code} not found"
+    #         )
+        
+    #     # STOCK DEDUCTION
+    #     for item in order.items:
+    #         inventory = db.query(Inventory).filter(
+    #             Inventory.warehouse_id == order.warehouse_id,
+    #             Inventory.product_variant_id == item.product_variant_id
+    #         ).with_for_update().first()
+
+    #         if not inventory or inventory.quantity < item.qty:
+    #             raise HTTPException(
+    #                 status_code=status.HTTP_400_BAD_REQUEST,
+    #                 detail=f"Insufficient stock for variant {item.product_variant_id}"
+    #             )
+
+    #         # Deduct stock
+    #         inventory.quantity -= item.qty
+
+    #     # FINANCIAL OPERATIONS
+    #     if order.client.current_balance < order.total_amount:
+    #         raise HTTPException(400, "Insufficient client balance")
+
+    #     balance_before = order.client.current_balance
+    #     order.client.current_balance -= order.total_amount
+    #     order.warehouse.pos.balance += order.total_amount
+
+    #     # =========================
+    #     # 6. LEDGER ENTRY (CLIENT)
+    #     # =========================
+    #     ledger = LedgerEntry(
+    #         client_id=order.client_id,
+    #         entry_type="debit",
+    #         amount=order.total_amount,
+    #         balance_before=balance_before,
+    #         balance_after=order.client.current_balance,
+    #         reference_id=f"ORDER-{uuid.uuid4()}",
+    #         reason="paying order"
+    #     )
+    #     db.add(ledger)
+
+    #     # =========================
+    #     # 8. FINALIZE
+    #     # =========================
+    #     order.status = OrderStatus.COMPLETED
+    #     db.commit()
+    #     db.refresh(ledger)
+    #     return order
+    @staticmethod
+    def checkout_order(db: Session, order_code: str):
+        try:
+            order = (
+                db.query(Order)
+                .filter(Order.order_code == order_code)
+                .with_for_update()
+                .first()
+            )
+
+            if not order:
+                raise HTTPException(404, f"Order {order_code} not found")
+
+            # STOCK
+            for item in order.items:
+                inventory = (
+                    db.query(Inventory)
+                    .filter(
+                        Inventory.warehouse_id == order.warehouse_id,
+                        Inventory.product_variant_id == item.product_variant_id
+                    )
+                    .with_for_update()
+                    .first()
+                )
+
+                if not inventory or inventory.quantity < item.qty:
+                    raise HTTPException(
+                        400,
+                        f"Insufficient stock for variant {item.product_variant_id}"
+                    )
+
+                inventory.quantity -= item.qty
+
+            # FINANCE
+            client = order.client
+
+            if client.current_balance < order.total_amount:
+                raise HTTPException(400, "Insufficient balance")
+
+            balance_before = client.current_balance
+            client.current_balance -= order.total_amount
+
+            order.warehouse.pos.balance += order.total_amount
+
+            reference_id = f"ORD{str(ULID())}"
+
+            db.add(LedgerEntry(
+                client_id=client.id,
+                entry_type="debit",
+                amount=order.total_amount,
+                balance_before=balance_before,
+                balance_after=client.current_balance,
+                reference_id=reference_id,
+                reason=f"Payment for order {order.order_code}"
+            ))
+
+            order.status = OrderStatus.COMPLETED
+
+            db.commit()
+            db.refresh(order)
+
+            return order
+
+        except Exception:
+            db.rollback()
+            raise
+        
     @staticmethod
     def list_client_order(db: Session, client: Order, offset: int, limit: int):
         orders = (
