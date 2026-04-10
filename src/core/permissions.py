@@ -234,6 +234,12 @@ class Permissions(str, Enum):
     ID_TYPE_READ = "id_type:read"
     ID_TYPE_DELETE = "id_type:delete"
 
+    # =========================
+    # NOTIFICATION
+    # =========================
+    NOTIFICATION_CREATE = "notification:create"
+    NOTIFICATION_UPDATE = "notification:update"
+    NOTIFICATION_READ = "notification:read"
 
     # =========================
     # SUPER ADMIN

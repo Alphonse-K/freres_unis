@@ -38,6 +38,7 @@ class MagneticCardStatus(str, enum.Enum):
     HELD_NOBALANCE = "HELD_NOBALANCE"
     TAKEN_NON_EXPIRED = "TAKEN_NON_EXPIRED"
     EXPIRED_HELD = "EXPIRED_HELD"
+
     
 class ClientInvoiceStatus(str, enum.Enum):
     DRAFT = "draft"
