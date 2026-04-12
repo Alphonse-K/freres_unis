@@ -102,6 +102,12 @@ class ClientService:
             client = client_approval.client
 
             amount = client_approval.company.card_amount
+            if not amount:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Client's company is not define"
+                )
+            
             if amount < Decimal('0'):
                 raise HTTPException(
                     status_code=400,
