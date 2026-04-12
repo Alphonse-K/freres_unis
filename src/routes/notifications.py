@@ -17,6 +17,7 @@ from src.core.auth_dependencies import require_permission
 
 notification_router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
+
 @notification_router.post(
     "/templates",
     response_model=NotificationTemplateOut
@@ -66,7 +67,6 @@ def send_notification(
 
 @notification_router.get(
     "/list/{user_id}/user",
-    # response_model=list[NotificationOut]
 )
 def list_user_notification(
     user_id: int, 

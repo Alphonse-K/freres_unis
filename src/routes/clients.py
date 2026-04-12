@@ -22,7 +22,8 @@ from src.schemas.clients import (
 )
 from src.schemas.ecommerce import (
     CartOut,
-    OrderOut
+    OrderOut,
+    OrderBeneficiaryInfoCreate,
 )
 from src.services.client_return_service import ClientReturnService
 
@@ -376,13 +377,14 @@ def clear_cart(
 def create_order(
     client_id: int, 
     warehouse_id: int, 
-    pos_id: int, 
+    pos_id: int,
+    beneficiary:  OrderBeneficiaryInfoCreate | None = None,
     db: Session = Depends(get_db), 
     current_user = Depends(get_current_account)
 ):
     cart = CartService.get_or_create_cart(db, client_id, warehouse_id)    
     pos = POSService.get_pos(db, pos_id, include_warehouse=False)
-    return OrderService.create_order(db, cart, pos)
+    return OrderService.create_order(db, cart, pos, beneficiary)
 
 @client_router.post(
         "/order/{order_code}/place-order",

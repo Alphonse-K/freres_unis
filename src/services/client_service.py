@@ -1,6 +1,6 @@
 # src/services/client_service.py
 from fastapi import status, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from src.models.clients import Client
 from src.schemas.clients import ClientUpdate
@@ -16,11 +16,10 @@ from src.models.clients import (
     ClientApproval
 )
 from src.models.inventory import Warehouse
-from src.schemas.clients import ClientPaymentCreate
-from src.models.ecommerce import Cart, CartItem, CartStatus, OrderStatus
+from src.models.ecommerce import Cart, CartItem, CartStatus, OrderStatus, OrderBeneficiaryInfo, Order, OrderItem
+from src.schemas.ecommerce import OrderBeneficiaryInfoCreate
 from src.models.pos import POS
 from src.models.catalog import ProductVariant, PriceType
-from src.models.ecommerce import Order, OrderItem
 from decimal import Decimal
 from src.schemas.users import PaginationParams
 from datetime import datetime, timezone
@@ -626,7 +625,7 @@ class PricingService:
 class OrderService:
 
     @staticmethod
-    def create_order(db: Session, cart: Cart, pos: POS):
+    def create_order(db: Session, cart: Cart, pos: POS, beneficiary: OrderBeneficiaryInfoCreate = None):
 
         if not cart.items:
             raise HTTPException(400, "Cart is empty")
@@ -696,9 +695,14 @@ class OrderService:
                 qty=item.qty,
                 unit_price=sale_price.sale_price
             ))
-        
+        if beneficiary:
+            db.add(OrderBeneficiaryInfo(
+                order_id=order.id,
+                first_name=beneficiary.first_name,
+                last_name=beneficiary.last_name,
+                phone=beneficiary.phone
+            ))
         cart.status = CartStatus.COMPLETED
-        db.add(order)
         db.commit()
         db.refresh(order)
         return order
@@ -780,6 +784,7 @@ class OrderService:
     def list_client_order(db: Session, client: Order, offset: int, limit: int):
         orders = (
             db.query(Order)
+            .options(joinedload(Order.items), joinedload(Order.beneficiary))
             .filter(Order.client_id == client.id)
             .order_by(Order.created_at.desc())
             .offset(offset)
@@ -792,6 +797,7 @@ class OrderService:
     def get_order_details(db: Session, order_code: str):
         order = (
             db.query(Order)
+            .options(joinedload(Order.items), joinedload(Order.beneficiary))
             .filter(Order.order_code == order_code)
             .first()
         )

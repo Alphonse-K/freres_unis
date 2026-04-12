@@ -76,6 +76,7 @@ class Order(Base):
         cascade="all, delete-orphan"
     )
     invoices = relationship("ClientInvoice", back_populates="order")
+    beneficiary = relationship("OrderBeneficiaryInfo", back_populates="order", uselist=False)
     warehouse = relationship("Warehouse")
 
 
@@ -90,3 +91,13 @@ class OrderItem(Base):
     order = relationship("Order", back_populates="items")
     return_items = relationship("ClientReturnItem", back_populates="order_item", cascade="all, delete-orphan")
     product_variant = relationship("ProductVariant")
+
+
+class OrderBeneficiaryInfo(Base):
+    __tablename__ = "order_beneficiary_info"
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    first_name = Column(String(50), nullable=True)
+    last_name = Column(String(50), nullable=True)
+    phone = Column(String(20), nullable=True)
+    order = relationship("Order", back_populates="beneficiary")

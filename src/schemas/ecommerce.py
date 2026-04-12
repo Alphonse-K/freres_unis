@@ -5,7 +5,6 @@ from decimal import Decimal
 from datetime import datetime
 
 
-# --- CART ITEM ---
 class CartItemBase(BaseModel):
     product_variant_id: int
     qty: Decimal
@@ -19,7 +18,7 @@ class CartItemOut(CartItemBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
-# --- CART ---
+
 class CartBase(BaseModel):
     client_id: Optional[int] = None
     status: Optional[str] = "open"
@@ -55,7 +54,19 @@ class OrderItemOut(OrderItemBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- ORDER ---
+class OrderBeneficiaryInfoCreate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+
+
+class OrderBeneficiaryInfoOut(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class OrderBase(BaseModel):
     client_id: int
     status: Optional[str] = "created"
@@ -64,13 +75,10 @@ class OrderBase(BaseModel):
     total_amount: Decimal
 
 
-class OrderCreate(OrderBase):
-    items: List[OrderItemCreate]
-
-
 class OrderOut(OrderBase):
     id: int
     created_at: datetime
     order_code: str
     items: List[OrderItemOut] = []
+    beneficiary: OrderBeneficiaryInfoOut | None = None
     model_config = ConfigDict(from_attributes=True)
