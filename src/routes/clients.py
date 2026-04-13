@@ -147,10 +147,11 @@ def get_client_by_number(
 )    
 def validate_card(
     card_number: str, 
+    amount: Decimal,
     db: Session = Depends(get_db),
     current_account: Client = Depends(get_current_account)
 ):
-    return ClientService.validate_card(db, card_number)
+    return ClientService.validate_card(db, card_number, amount)
 
 @client_router.post(
     "/balance/{client_phone}/increment",

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.schemas.partner_company import *
 from src.services.partner_company import CompanyService, CompanyClientsResponse
-from src.core.auth_dependencies import require_permission
+from src.core.auth_dependencies import require_permission, optional_permission_for_client
 from src.core.permissions import Permissions
 
 
@@ -21,7 +21,7 @@ def create_company(
 @partner_company_router.get("/", response_model=list[CompanyOut])
 def get_companies(
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.CREATE_COMPANY))
+    current_user = Depends(optional_permission_for_client(Permissions.CREATE_COMPANY))
 ):
     return CompanyService.get_all_companies(db)
 
@@ -29,7 +29,7 @@ def get_companies(
 def get_company(
     company_id: int, 
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_COMPANY))
+    current_user = Depends(optional_permission_for_client(Permissions.READ_COMPANY))
 ):
     return CompanyService.get_company(db, company_id)
 

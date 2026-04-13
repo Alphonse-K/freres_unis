@@ -84,7 +84,7 @@ class ClientService:
         return client
 
     @staticmethod
-    def validate_card(db: Session, card_number: str):
+    def validate_card(db: Session, card_number: str, amount: Decimal):
         try:
             client_approval = (
                 db.query(ClientApproval)
@@ -107,7 +107,7 @@ class ClientService:
                     detail="Client's company is not define"
                 )
             
-            amount = client_approval.company.card_amount
+            # amount = client_approval.company.card_amount
             
             if amount < Decimal('0'):
                 raise HTTPException(
