@@ -21,7 +21,6 @@ def create_company(
 @partner_company_router.get("/", response_model=list[CompanyOut])
 def get_companies(
     db: Session = Depends(get_db),
-    current_user = Depends(optional_permission_for_client(Permissions.CREATE_COMPANY))
 ):
     return CompanyService.get_all_companies(db)
 
@@ -29,7 +28,6 @@ def get_companies(
 def get_company(
     company_id: int, 
     db: Session = Depends(get_db),
-    current_user = Depends(optional_permission_for_client(Permissions.READ_COMPANY))
 ):
     return CompanyService.get_company(db, company_id)
 
