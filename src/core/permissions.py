@@ -245,6 +245,7 @@ class Permissions(str, Enum):
     # CLIENT REQUEST
     # =========================
     CLIENT_REQUEST_REPLY = "client_request:reply"
+    CLIENT_REQUEST_READ = "client_request:read"
 
     # =========================
     # SUPER ADMIN

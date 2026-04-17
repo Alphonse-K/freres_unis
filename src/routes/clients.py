@@ -4,7 +4,13 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse, UserRole
-from src.models.clients import ClientApproval, Client, ClientStatus, ClientReturn
+from src.models.clients import (
+    ClientApproval, 
+    Client, 
+    ClientStatus, 
+    ClientReturn, 
+    ClientRequest
+)
 from src.models.id import IDType
 from src.schemas.clients import (
     ClientResponse,
@@ -611,3 +617,13 @@ def client_reply_request_update(
         request
     )
 
+@client_router.get(
+    "/client-request/{client_id}/list",
+    response_model=list[ClientRequestResponse],
+)
+def client_reply_request_update(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(optional_permission_for_client(Permissions.CLIENT_REQUEST_READ))
+):
+    return db.query(ClientRequest).filter_by(client_id=client_id).all()
