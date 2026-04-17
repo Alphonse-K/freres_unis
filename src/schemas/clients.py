@@ -329,3 +329,30 @@ class TransferResponse(BaseModel):
     amount: Decimal
     message: str
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClientRequestBase(BaseModel):
+    request: str
+
+
+class ClientRequestUpdate(BaseModel):
+    request: str | None = None
+
+
+class ClientRequestResponse(BaseModel):
+    id: int
+    client_id: int
+    request: str
+    response: str | None = None
+    replied_by: int | None = None
+    created_at: datetime
+    replied_at: datetime | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientRequestReply(BaseModel):
+    response: str
+
+
+class ClientRequestReplyUpdate(BaseModel):
+    response: str | None = None

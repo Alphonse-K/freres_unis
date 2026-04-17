@@ -18,7 +18,12 @@ from src.schemas.clients import (
     ClientLedgerResponse,
     ClientResponseLight,
     TransferRequest,
-    TransferResponse
+    TransferResponse,
+    ClientRequestBase,
+    ClientRequestResponse,
+    ClientRequestUpdate,
+    ClientRequestReplyUpdate,
+    ClientRequestReply,
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -539,5 +544,70 @@ def reject_client_return(
 ):
     return ClientReturnService.reject_return(
         db, return_id, current_user, reason
+    )
+
+@client_router.post(
+    "/client-request/create",
+    response_model=ClientRequestResponse,
+)
+def create_client_request(
+    request: ClientRequestBase,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+):
+    return ClientService.create_client_request(
+        db, 
+        int(current_user["payload"]["sub"]), 
+        request
+    )
+
+
+@client_router.put(
+    "/client-request/{request_id}/update",
+    response_model=ClientRequestResponse,
+)
+def update_client_request(
+    request_id: int,
+    request: ClientRequestUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_account)
+):
+    return ClientService.update_client_request(
+        db, 
+        request_id, 
+        request
+    )
+
+@client_router.patch(
+    "/client-request/{request_id}/response",
+    response_model=ClientRequestResponse,
+)
+def reply_client_request(
+    request_id: int,
+    request: ClientRequestReply,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CLIENT_REQUEST_REPLY))
+):
+    return ClientService.reply_client_request(
+        db, 
+        request_id, 
+        current_user.id,
+        request
+    )
+
+@client_router.put(
+    "/client-request/{request_id}/update/reply",
+    response_model=ClientRequestResponse,
+)
+def client_reply_request_update(
+    request_id: int,
+    request: ClientRequestReplyUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CLIENT_REQUEST_REPLY))
+):
+    return ClientService.client_reply_request_update(
+        db, 
+        request_id, 
+        request
     )
 

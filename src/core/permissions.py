@@ -242,6 +242,11 @@ class Permissions(str, Enum):
     NOTIFICATION_READ = "notification:read"
 
     # =========================
+    # CLIENT REQUEST
+    # =========================
+    CLIENT_REQUEST_REPLY = "client_request:reply"
+
+    # =========================
     # SUPER ADMIN
     # =========================
     SYSTEM_ADMIN = "system:admin"

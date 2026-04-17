@@ -84,4 +84,3 @@ class UnitedCompany(Base):
     description = Column(Text, nullable=True)
 
 
-

@@ -104,6 +104,7 @@ class Client(Base):
     ledgers = relationship("LedgerEntry", back_populates="client")
     payments = relationship("ClientPayment", back_populates='client')
     returns = relationship("ClientReturn", back_populates="client")
+    requests = relationship("ClientRequest", back_populates="client")
     approval = relationship(
         "ClientApproval",
         uselist=False,
@@ -247,3 +248,16 @@ class LedgerEntry(Base):
     reference_id = Column(String(100), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     client = relationship("Client", back_populates="ledgers")
+
+
+class ClientRequest(Base):
+    __tablename__ = "client_requests"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    request = Column(Text, nullable=False)
+    response = Column(Text, nullable=True)
+    replied_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    replied_at = Column(DateTime(timezone=True), onupdate=func.now())
+    client = relationship("Client", back_populates="requests")
+    user = relationship("User")

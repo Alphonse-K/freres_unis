@@ -3,10 +3,16 @@ from fastapi import status, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from src.models.clients import Client
-from src.schemas.clients import ClientUpdate
+from src.schemas.clients import (
+    ClientInvoiceCreate, 
+    ClientUpdate, 
+    ClientRequestBase, 
+    ClientRequestReplyUpdate, 
+    ClientRequestUpdate,
+    ClientRequestReply,
+)
 from src.models.inventory import Inventory
-from src.models.clients import ClientInvoice
-from src.schemas.clients import ClientInvoiceCreate
+from src.models.clients import ClientInvoice, ClientRequest
 from src.models.clients import (
     ClientPayment, 
     Client, 
@@ -284,6 +290,62 @@ class ClientService:
         for client in clients:
             client.current_balance += client.approval.company.card_amount
             audit_log("Balance increment", "client", client.id)
+
+    def create_client_request(db: Session, client_id: int, request: ClientRequestBase):
+        client = db.query(Client).filter_by(id=client_id).first()
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="client not found"
+            )
+        request = ClientRequest(
+            client_id=client_id,
+            **request.model_dump()
+        )
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+        return request
+    
+    def update_client_request(db: Session, request_id: int, data: ClientRequestUpdate):
+        request = db.query(ClientRequest).filter_by(id=request_id).first()
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Request not found"
+            )
+        for key, value in data.model_dump(exclude_unset=True).items():
+            setattr(request, key, value)
+        
+        db.commit()
+        return request
+
+    def reply_client_request(db: Session, request_id: int, replied_by: int, data: ClientRequestReply):
+        request = db.query(ClientRequest).filter_by(id=request_id).first()
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="request not found"
+            )
+        for k, v in data.model_dump().items():
+            setattr(request, k, v)
+        
+        request.replied_by = replied_by
+        db.commit()
+        return request
+
+    def client_reply_request_update(db: Session, request_id: int, data: ClientRequestReplyUpdate):
+        request = db.query(ClientRequest).filter_by(id=request_id).first()
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="request not found"
+            )
+        for k, v in data.model_dump().items():
+            setattr(request, k, v)
+        
+        db.commit()
+        return request
 
 class ClientInvoiceService:
 
