@@ -621,7 +621,7 @@ def client_reply_request_update(
     "/client-request/{client_id}/list",
     response_model=list[ClientRequestResponse],
 )
-def client_reply_request_update(
+def list_client_requests(
     client_id: int,
     db: Session = Depends(get_db),
     current_user = Depends(optional_permission_for_client(Permissions.CLIENT_REQUEST_READ))
