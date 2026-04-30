@@ -1,10 +1,10 @@
-# src/models/client.py
-from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as PgEnum, Text, Time
-
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as PgEnum, Text, Time, Boolean
+from sqlalchemy.dialects.postgresql import UUID
+from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.core.database import Base
-import enum
+import enum, uuid
 
 
 class ApprovalStatus(str, enum.Enum):
@@ -73,7 +73,7 @@ class Client(Base):
     phone = Column(String(40), unique=True, nullable=False)
     email = Column(String(255))
     status = Column(PgEnum(ClientStatus), default=ClientStatus.INACTIVE)
-    opening_balance = Column(Numeric(14, 2), default=0)
+    card_opening_balance = Column(Numeric(14, 2), default=0)
     anticipated_balance = Column(Numeric(14, 2), default=0)
     current_balance = Column(Numeric(14, 2), default=0)
     # Credentials (copied from approval)
@@ -110,6 +110,10 @@ class Client(Base):
         uselist=False,
         back_populates="client"
     )
+    client_card = relationship("ClientCard", back_populates="client")
+    client_card_request = relationship("ClientCardRequest", back_populates="client")
+    heir = relationship("ClientHeir", back_populates="client")
+
 
 
 class ClientApproval(Base):
@@ -261,3 +265,95 @@ class ClientRequest(Base):
     replied_at = Column(DateTime(timezone=True), onupdate=func.now())
     client = relationship("Client", back_populates="requests")
     user = relationship("User")
+
+
+class CardRequestStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class ClientCardRequest(Base):
+    __tablename__ = "client_card_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    status = Column(PgEnum(CardRequestStatus), default=CardRequestStatus.PENDING)
+    reason = Column(String, nullable=True)
+    requested_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False
+    )    
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    reviewer_id = Column(Integer, nullable=True)
+    client = relationship("Client", back_populates="client_card_request")
+
+
+class ClientCard(Base):
+    __tablename__ = "client_cards"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    card_number = Column(String, unique=True, index=True)
+    qr_token_hash = Column(String, nullable=False)
+    qr_code_path = Column(String)
+    issued_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False
+    )
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    is_active = Column(Boolean, default=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(Integer)
+    client = relationship("Client", back_populates="client_card")
+
+
+class CardScanLog(Base):
+    __tablename__ = "card_scan_logs"
+
+    id = Column(Integer, primary_key=True)
+    card_id = Column(UUID(as_uuid=True), ForeignKey("client_cards.id"), nullable=False, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
+    scanned_by = Column(Integer, nullable=False)
+    pos_id = Column(Integer, nullable=True)
+    scanned_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        index=True
+    )
+    ip_address = Column(String, nullable=False)
+    card = relationship("ClientCard")
+    client = relationship("Client")
+
+class ClientHeir(Base):
+    __tablename__ = "clients_heirs"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"))
+    first_name = Column(String(255), nullable=False)
+    last_name = Column(String(255), nullable=False)
+    phone = Column(String(15), nullable=False)
+    address = Column(String(255), nullable=False)
+    client = relationship("Client", back_populates="heir")
+
+
+class CardPriceStatus(str, enum.Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+class CardPrice(Base):
+    __tablename__ = "card_prices"
+    id = Column(Integer, primary_key=True)
+    price = Column(Numeric(12, 2), nullable=False)
+    status = Column(PgEnum(CardPriceStatus), default=CardPriceStatus.ACTIVE)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at = Column(DateTime(timezone=True), nullable=True)

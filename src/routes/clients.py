@@ -1,15 +1,14 @@
-# src/routes/clients.py
-from fastapi import APIRouter, Depends, status, Query, HTTPException, Form, UploadFile, File
+from fastapi import APIRouter, Depends, status, Query, HTTPException, Form, UploadFile, File, Request
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 from src.core.database import get_db
-from src.schemas.users import PaginationParams, PaginatedResponse, UserRole
+from src.schemas.users import PaginationParams, PaginatedResponse
 from src.models.clients import (
     ClientApproval, 
     Client, 
     ClientStatus, 
     ClientReturn, 
-    ClientRequest
+    ClientRequest,
 )
 from src.models.id import IDType
 from src.schemas.clients import (
@@ -30,6 +29,16 @@ from src.schemas.clients import (
     ClientRequestUpdate,
     ClientRequestReplyUpdate,
     ClientRequestReply,
+    CardRequestCreate,
+    ScanRequest,
+    ScanResponse,
+    ClientCardResponse,
+    CardApproveRequest,
+    CardRequestResponse,
+    CardRequestCreate,
+    ClientHeirCreate,
+    ClientHeirUpdate,
+    ClientHeirResponse
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -42,7 +51,10 @@ from src.services.client_service import (
     ClientService, 
     CartService,
     OrderService,
-    LedgerService
+    LedgerService,
+    ClientCardService,
+    ClientHeirService,
+    CardPriceService
 )
 from src.services.pos import POSService
 from src.services.client_approval_service import ClientApprovalService
@@ -175,6 +187,18 @@ def increment_client_balance(
     current_account: Client = Depends(get_current_account)
 ):
     return ClientService.increment_client_balance(db, client_phone, amount)
+
+@client_router.put(
+    "/card-opening-balance/{client_id}/set",
+    response_model=ClientResponse
+)
+def set_card_opening_balance(
+    client_id: int, 
+    amount: Decimal, 
+    db: Session = Depends(get_db),
+    current_account: Client = Depends(get_current_account)
+):
+    return ClientService.set_card_opening_balance(db, client_id, amount)
 
 @client_router.post(
     "/transfer",
@@ -313,6 +337,28 @@ def activate_client(
             status_code=400,
             detail=f"Cannot activate client with status: {client.status}"
         )
+@client_router.post(
+    "/heir/create",
+    response_model=ClientHeirResponse
+)
+def create_client_heir(
+    data: ClientHeirCreate, 
+    db: Session = Depends(get_db),
+    current_user = Depends(optional_permission_for_client(Permissions.CREATE_CLIENT))
+):
+    return ClientHeirService.create_heir(db, data)
+
+@client_router.put(
+    "/heir/{heir_id}/update",
+    response_model=ClientHeirResponse
+)
+def update_client_heir(
+    heir_id, 
+    data: ClientHeirUpdate, 
+    db: Session = Depends(get_db),
+    current_user = Depends(optional_permission_for_client(Permissions.CREATE_CLIENT))
+):
+    return ClientHeirService.update_heir(db, heir_id, data)
 
 @client_router.get(
     "/cart/{client_id}/warehouse/{warehouse_id}",
@@ -627,3 +673,66 @@ def list_client_requests(
     current_user = Depends(optional_permission_for_client(Permissions.CLIENT_REQUEST_READ))
 ):
     return db.query(ClientRequest).filter_by(client_id=client_id).all()
+
+@client_router.post("/cards/request", response_model=CardRequestResponse)
+def request_card(
+    data: CardRequestCreate,
+    db: Session = Depends(get_db),
+    current = Depends(get_current_account)
+):
+    return ClientCardService.request_card(db, current["account"].id, data)
+
+@client_router.patch("/cards/request/{request_id}/approve")
+def approve_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current = Depends(require_permission(Permissions.APPROVE_CLIENT))
+):
+    return ClientCardService.approve_request(db, request_id, current.id)
+
+@client_router.post("/cards/scan", response_model=ScanResponse)
+def scan_card(
+    payload: ScanRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current = Depends(require_permission(Permissions.SCAN_QR_CODE))
+):
+    client = ClientCardService.scan_card(
+        db,
+        payload.token,
+        agent_id=current.id,
+        ip=request.client.host
+    )
+
+    return {
+        "client_id": client.id,
+        "balance": client.current_balance,
+        "first_name": client.first_name,
+        "last_name": client.last_name
+    }
+
+@client_router.post("/cards/{card_id}/revoke")
+def revoke_card(
+    card_id: str,
+    db: Session = Depends(get_db),
+    current = Depends(require_permission(Permissions.UPDATE_CLIENT))
+):
+    return ClientCardService.revoke_card(db, card_id)
+
+@client_router.post("/card/create-card-price")
+def create_card_price(
+    amount: Decimal, 
+    db: Session = Depends(get_db),
+    # current = Depends(require_permission(Permissions.CREATE_CLIENT_PAYMENT))
+):
+    return CardPriceService.create(db, amount)
+
+@client_router.put("/card-price/{price_id}/update")
+def update_card_price(
+    price_id: int, 
+    amount: Decimal, 
+    db: Session = Depends(get_db),
+    # current = Depends(require_permission(Permissions.CREATE_CLIENT_PAYMENT))
+):
+    return CardPriceService.update(db, price_id, amount)
+

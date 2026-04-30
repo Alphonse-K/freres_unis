@@ -46,6 +46,7 @@ app = FastAPI(
 )
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 API_PREFIX = "/api/v1"
 

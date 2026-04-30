@@ -15,10 +15,14 @@ from sqlalchemy.orm import Session
 from src.models.security import JWTBlacklist
 from src.models.users import UserStatus
 from src.core.config import settings
+from uuid import UUID
 
 
 logger = logging.getLogger(__name__)
 
+
+PRIVATE_KEY = "YOUR_PRIVATE_KEY"
+PUBLIC_KEY = "YOUR_PUBLIC_KEY"
 
 # Access JWT secret and expiry
 SECRET_KEY = settings.SECRET_KEY
@@ -329,3 +333,24 @@ class SecurityUtils:
             reason=reason
         ))
         db.commit()
+
+
+def generate_card_token(card_id: UUID, client_id: int):
+    payload = {
+        "sub": str(card_id),
+        "cid": client_id,
+        "iss": "FRERES_UNIS",
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(days=365),
+        "type": "client_card"
+    }
+
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+def verify_card_token(token: str):
+    return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+
+
+def hash_token(token: str):
+    return hashlib.sha256(token.encode()).hexdigest()

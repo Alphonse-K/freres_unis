@@ -1,4 +1,3 @@
-# src/services/client_service.py
 from fastapi import status, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
@@ -10,17 +9,30 @@ from src.schemas.clients import (
     ClientRequestReplyUpdate, 
     ClientRequestUpdate,
     ClientRequestReply,
+    ClientHeirCreate,
+    ClientHeirUpdate, 
+    CardRequestCreate
 )
 from src.models.inventory import Inventory
-from src.models.clients import ClientInvoice, ClientRequest
 from src.models.clients import (
     ClientPayment, 
     Client, 
     ClientInvoice, 
     ClientInvoiceStatus, 
     LedgerEntry, 
-    ClientApproval
+    ClientApproval,
+    ClientInvoice, 
+    ClientRequest,
+    ClientCard, 
+    ClientCardRequest, 
+    CardScanLog, 
+    CardRequestStatus,
+    ClientHeir,
+    MagneticCardStatus,
+    CardPrice,
+    CardPriceStatus
 )
+from src.core.security import generate_card_token, verify_card_token, hash_token
 from src.models.inventory import Warehouse
 from src.models.ecommerce import Cart, CartItem, CartStatus, OrderStatus, OrderBeneficiaryInfo, Order, OrderItem
 from src.schemas.ecommerce import OrderBeneficiaryInfoCreate
@@ -28,10 +40,11 @@ from src.models.pos import POS
 from src.models.catalog import ProductVariant, PriceType
 from decimal import Decimal
 from src.schemas.users import PaginationParams
-from datetime import datetime, timezone
-import uuid
+from datetime import datetime, timezone, timedelta
+import uuid, qrcode
 from src.core.audit import audit_log
 from ulid import ULID
+
 
 def generate_trx_id(cart_id: int):
     date_part = datetime.now(timezone.utc).strftime("%y%m%d")
@@ -112,16 +125,22 @@ class ClientService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Client's company is not define"
                 )
-            
-            # amount = client_approval.company.card_amount
-            
+                        
             if amount < Decimal('0'):
                 raise HTTPException(
                     status_code=400,
                     detail="amount must be positive and greater than zero"
                 )
-
+            
+            if client.card_opening_balance < amount:
+                client.magnetic_card_status = MagneticCardStatus.HELD_NOBALANCE
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No enough balance on client's card"
+                )
+            
             balance_before = client.current_balance
+            client.card_opening_balance -= amount
             client.current_balance += amount
             reference_id = f"CARD{str(ULID())}"
 
@@ -181,6 +200,26 @@ class ClientService:
         except Exception:
             db.rollback()
             raise
+    
+    @staticmethod
+    def set_card_opening_balance(db: Session, client_id: int, amount: Decimal):
+        client = db.get(Client, client_id)
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="client not found"
+            )
+
+        if client.type != "partner_client":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Client not a partner client"
+            )
+        print(client.card_opening_balance, "################3")
+        client.card_opening_balance += amount
+        db.commit()
+        db.refresh(client)
+        return client
 
     @staticmethod
     def balance_transfert_between_client(
@@ -874,3 +913,285 @@ class OrderService:
         if not order:
             raise HTTPException(404, "Order not found")
         return order
+
+
+class ClientCardService:
+
+    @staticmethod
+    def request_card(db: Session, client_id: int, data: CardRequestCreate):
+
+        existing = db.query(ClientCardRequest).filter(
+            ClientCardRequest.client_id == client_id,
+            ClientCardRequest.status == CardRequestStatus.PENDING
+        ).first()
+
+        if existing:
+            return existing
+
+        with db.begin():
+            req = ClientCardRequest(
+                client_id=client_id,
+                reason=data.reason
+            )
+            db.add(req)
+
+        return req    
+    
+    @staticmethod
+    def approve_request(db: Session, request_id: int, reviewer_id: int):
+        req = db.get(ClientCardRequest, request_id)
+
+        if not req or req.status != CardRequestStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Invalid request"
+            )
+
+        client = db.get(Client, req.client_id)
+
+        card_id = uuid.uuid4()
+        token = generate_card_token(card_id, client.id)
+        token_hash = hash_token(token)
+
+        qr_path = f"media/qrcodes/{card_id}.png"
+        qrcode.make(token).save(qr_path)
+
+        card = ClientCard(
+            id=card_id,
+            client_id=client.id,
+            card_number = getattr(client.approval, "magnetic_card_number", None) or client.phone,            
+            qr_token_hash=token_hash,
+            qr_code_path=qr_path,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=365),
+            created_by=reviewer_id
+        )
+        card_price = db.query(CardPrice).filter_by(status="active").first()
+        if not card_price:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No card price defined"
+            )
+        
+        client.current_balance -= card_price.price
+        req.status = CardRequestStatus.APPROVED
+        req.reviewed_at = datetime.now(timezone.utc)
+        req.reviewer_id = reviewer_id
+
+        db.add(card)
+        db.commit()
+        return card
+    
+    @staticmethod
+    def approve_request(db: Session, request_id: int, reviewer_id: int):
+
+        req = db.get(ClientCardRequest, request_id)
+
+        if not req:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Request not found"
+            )
+
+        client = db.get(Client, req.client_id)
+
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Client not found"
+            )
+
+        # IDEMPOTENCY CHECK 1: request already processed
+        if req.status == CardRequestStatus.APPROVED:
+
+            existing_card = db.query(ClientCard).filter(
+                ClientCard.client_id == client.id,
+                ClientCard.created_by == reviewer_id
+            ).first()
+
+            if existing_card:
+                return existing_card
+
+        elif req.status != CardRequestStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Invalid request state"
+            )
+
+        # IDEMPOTENCY CHECK 2: avoid duplicate active card
+        active_card = db.query(ClientCard).filter(
+            ClientCard.client_id == client.id,
+            ClientCard.is_active == True,
+            ClientCard.expires_at > datetime.now(timezone.utc)
+        ).first()
+
+        if active_card:
+            return active_card
+
+        card_id = uuid.uuid4()
+        token = generate_card_token(card_id, client.id)
+        print(token)
+        token_hash = hash_token(token)
+
+        import os
+        qr_path = f"media/qrcodes/{card_id}.png"
+        os.makedirs(os.path.dirname(qr_path), exist_ok=True)
+
+        qrcode.make(token).save(qr_path)
+
+        card = ClientCard(
+            id=card_id,
+            client_id=client.id,
+            card_number=getattr(client.approval, "magnetic_card_number", None) or client.phone,
+            qr_token_hash=token_hash,
+            qr_code_path=qr_path,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=365),
+            created_by=reviewer_id
+        )
+
+        db.add(card)
+
+        req.status = CardRequestStatus.APPROVED
+        req.reviewed_at = datetime.now(timezone.utc)
+        req.reviewer_id = reviewer_id
+
+        db.commit()
+        db.refresh(card)
+
+        return card
+
+    @staticmethod
+    def scan_card(db: Session, token: str, agent_id: int, ip: str):
+        try:
+            payload = verify_card_token(token)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Invalid token"
+            )
+
+        card = db.get(ClientCard, payload["sub"])
+
+        if not card:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Card not found"
+            )
+
+        if hash_token(token) != card.qr_token_hash:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Token mismatch"
+            )
+
+        if not card.is_active or card.revoked_at:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Card inactive"
+            )
+
+        if card.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Card expired"
+            )
+
+        client = card.client
+
+        log = CardScanLog(
+            card_id=card.id,
+            client_id=client.id,
+            scanned_by=agent_id,
+            ip_address=ip,
+            scanned_at=datetime.now(timezone.utc)
+        )
+        db.add(log)
+        db.commit()
+        return client
+
+    @staticmethod
+    def revoke_card(db: Session, card_id):
+        card = db.query(ClientCard).get(card_id)
+
+        if not card:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Card not found"
+            )
+
+        card.is_active = False
+        card.revoked_at = datetime.now(timezone.utc)
+
+        db.commit()
+        return card
+    
+
+class ClientHeirService:
+
+    @staticmethod
+    def create_heir(db: Session, data: ClientHeirCreate):
+        client = db.query(Client).filter_by(id=data.client_id).first()
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Client not found"
+            )
+        
+        heir = ClientHeir(**data.model_dump())
+        db.add(heir)
+        db.commit()
+        db.refresh(heir)
+        return heir
+    
+    @staticmethod
+    def update_heir(db: Session, heir_id: int, data: ClientHeirUpdate):
+        heir = db.query(ClientHeir).filter_by(id=heir_id).first()
+
+        if not heir:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Heir not found"
+            )
+        
+        updated_data = data.model_dump(exclude_unset=True)
+        for k, v in updated_data.items():
+            setattr(heir, k, v)
+        
+        db.commit()
+        return heir
+
+
+class CardPriceService:
+
+    @staticmethod
+    def create(db: Session, amount: Decimal):
+        db.query(CardPrice).filter(
+            CardPrice.status == CardPriceStatus.ACTIVE
+        ).update({CardPrice.status: CardPriceStatus.INACTIVE})
+
+        price = CardPrice(
+            price=amount,
+            status=CardPriceStatus.ACTIVE
+        )
+
+        db.add(price)
+        db.commit()
+        db.refresh(price)
+
+        return price
+    
+    @staticmethod
+    def update(db: Session, price_id: int, amount: Decimal):
+        price = db.get(CardPrice, price_id)
+
+        if not price:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Price not found"
+            )
+
+        price.price = amount
+
+        db.commit()
+        db.refresh(price)
+
+        return price

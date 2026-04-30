@@ -9,8 +9,11 @@ from src.models.clients import (
     ApprovalStatus, 
     ClientInvoiceStatus, 
     PaymentMethod,
-    ReturnStatus
+    ReturnStatus,
+    CardRequestStatus
 )
+from uuid import UUID
+
 
 
 class ClientBase(BaseModel):
@@ -19,7 +22,7 @@ class ClientBase(BaseModel):
     last_name: str = Field(..., max_length=120)
     phone: str = Field(..., max_length=40)
     email: Optional[str] = Field(None, max_length=255)
-    opening_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
+    card_opening_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
     anticipated_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
     current_balance: Decimal = Field(default=0, max_digits=14, decimal_places=2)
     status: ClientStatus = Field(default=ClientStatus.ACTIVE)
@@ -41,8 +44,8 @@ class ClientUpdate(BaseModel):
     email: Optional[str] = Field(None, max_length=255)
     status: Optional[ClientStatus] = Field(None)
     magnetic_card_status: Optional[MagneticCardStatus] = Field(None)
-
     model_config = ConfigDict(from_attributes=True)
+
 
 class ClientApprovalInfo(BaseModel):
     employee_company: str | None = None
@@ -50,11 +53,19 @@ class ClientApprovalInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ClientHeirInfo(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ClientResponse(ClientBase):
     id: int
     submitted_at: Optional[datetime] = None
     approval: ClientApprovalInfo
-
+    heir: list [ClientHeirInfo]
 
 # ---- APPROVAL FLOW ----
 class ClientApprovalBase(BaseModel):
@@ -285,7 +296,6 @@ class ClientReturnFilter(BaseModel):
     end_date: Optional[datetime] = None
 
 
-# src/schemas/user.py
 class ClientSchema(BaseModel):
     id: int
     phone: str
@@ -305,8 +315,6 @@ class ClientLedgerResponse(BaseModel):
     reference_id: str | None = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
-
-
 
 
 class ClientResponseLight(BaseModel):
@@ -356,3 +364,66 @@ class ClientRequestReply(BaseModel):
 
 class ClientRequestReplyUpdate(BaseModel):
     response: str | None = None
+
+
+class CardRequestCreate(BaseModel):
+    reason: str | None = None
+
+
+class CardRequestResponse(BaseModel):
+    id: int
+    client_id: int
+    status: CardRequestStatus
+    reason: str | None
+    requested_at: datetime
+    reviewed_at: datetime | None
+    model_config = ConfigDict(from_attributes=True)
+
+class CardApproveRequest(BaseModel):
+    approve: bool
+    reason: str | None = None
+
+
+class ClientCardResponse(BaseModel):
+    id: UUID
+    card_number: str
+    issued_at: datetime
+    expires_at: datetime
+    is_active: bool
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ScanRequest(BaseModel):
+    token: str
+
+
+class ScanResponse(BaseModel):
+    client_id: int
+    balance: Decimal
+    first_name: str
+    last_name: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientHeirBase(BaseModel):
+    first_name: str
+    last_name: str
+    phone: str
+    address: str
+
+
+class ClientHeirCreate(ClientHeirBase):
+    client_id: int
+
+
+class ClientHeirUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+
+
+class ClientHeirResponse(ClientHeirBase):
+    client_id: int
+    model_config = ConfigDict(from_attributes=True)
+
