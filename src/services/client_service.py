@@ -933,13 +933,13 @@ class ClientCardService:
         if existing:
             return existing
 
-        with db.begin():
-            req = ClientCardRequest(
-                client_id=client_id,
-                reason=data.reason
-            )
-            db.add(req)
-
+        req = ClientCardRequest(
+            client_id=client_id,
+            reason=data.reason
+        )
+        db.add(req)
+        db.commit()
+        db.refresh(req)
         return req    
 
 
