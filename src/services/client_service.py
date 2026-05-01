@@ -44,6 +44,11 @@ from datetime import datetime, timezone, timedelta
 import uuid, qrcode
 from src.core.audit import audit_log
 from ulid import ULID
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+MEDIA_DIR = BASE_DIR / "media"
 
 
 def generate_trx_id(cart_id: int):
@@ -936,51 +941,8 @@ class ClientCardService:
             db.add(req)
 
         return req    
-    
-    @staticmethod
-    def approve_request(db: Session, request_id: int, reviewer_id: int):
-        req = db.get(ClientCardRequest, request_id)
 
-        if not req or req.status != CardRequestStatus.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="Invalid request"
-            )
 
-        client = db.get(Client, req.client_id)
-
-        card_id = uuid.uuid4()
-        token = generate_card_token(card_id, client.id)
-        token_hash = hash_token(token)
-
-        qr_path = f"media/qrcodes/{card_id}.png"
-        qrcode.make(token).save(qr_path)
-
-        card = ClientCard(
-            id=card_id,
-            client_id=client.id,
-            card_number = getattr(client.approval, "magnetic_card_number", None) or client.phone,            
-            qr_token_hash=token_hash,
-            qr_code_path=qr_path,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=365),
-            created_by=reviewer_id
-        )
-        card_price = db.query(CardPrice).filter_by(status="active").first()
-        if not card_price:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No card price defined"
-            )
-        
-        client.current_balance -= card_price.price
-        req.status = CardRequestStatus.APPROVED
-        req.reviewed_at = datetime.now(timezone.utc)
-        req.reviewer_id = reviewer_id
-
-        db.add(card)
-        db.commit()
-        return card
-    
     @staticmethod
     def approve_request(db: Session, request_id: int, reviewer_id: int):
 
@@ -1029,21 +991,22 @@ class ClientCardService:
 
         card_id = uuid.uuid4()
         token = generate_card_token(card_id, client.id)
-        print(token)
         token_hash = hash_token(token)
 
-        import os
-        qr_path = f"media/qrcodes/{card_id}.png"
-        os.makedirs(os.path.dirname(qr_path), exist_ok=True)
+        qr_dir = MEDIA_DIR / "qrcodes"
+        qr_dir.mkdir(parents=True, exist_ok=True)
 
-        qrcode.make(token).save(qr_path)
+        qr_path = qr_dir / f"{card_id}.png"
+        qrcode.make(token).save(str(qr_path))
+
+        qr_public_path = f"/media/qrcodes/{card_id}.png"
 
         card = ClientCard(
             id=card_id,
             client_id=client.id,
             card_number=getattr(client.approval, "magnetic_card_number", None) or client.phone,
             qr_token_hash=token_hash,
-            qr_code_path=qr_path,
+            qr_code_path=qr_public_path,
             expires_at=datetime.now(timezone.utc) + timedelta(days=365),
             created_by=reviewer_id
         )

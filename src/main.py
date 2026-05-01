@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from src.core.database import Base, engine, SessionLocal
 from src.core.seed_permissions import seed_permissions, seed_role
+from pathlib import Path
 
 import src.models
 
@@ -45,8 +46,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/media", StaticFiles(directory="media"), name="media")
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+UPLOAD_DIR = BASE_DIR / "uploads"
+MEDIA_DIR = BASE_DIR / "media"
+
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
 API_PREFIX = "/api/v1"
 

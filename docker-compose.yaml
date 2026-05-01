@@ -13,6 +13,7 @@ services:
       - ./src:/app/src
       - ./alembic.ini:/app/alembic.ini
       - ./alembic:/app/alembic
+      - ./media:/app/media
 
   db:
     image: postgres:15
@@ -21,8 +22,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    env_file:
+      - .env
     ports:
-      - "5439:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
