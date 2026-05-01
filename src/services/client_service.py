@@ -220,7 +220,6 @@ class ClientService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Client not a partner client"
             )
-        print(client.card_opening_balance, "################3")
         client.card_opening_balance += amount
         db.commit()
         db.refresh(client)
@@ -989,6 +988,13 @@ class ClientCardService:
         if active_card:
             return active_card
 
+        price = db.query(CardPrice).filter_by(status="active").first()
+        if not price:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No card price set for now"
+            )
+        
         card_id = uuid.uuid4()
         token = generate_card_token(card_id, client.id)
         token_hash = hash_token(token)
@@ -1012,7 +1018,7 @@ class ClientCardService:
         )
 
         db.add(card)
-
+        client.current_balance -= price.price
         req.status = CardRequestStatus.APPROVED
         req.reviewed_at = datetime.now(timezone.utc)
         req.reviewer_id = reviewer_id
