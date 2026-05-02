@@ -38,7 +38,8 @@ from src.schemas.clients import (
     CardRequestCreate,
     ClientHeirCreate,
     ClientHeirUpdate,
-    ClientHeirResponse
+    ClientHeirResponse,
+    CardRequestResponse
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -682,6 +683,35 @@ def request_card(
 ):
     return ClientCardService.request_card(db, current["account"].id, data)
 
+@client_router.get(
+    "/cards/request/list", 
+response_model=PaginatedResponse[CardRequestResponse]
+)
+def list_card_request(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CLIENT_REQUEST_READ))
+):
+    total, items = ClientCardService.list_card_request(db, pagination)
+    return {
+        "total": total,
+        "page": pagination.page,
+        "page_size": pagination.page_size,
+        "items": items
+    }
+
+@client_router.get(
+    "/cards/request/{client_id}/get", 
+response_model=CardRequestResponse
+)
+def get_card_request(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CLIENT_REQUEST_READ))
+):
+    return ClientCardService.get_single_request(db, client_id)
+
+
 @client_router.patch("/cards/request/{request_id}/approve")
 def approve_request(
     request_id: int,
@@ -689,6 +719,16 @@ def approve_request(
     current = Depends(require_permission(Permissions.APPROVE_CLIENT))
 ):
     return ClientCardService.approve_request(db, request_id, current.id)
+
+@client_router.put("/cards/request/{request_id}/reject")
+def reject_request(
+    request_id: int,
+    reason: str | None,
+    db: Session = Depends(get_db),
+    current = Depends(require_permission(Permissions.APPROVE_CLIENT))
+):
+    return ClientCardService.reject_request(db, request_id, current.id, reason)
+
 
 @client_router.post("/cards/scan", response_model=ScanResponse)
 def scan_card(
@@ -710,6 +750,7 @@ def scan_card(
         "first_name": client.first_name,
         "last_name": client.last_name
     }
+
 
 @client_router.post("/cards/{card_id}/revoke")
 def revoke_card(

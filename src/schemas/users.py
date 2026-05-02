@@ -122,13 +122,12 @@ def get_user_filters(
 
 class PaginationParams(BaseModel):
     page: int = Field(1, ge=1)
-    page_size: int = Field(20, ge=1, le=100)
+    page_size: int = Field(20, le=100)
 
     @property
     def offset(self) -> int:
         return (self.page - 1) * self.page_size
-
-
+    
 T = TypeVar("T")
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -136,7 +135,6 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     items: List[T]
-
 
 class CompanyBase(BaseModel):
     name: str

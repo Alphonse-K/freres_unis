@@ -30,7 +30,9 @@ from src.models.clients import (
     ClientHeir,
     MagneticCardStatus,
     CardPrice,
-    CardPriceStatus
+    CardPriceStatus,
+    ClientCardRequest,
+    ClientCard
 )
 from src.core.security import generate_card_token, verify_card_token, hash_token
 from src.models.inventory import Warehouse
@@ -1027,6 +1029,67 @@ class ClientCardService:
         db.refresh(card)
 
         return card
+
+    @staticmethod
+    def reject_request(
+        db: Session,
+        request_id: int,
+        reviewer_id: int,
+        reason: str | None = None
+    ):
+        req = db.get(ClientCardRequest, request_id)
+
+        if not req:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Request not found"
+            )
+
+        # IDEMPOTENCY: already rejected
+        if req.status == CardRequestStatus.REJECTED:
+            return req
+
+        # Prevent invalid transitions
+        if req.status != CardRequestStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid request state"
+            )
+
+        req.status = CardRequestStatus.REJECTED
+        req.reviewed_at = datetime.now(timezone.utc)
+        req.reviewer_id = reviewer_id
+
+        if reason:
+            req.reason = reason
+
+        db.commit()
+        db.refresh(req)
+
+        return req
+    
+    @staticmethod
+    def list_card_request(db: Session, pagination: PaginationParams):
+        items = db.query(ClientCardRequest)
+        total = items.count()
+        (items
+         .order_by(ClientCardRequest.requested_at.desc())
+         .offset(pagination.offset)
+         .limit(pagination.page_size)
+         .all()
+        )
+        return total, items
+    
+    @staticmethod
+    def get_single_request(db: Session, client_id: int):
+        client_req = db.get(ClientCardRequest, client_id)
+        if not client_req:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="client not found"
+            )
+        
+        return client_req
 
     @staticmethod
     def scan_card(db: Session, token: str, agent_id: int, ip: str):
