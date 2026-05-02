@@ -1082,7 +1082,7 @@ class ClientCardService:
     
     @staticmethod
     def get_single_request(db: Session, client_id: int):
-        client_req = db.get(ClientCardRequest, client_id)
+        client_req = db.query(ClientCardRequest).filter_by(client_id=client_id).first()
         if not client_req:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
