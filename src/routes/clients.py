@@ -752,6 +752,14 @@ def scan_card(
         "last_name": client.last_name
     }
 
+@client_router.get("/cards/{client_id}/get")
+def get_client_card(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_CLIENT))
+):
+    return ClientCardService.get_client_card(db, client_id)
+
 
 @client_router.post("/cards/{card_id}/revoke")
 def revoke_card(

@@ -1141,6 +1141,17 @@ class ClientCardService:
         return client
 
     @staticmethod
+    def get_client_card(db: Session, client_id: int):
+        card = db.query(ClientCard).filter_by(client_id=client_id).first()
+        if not card:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Card not found"
+            )
+        return card
+
+
+    @staticmethod
     def revoke_card(db: Session, card_id):
         card = db.query(ClientCard).get(card_id)
 
