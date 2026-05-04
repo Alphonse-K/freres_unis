@@ -548,6 +548,7 @@ def list_client_returns(
         "items": items,
     }
 
+
 @client_router.get(
     "/client-returns/{return_id}/client-returns",
     response_model=ClientReturnResponse,
@@ -558,6 +559,7 @@ def get_client_return(
     current_user = Depends(get_current_account)
 ):
     return ClientReturnService.get_return(db, return_id)
+
 
 @client_router.post(
         "/client-return/{return_id}/cancel"
@@ -570,7 +572,8 @@ def cancel_return(return_id: int, db: Session = Depends(get_db), current_user = 
             detail="Return not found"
         )
     return ClientReturnService.cancel_return(db, client_return, client_return.client)
-    
+
+
 @client_router.post(
     "/client-returns/{return_id}/approve",
     response_model=ClientReturnResponse,
@@ -586,6 +589,7 @@ def approve_client_return(
         approver_by=current_user
     )
 
+
 @client_router.post(
     "/client-returns/{return_id}/reject",
     response_model=ClientReturnResponse,
@@ -599,6 +603,7 @@ def reject_client_return(
     return ClientReturnService.reject_return(
         db, return_id, current_user, reason
     )
+
 
 @client_router.post(
     "/client-request/create",
@@ -632,6 +637,7 @@ def update_client_request(
         request
     )
 
+
 @client_router.patch(
     "/client-request/{request_id}/response",
     response_model=ClientRequestResponse,
@@ -649,6 +655,7 @@ def reply_client_request(
         request
     )
 
+
 @client_router.put(
     "/client-request/{request_id}/update/reply",
     response_model=ClientRequestResponse,
@@ -665,6 +672,7 @@ def client_reply_request_update(
         request
     )
 
+
 @client_router.get(
     "/client-request/{client_id}/list",
     response_model=list[ClientRequestResponse],
@@ -676,6 +684,7 @@ def list_client_requests(
 ):
     return db.query(ClientRequest).filter_by(client_id=client_id).all()
 
+
 @client_router.post("/cards/request", response_model=CardRequestResponse)
 def request_card(
     data: CardRequestCreate,
@@ -683,6 +692,7 @@ def request_card(
     current = Depends(get_current_account)
 ):
     return ClientCardService.request_card(db, current["account"].id, data)
+
 
 @client_router.get(
     "/cards/request/list", 
@@ -700,6 +710,7 @@ def list_card_request(
         "page_size": pagination.page_size,
         "items": items
     }
+
 
 @client_router.get(
     "/cards/request/{client_id}/get", 
@@ -720,6 +731,7 @@ def approve_request(
     current = Depends(require_permission(Permissions.APPROVE_CLIENT))
 ):
     return ClientCardService.approve_request(db, request_id, current.id)
+
 
 @client_router.put("/cards/request/{request_id}/reject")
 def reject_request(
@@ -752,11 +764,12 @@ def scan_card(
         "last_name": client.last_name
     }
 
+
 @client_router.get("/cards/{client_id}/get")
 def get_client_card(
     client_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(require_permission(Permissions.READ_CLIENT))
+    current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
 ):
     return ClientCardService.get_client_card(db, client_id)
 
@@ -780,7 +793,7 @@ def create_card_price(
 @client_router.get("/card/price", response_model=CardPriceResponse)
 def get_card_price(
     db: Session = Depends(get_db),
-    current = Depends(require_permission(Permissions.READ_CLIENT))
+    current = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
 ):
     return CardPriceService.get_price(db)
 
