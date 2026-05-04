@@ -1212,6 +1212,19 @@ class CardPriceService:
         return price
     
     @staticmethod
+    def get_price(db: Session):
+        price = db.query(CardPrice).filter(
+            CardPrice.status=="active"
+        ).first()
+        if not price:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Price not found"
+            )
+        
+        return price
+
+    @staticmethod
     def update(db: Session, price_id: int, amount: Decimal):
         price = db.get(CardPrice, price_id)
 

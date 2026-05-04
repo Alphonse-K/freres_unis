@@ -10,7 +10,8 @@ from src.models.clients import (
     ClientInvoiceStatus, 
     PaymentMethod,
     ReturnStatus,
-    CardRequestStatus
+    CardRequestStatus,
+    CardPriceStatus
 )
 from uuid import UUID
 
@@ -404,6 +405,13 @@ class ScanResponse(BaseModel):
     last_name: str
     model_config = ConfigDict(from_attributes=True)
 
+class CardPriceResponse(BaseModel):
+    id: int
+    price: Decimal
+    status: CardPriceStatus
+    created_at: datetime
+    updated_at: datetime | None
+    model_config = ConfigDict(from_attributes=True)
 
 class ClientHeirBase(BaseModel):
     first_name: str

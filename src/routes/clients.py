@@ -39,7 +39,8 @@ from src.schemas.clients import (
     ClientHeirCreate,
     ClientHeirUpdate,
     ClientHeirResponse,
-    CardRequestResponse
+    CardRequestResponse,
+    CardPriceResponse
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -764,16 +765,23 @@ def revoke_card(
 def create_card_price(
     amount: Decimal, 
     db: Session = Depends(get_db),
-    # current = Depends(require_permission(Permissions.CREATE_CLIENT_PAYMENT))
+    current = Depends(require_permission(Permissions.CREATE_CLIENT))
 ):
     return CardPriceService.create(db, amount)
 
-@client_router.put("/card-price/{price_id}/update")
+@client_router.get("/card/price", response_model=CardPriceResponse)
+def get_card_price(
+    db: Session = Depends(get_db),
+    current = Depends(require_permission(Permissions.READ_CLIENT))
+):
+    return CardPriceService.get_price(db)
+
+@client_router.put("/card-price/{price_id}/update", response_model=CardPriceResponse)
 def update_card_price(
     price_id: int, 
     amount: Decimal, 
     db: Session = Depends(get_db),
-    # current = Depends(require_permission(Permissions.CREATE_CLIENT_PAYMENT))
+    current = Depends(require_permission(Permissions.CREATE_CLIENT))
 ):
     return CardPriceService.update(db, price_id, amount)
 
