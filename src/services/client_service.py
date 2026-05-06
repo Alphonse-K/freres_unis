@@ -1,5 +1,6 @@
 from fastapi import status, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from src.models.clients import Client
 from src.schemas.clients import (
@@ -11,7 +12,8 @@ from src.schemas.clients import (
     ClientRequestReply,
     ClientHeirCreate,
     ClientHeirUpdate, 
-    CardRequestCreate
+    CardRequestCreate,
+    LoanRequestCreate,
 )
 from src.models.inventory import Inventory
 from src.models.clients import (
@@ -32,7 +34,9 @@ from src.models.clients import (
     CardPrice,
     CardPriceStatus,
     ClientCardRequest,
-    ClientCard
+    ClientCard,
+    ClientLoan,
+    LoanStatus
 )
 from src.core.security import generate_card_token, verify_card_token, hash_token
 from src.models.inventory import Warehouse
@@ -47,7 +51,7 @@ import uuid, qrcode
 from src.core.audit import audit_log
 from ulid import ULID
 from pathlib import Path
-
+from uuid import UUID
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MEDIA_DIR = BASE_DIR / "media"
@@ -56,6 +60,7 @@ MEDIA_DIR = BASE_DIR / "media"
 def generate_trx_id(cart_id: int):
     date_part = datetime.now(timezone.utc).strftime("%y%m%d")
     return f"FU-{date_part}-{str(ULID())[:7]}{cart_id}"
+
 
 class ClientService:
     
@@ -1251,3 +1256,178 @@ class CardPriceService:
         db.refresh(price)
 
         return price
+    
+
+class LoanService:
+
+    @staticmethod
+    def request_loan(db: Session, client_id: int, data: LoanRequestCreate):
+        client = db.get(Client, client_id)
+
+        if not client:
+            raise HTTPException(404, "Client not found")
+
+        # Prevent multiple active loans
+        existing = db.query(ClientLoan).filter(
+            ClientLoan.client_id == client_id,
+            ClientLoan.status.in_([
+                LoanStatus.PENDING,
+                LoanStatus.DISBURSED,
+                LoanStatus.PARTIALLY_REPAID
+            ])
+        ).first()
+
+        if existing:
+            raise HTTPException(400, "Existing active loan")
+
+        loan = ClientLoan(
+            client_id=client_id,
+            amount=data.amount,
+            remaining_amount=data.amount,
+            reason=data.reason
+        )
+
+        db.add(loan)
+        db.commit()
+        db.refresh(loan)
+
+        return loan
+
+    @staticmethod
+    def approve_loan(db: Session, loan_id: UUID, admin_id: int):
+        loan = db.get(ClientLoan, loan_id)
+
+        if not loan or loan.status != LoanStatus.PENDING:
+            raise HTTPException(400, "Invalid loan")
+
+        client = loan.client
+
+        # Disbursement
+        client.current_balance += loan.amount
+
+        loan.status = LoanStatus.DISBURSED
+        loan.approved_at = datetime.now(timezone.utc)
+        loan.disbursed_at = datetime.now(timezone.utc)
+        loan.approved_by = admin_id
+
+        # Ledger entry
+        db.add(LedgerEntry(
+            client_id=client.id,
+            entry_type="credit",
+            amount=loan.amount,
+            balance_before=client.current_balance - loan.amount,
+            balance_after=client.current_balance,
+            reference_id=str(loan.id),
+            reason="Loan disbursement"
+        ))
+
+        db.commit()
+        db.refresh(loan)
+
+        return loan
+
+    @staticmethod
+    def reject_loan(db: Session, loan_id: UUID, admin_id: int, reason: str | None = None):
+        loan = db.get(ClientLoan, loan_id)
+
+        if not loan:
+            raise HTTPException(404, "Loan not found")
+
+        if loan.status == LoanStatus.REJECTED:
+            return loan
+
+        if loan.status != LoanStatus.PENDING:
+            raise HTTPException(400, "Invalid state")
+
+        loan.status = LoanStatus.REJECTED
+        loan.approved_by = admin_id
+        loan.reason = reason
+        loan.approved_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(loan)
+
+        return loan
+
+    @staticmethod
+    def apply_repayment(db: Session, client: Client):
+        available = client.current_balance
+
+        if available <= 0:
+            return
+
+        loans = db.query(ClientLoan).filter(
+            ClientLoan.client_id == client.id,
+            ClientLoan.status.in_([
+                LoanStatus.DISBURSED,
+                LoanStatus.PARTIALLY_REPAID
+            ])
+        ).order_by(ClientLoan.requested_at).all()
+
+        for loan in loans:
+            if available <= 0:
+                break
+
+            repay = min(available, loan.remaining_amount)
+
+            client.current_balance -= repay
+            loan.remaining_amount -= repay
+
+            db.add(LedgerEntry(
+                client_id=client.id,
+                entry_type="debit",
+                amount=repay,
+                balance_before=client.current_balance + repay,
+                balance_after=client.current_balance,
+                reference_id=str(loan.id),
+                reason="Loan repayment"
+            ))
+
+            if loan.remaining_amount == 0:
+                loan.status = LoanStatus.REPAID
+            else:
+                loan.status = LoanStatus.PARTIALLY_REPAID
+
+            available = client.current_balance
+
+    @staticmethod
+    def get_client_financials(db: Session, client_id: int):
+        client = db.get(Client, client_id)
+
+        total_loans = db.query(func.coalesce(func.sum(ClientLoan.remaining_amount), 0)).filter(
+            ClientLoan.client_id == client_id,
+            ClientLoan.status.in_([
+                LoanStatus.DISBURSED,
+                LoanStatus.PARTIALLY_REPAID
+            ])
+        ).scalar()
+
+        net_position = client.current_balance - total_loans
+
+        return {
+            "id": client.id,
+            "balance": client.current_balance,
+            "total_outstanding_loans": total_loans,
+            "net_position": net_position
+        }
+    
+    @staticmethod
+    def list(db: Session, pagination: PaginationParams):
+        loans = db.query(ClientLoan)
+        total = loans.count()
+        loans\
+        .order_by(ClientLoan.requested_at.desc())\
+        .offset(pagination.offset)\
+        .limit(pagination.page_size)\
+        .all()
+        return total, loans
+    
+    @staticmethod
+    def get_client_requests(db: Session, client_id: int):
+        client_loans = db.query(ClientLoan).filter(ClientLoan.client_id==client_id).first()
+        if not client_loans:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No loan(s) found"
+            )
+        return client_loans

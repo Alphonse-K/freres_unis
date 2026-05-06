@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as PgEnum, Text, Time, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as PgEnum, Text, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
@@ -113,6 +113,7 @@ class Client(Base):
     client_card = relationship("ClientCard", back_populates="client")
     client_card_request = relationship("ClientCardRequest", back_populates="client")
     heir = relationship("ClientHeir", back_populates="client")
+    loans = relationship("ClientLoan", back_populates="client")
 
 
 
@@ -330,6 +331,7 @@ class CardScanLog(Base):
     card = relationship("ClientCard")
     client = relationship("Client")
 
+
 class ClientHeir(Base):
     __tablename__ = "clients_heirs"
     id = Column(Integer, primary_key=True)
@@ -357,3 +359,28 @@ class CardPrice(Base):
         nullable=False,
     )
     updated_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class LoanStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    DISBURSED = "disbursed"
+    PARTIALLY_REPAID = "partially_repaid"
+    REPAID = "repaid"
+
+
+class ClientLoan(Base):
+    __tablename__ = "client_loans"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)
+    remaining_amount = Column(Numeric(14, 2), nullable=False)
+    status = Column(PgEnum(LoanStatus), default=LoanStatus.PENDING)
+    requested_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    disbursed_at = Column(DateTime(timezone=True), nullable=True)
+    approved_by = Column(Integer, nullable=True)
+    reason = Column(String, nullable=True)
+    client = relationship("Client", back_populates="loans")

@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict, model_validator, EmailStr
+from typing import Optional
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from src.models.clients import (
     ClientType, 
     ClientStatus, 
@@ -14,7 +14,6 @@ from src.models.clients import (
     CardPriceStatus
 )
 from uuid import UUID
-
 
 
 class ClientBase(BaseModel):
@@ -340,6 +339,8 @@ class TransferResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+################### CLIENT REQUEST ##################################33
+
 class ClientRequestBase(BaseModel):
     request: str
 
@@ -367,6 +368,7 @@ class ClientRequestReplyUpdate(BaseModel):
     response: str | None = None
 
 
+###################### CLIENT CARD ####################################
 class CardRequestCreate(BaseModel):
     reason: str | None = None
 
@@ -379,6 +381,7 @@ class CardRequestResponse(BaseModel):
     requested_at: datetime
     reviewed_at: datetime | None
     model_config = ConfigDict(from_attributes=True)
+
 
 class CardApproveRequest(BaseModel):
     approve: bool
@@ -405,6 +408,7 @@ class ScanResponse(BaseModel):
     last_name: str
     model_config = ConfigDict(from_attributes=True)
 
+
 class CardPriceResponse(BaseModel):
     id: int
     price: Decimal
@@ -412,6 +416,8 @@ class CardPriceResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     model_config = ConfigDict(from_attributes=True)
+
+##################### CLIENT HEIR ##################################
 
 class ClientHeirBase(BaseModel):
     first_name: str
@@ -435,3 +441,26 @@ class ClientHeirResponse(ClientHeirBase):
     client_id: int
     model_config = ConfigDict(from_attributes=True)
 
+
+########################### CLIENT LOAN #############################
+class LoanRequestCreate(BaseModel):
+    amount: Decimal
+    reason: str | None = None
+
+
+class LoanResponse(BaseModel):
+    id: UUID
+    client_id: int
+    amount: Decimal
+    remaining_amount: Decimal
+    status: str
+    requested_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientWithDebtResponse(BaseModel):
+    id: int
+    balance: Decimal
+    total_outstanding_loans: Decimal
+    net_position: Decimal
+    model_config = ConfigDict(from_attributes=True)

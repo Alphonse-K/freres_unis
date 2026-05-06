@@ -248,6 +248,11 @@ class Permissions(str, Enum):
     CLIENT_REQUEST_READ = "client_request:read"
     SCAN_QR_CODE = "client_qr_code:scan"
 
+    LOAN_CREATE = "loan:create"
+    LOAN_APPROVE = "loan:approve"
+    LOAN_REJECT = "loan:reject"
+    LOAN_READ = "loan:read"
+
     # =========================
     # SUPER ADMIN
     # =========================

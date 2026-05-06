@@ -9,6 +9,7 @@ from src.models.clients import (
     ClientStatus, 
     ClientReturn, 
     ClientRequest,
+    LoanStatus
 )
 from src.models.id import IDType
 from src.schemas.clients import (
@@ -40,7 +41,10 @@ from src.schemas.clients import (
     ClientHeirUpdate,
     ClientHeirResponse,
     CardRequestResponse,
-    CardPriceResponse
+    CardPriceResponse,
+    LoanRequestCreate,
+    LoanResponse,
+    ClientWithDebtResponse,
 )
 from src.schemas.ecommerce import (
     CartOut,
@@ -56,7 +60,8 @@ from src.services.client_service import (
     LedgerService,
     ClientCardService,
     ClientHeirService,
-    CardPriceService
+    CardPriceService,
+    LoanService
 )
 from src.services.pos import POSService
 from src.services.client_approval_service import ClientApprovalService
@@ -64,6 +69,7 @@ from src.core.security import SecurityUtils
 from src.core.auth_dependencies import optional_permission_for_client, require_permission, get_current_account
 from src.core.permissions import Permissions
 from decimal import Decimal
+from uuid import UUID
 
 client_router = APIRouter(
     prefix="/clients",
@@ -782,6 +788,7 @@ def revoke_card(
 ):
     return ClientCardService.revoke_card(db, card_id)
 
+
 @client_router.post("/card/create-card-price")
 def create_card_price(
     amount: Decimal, 
@@ -790,12 +797,14 @@ def create_card_price(
 ):
     return CardPriceService.create(db, amount)
 
+
 @client_router.get("/card/price", response_model=CardPriceResponse)
 def get_card_price(
     db: Session = Depends(get_db),
     current = Depends(optional_permission_for_client(Permissions.READ_CLIENT))
 ):
     return CardPriceService.get_price(db)
+
 
 @client_router.put("/card-price/{price_id}/update", response_model=CardPriceResponse)
 def update_card_price(
@@ -805,4 +814,64 @@ def update_card_price(
     current = Depends(require_permission(Permissions.CREATE_CLIENT))
 ):
     return CardPriceService.update(db, price_id, amount)
+
+####################### LOAN ############################################
+@client_router.post("/loans/request", response_model=LoanResponse)
+def request_loan(
+    client_id: int,
+    data: LoanRequestCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(optional_permission_for_client(Permissions.LOAN_CREATE))
+):
+    return LoanService.request_loan(db, client_id, data)
+
+
+@client_router.post("/loans/{loan_id}/approve", response_model=LoanResponse)
+def approve_loan(
+    loan_id: UUID,
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.LOAN_APPROVE))
+):
+    return LoanService.approve_loan(db, loan_id, user.id)
+
+
+@client_router.get("/loans/list", response_model=PaginatedResponse[LoanResponse])
+def list_loans(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.LOAN_READ))
+):
+    total, loans = LoanService.list(db, pagination)
+    return {
+        "total": total,
+        "page": pagination.page,
+        "page_size": pagination.page_size,
+        "items": loans
+    }
+
+
+@client_router.get("/loans/{client_id}/get", response_model=LoanResponse)
+def get_client_request(
+    client_id: int,
+    db: Session = Depends(get_db),
+    user = Depends(optional_permission_for_client(Permissions.LOAN_READ))
+):
+    return LoanService.get_client_requests(db, client_id)
+
+
+@client_router.post("/loans/{loan_id}/reject")
+def reject_loan(
+    loan_id: UUID,
+    reason: str | None,
+    db: Session = Depends(get_db),
+    user = Depends(require_permission(Permissions.LOAN_REJECT))
+):
+    return LoanService.reject_loan(db, loan_id, user.id, reason)
+
+
+@client_router.get("/clients/{client_id}/financials", response_model=ClientWithDebtResponse)
+def get_financials(client_id: int, db: Session = Depends(get_db)):
+    return LoanService.get_client_financials(db, client_id)
+
+
 
