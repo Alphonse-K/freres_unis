@@ -1372,7 +1372,7 @@ class LoanService:
             if available <= 0:
                 break
 
-            repay = min(available, loan.remaining_amount)
+            repay = loan.remaining_amount
 
             client.current_balance -= repay
             loan.remaining_amount -= repay
