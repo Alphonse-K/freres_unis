@@ -1398,15 +1398,24 @@ class LoanService:
     def get_client_financials(db: Session, client_id: int):
         client = db.get(Client, client_id)
 
-        total_loans = db.query(func.coalesce(func.sum(ClientLoan.remaining_amount), 0)).filter(
-            ClientLoan.client_id == client_id,
-            ClientLoan.status.in_([
-                LoanStatus.DISBURSED,
-                LoanStatus.PARTIALLY_REPAID
-            ])
-        ).scalar()
+        # total_loans = db.query(func.coalesce(func.sum(ClientLoan.remaining_amount), 0)).filter(
+        #     ClientLoan.client_id == client_id,
+        #     ClientLoan.status.in_([
+        #         LoanStatus.DISBURSED,
+        #         LoanStatus.PARTIALLY_REPAID
+        #     ])
+        # ).scalar()
+
+        # total_loans = db.query(ClientLoan.status).filter(
+        #     ClientLoan.client_id == client_id,
+        #     ClientLoan.status.in_([
+        #         LoanStatus.DISBURSED,
+        #         LoanStatus.PARTIALLY_REPAID
+        #     ])
+        # ).scalar()
 
         net_position = client.current_balance - total_loans
+        total_loans = ClientLoan.amount - net_position
 
         return {
             "id": client.id,
