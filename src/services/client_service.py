@@ -154,6 +154,7 @@ class ClientService:
             balance_before = client.current_balance
             client.card_opening_balance -= amount
             client.current_balance += amount
+            LoanService.apply_repayment(db, client)
             reference_id = f"CARD{str(ULID())}"
 
             ledger = LedgerEntry(
@@ -192,6 +193,8 @@ class ClientService:
 
             balance_before = client.current_balance
             client.current_balance += amount
+
+            LoanService.apply_repayment(db, client)
 
             reference_id = f"DEP{str(ULID())}"
 
@@ -290,6 +293,7 @@ class ClientService:
             # =========================
             # 4. SHARED REFERENCE
             # =========================
+            LoanService.apply_repayment(db, receiving_client)
             reference_id = f"TRF{str(ULID())}"
 
             # =========================
