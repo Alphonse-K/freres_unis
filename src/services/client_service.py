@@ -1353,6 +1353,46 @@ class LoanService:
 
         return loan
 
+    # @staticmethod
+    # def apply_repayment(db: Session, client: Client):
+    #     available = client.current_balance
+
+    #     if available <= 0:
+    #         return
+
+    #     loans = db.query(ClientLoan).filter(
+    #         ClientLoan.client_id == client.id,
+    #         ClientLoan.status.in_([
+    #             LoanStatus.DISBURSED,
+    #             LoanStatus.PARTIALLY_REPAID
+    #         ])
+    #     ).order_by(ClientLoan.requested_at).all()
+
+    #     for loan in loans:
+    #         if available <= 0:
+    #             break
+
+    #         repay = loan.remaining_amount
+
+    #         client.current_balance -= repay
+    #         loan.remaining_amount -= repay
+
+    #         db.add(LedgerEntry(
+    #             client_id=client.id,
+    #             entry_type="debit",
+    #             amount=repay,
+    #             balance_before=client.current_balance + repay,
+    #             balance_after=client.current_balance,
+    #             reference_id=str(loan.id),
+    #             reason="Loan repayment"
+    #         ))
+
+    #         if loan.remaining_amount == 0:
+    #             loan.status = LoanStatus.REPAID
+    #         else:
+    #             loan.status = LoanStatus.PARTIALLY_REPAID
+
+    #         available = client.current_balance
     @staticmethod
     def apply_repayment(db: Session, client: Client):
         available = client.current_balance
@@ -1372,8 +1412,14 @@ class LoanService:
             if available <= 0:
                 break
 
-            repay = loan.remaining_amount
+            repay = min(available, loan.remaining_amount)
 
+            if repay <= 0:
+                continue
+
+            balance_before = client.current_balance
+
+            # update balances
             client.current_balance -= repay
             loan.remaining_amount -= repay
 
@@ -1381,7 +1427,7 @@ class LoanService:
                 client_id=client.id,
                 entry_type="debit",
                 amount=repay,
-                balance_before=client.current_balance + repay,
+                balance_before=balance_before,
                 balance_after=client.current_balance,
                 reference_id=str(loan.id),
                 reason="Loan repayment"
@@ -1394,33 +1440,34 @@ class LoanService:
 
             available = client.current_balance
 
+        db.flush()
+    
     @staticmethod
     def get_client_financials(db: Session, client_id: int):
         client = db.get(Client, client_id)
 
-        # total_loans = db.query(func.coalesce(func.sum(ClientLoan.remaining_amount), 0)).filter(
-        #     ClientLoan.client_id == client_id,
-        #     ClientLoan.status.in_([
-        #         LoanStatus.DISBURSED,
-        #         LoanStatus.PARTIALLY_REPAID
-        #     ])
-        # ).scalar()
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Client not found"
+            )
 
-        # total_loans = db.query(ClientLoan.status).filter(
-        #     ClientLoan.client_id == client_id,
-        #     ClientLoan.status.in_([
-        #         LoanStatus.DISBURSED,
-        #         LoanStatus.PARTIALLY_REPAID
-        #     ])
-        # ).scalar()
+        total_outstanding_loans = db.query(
+            func.coalesce(func.sum(ClientLoan.remaining_amount), 0)
+        ).filter(
+            ClientLoan.client_id == client_id,
+            ClientLoan.status.in_([
+                LoanStatus.DISBURSED,
+                LoanStatus.PARTIALLY_REPAID
+            ])
+        ).scalar()
 
-        net_position = client.current_balance - total_loans
-        total_loans = ClientLoan.amount - net_position
+        net_position = client.current_balance - total_outstanding_loans
 
         return {
             "id": client.id,
             "balance": client.current_balance,
-            "total_outstanding_loans": total_loans,
+            "total_outstanding_loans": total_outstanding_loans,
             "net_position": net_position
         }
     
