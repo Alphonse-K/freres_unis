@@ -242,6 +242,9 @@ class SaleBase(BaseModel):
     tax_rate: Optional[Decimal] = Decimal('0')
     discount_amount: Optional[Decimal] = Decimal('0')
     notes: Optional[str] = None
+    payment_operator_name: str | None = None
+    payment_operator_reference: str | None = None
+
 
 
 class SaleCreate(SaleBase):
@@ -271,7 +274,6 @@ class SaleOut(SaleBase):
     customer: Optional[dict] = None
     counter_customer: Optional[CustomerInfoOut] = None
 
-    # Use your existing Pydantic schemas here instead of dict
     pos: Optional[POSMini] = None
     created_by: Optional[POSUserOut] = None
 

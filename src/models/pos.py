@@ -36,6 +36,7 @@ class PaymentMethod(str, enum.Enum):
     CHEQUE = "cheque"
     CARD = "card"
     OTHER = "other"
+    CASHMOOV = "Cashmoov"
 
 
 class ProcurementStatus(str, enum.Enum):
@@ -175,6 +176,8 @@ class Sale(Base):
     tax_amount = Column(Numeric(12, 2), nullable=True)
     discount_amount = Column(Numeric(12, 2), nullable=True)
     notes = Column(String(255), nullable=True)
+    payment_operator_name = Column(String(255), nullable=True)
+    payment_operator_reference = Column(String(255), nullable=True)
 
     # relationships
     pos = relationship("POS", back_populates="sales")

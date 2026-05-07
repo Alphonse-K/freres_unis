@@ -1335,13 +1335,19 @@ class LoanService:
         loan = db.get(ClientLoan, loan_id)
 
         if not loan:
-            raise HTTPException(404, "Loan not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Loan not found"
+            )
 
         if loan.status == LoanStatus.REJECTED:
             return loan
 
         if loan.status != LoanStatus.PENDING:
-            raise HTTPException(400, "Invalid state")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Invalid state"
+            )
 
         loan.status = LoanStatus.REJECTED
         loan.approved_by = admin_id
@@ -1353,46 +1359,6 @@ class LoanService:
 
         return loan
 
-    # @staticmethod
-    # def apply_repayment(db: Session, client: Client):
-    #     available = client.current_balance
-
-    #     if available <= 0:
-    #         return
-
-    #     loans = db.query(ClientLoan).filter(
-    #         ClientLoan.client_id == client.id,
-    #         ClientLoan.status.in_([
-    #             LoanStatus.DISBURSED,
-    #             LoanStatus.PARTIALLY_REPAID
-    #         ])
-    #     ).order_by(ClientLoan.requested_at).all()
-
-    #     for loan in loans:
-    #         if available <= 0:
-    #             break
-
-    #         repay = loan.remaining_amount
-
-    #         client.current_balance -= repay
-    #         loan.remaining_amount -= repay
-
-    #         db.add(LedgerEntry(
-    #             client_id=client.id,
-    #             entry_type="debit",
-    #             amount=repay,
-    #             balance_before=client.current_balance + repay,
-    #             balance_after=client.current_balance,
-    #             reference_id=str(loan.id),
-    #             reason="Loan repayment"
-    #         ))
-
-    #         if loan.remaining_amount == 0:
-    #             loan.status = LoanStatus.REPAID
-    #         else:
-    #             loan.status = LoanStatus.PARTIALLY_REPAID
-
-    #         available = client.current_balance
     @staticmethod
     def apply_repayment(db: Session, client: Client):
         available = client.current_balance

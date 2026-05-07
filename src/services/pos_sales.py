@@ -123,6 +123,8 @@ class SaleService:
                 status=SaleStatus.COMPLETED,
                 transaction_date=data.transaction_date or datetime.now(timezone.utc),
                 notes=data.notes,
+                payment_operator_name=data.payment_operator_name,
+                payment_operator_reference=data.payment_operator_reference,
                 created_at=datetime.now(timezone.utc)
             )
 
