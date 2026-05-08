@@ -253,6 +253,8 @@ class Permissions(str, Enum):
     LOAN_REJECT = "loan:reject"
     LOAN_READ = "loan:read"
 
+    CARD_REQUEST = "card:request"
+
     # =========================
     # SUPER ADMIN
     # =========================

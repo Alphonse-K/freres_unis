@@ -691,13 +691,14 @@ def list_client_requests(
     return db.query(ClientRequest).filter_by(client_id=client_id).all()
 
 
-@client_router.post("/cards/request", response_model=CardRequestResponse)
+@client_router.post("/cards/{client_id}/request", response_model=CardRequestResponse)
 def request_card(
+    client_id: int,
     data: CardRequestCreate,
     db: Session = Depends(get_db),
-    current = Depends(get_current_account)
+    current = Depends(optional_permission_for_client(Permissions.CARD_REQUEST))
 ):
-    return ClientCardService.request_card(db, current["account"].id, data)
+    return ClientCardService.request_card(db, client_id, data)
 
 
 @client_router.get(
