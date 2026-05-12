@@ -25,6 +25,7 @@ from src.routes.company import company_router
 from src.routes.employee import employee_router
 from src.routes.partner_company import partner_company_router
 from src.routes.notifications import notification_router
+from src.routes.cash_register import cash_register_route
 from src.routes import files
 
 
@@ -64,6 +65,7 @@ app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(user_router, prefix=API_PREFIX)
 app.include_router(client_router, prefix=API_PREFIX)
 app.include_router(pos_router, prefix=API_PREFIX)
+app.include_router(cash_register_route, prefix=API_PREFIX)
 app.include_router(product_router, prefix=API_PREFIX)
 app.include_router(inventory_router, prefix=API_PREFIX)
 app.include_router(tax_router, prefix=API_PREFIX)

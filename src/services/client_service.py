@@ -1457,3 +1457,5 @@ class LoanService:
                 detail="No loan(s) found"
             )
         return client_loans
+
+

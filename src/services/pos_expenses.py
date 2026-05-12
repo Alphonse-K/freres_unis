@@ -528,9 +528,9 @@ class ExpenseService:
     @staticmethod
     def get_monthly_expense_report(
         db: Session,
-        pos_id: Optional[int] = None,
-        year: Optional[int] = None,
-        month: Optional[int] = None
+        pos_id: int | None = None,
+        year: int | None = None,
+        month: int | None = None
     ) -> Dict[str, Any]:
         """Get monthly expense report"""
         current_date = datetime.now(timezone.utc)
