@@ -248,6 +248,99 @@ class SaleService:
         return sale
     
     @staticmethod
+    def create_qr_debit_sale(
+        db: Session,
+        client_id: int,
+        purchase_amount: Decimal,
+        pos_id: int,
+        user_id: int,
+        notes: Optional[str] = None
+    ) -> Sale:
+        """
+        Simple QR code sale: debit client, credit POS
+        
+        Args:
+            client_id: Client to debit
+            purchase_amount: Amount to debit/credit
+            pos_id: POS to credit
+            user_id: User creating the sale
+            notes: Optional notes
+        """
+        try:
+            # Validate inputs
+            if purchase_amount <= 0:
+                raise SaleValidationException("Purchase amount must be greater than 0")
+            
+            # Lock and fetch client
+            client = db.query(Client).filter(
+                Client.id == client_id
+            ).with_for_update().first()
+            
+            if not client:
+                raise SaleValidationException(f"Client {client_id} not found")
+            
+            # Check credit limit
+            current_owed = client.credit_balance or Decimal("0")
+            credit_limit = client.credit_limit or Decimal("0")
+            
+            if current_owed + purchase_amount > credit_limit:
+                remaining = credit_limit - current_owed
+                raise SaleValidationException(
+                    f"Credit limit exceeded. Available: {remaining}, Requested: {purchase_amount}"
+                )
+            
+            # Lock and fetch POS
+            pos = db.query(POS).filter(
+                POS.id == pos_id
+            ).with_for_update().first()
+            
+            if not pos:
+                raise SaleValidationException(f"POS {pos_id} not found")
+            
+            # Debit client
+            client.credit_balance = current_owed + purchase_amount
+            client.last_transaction_date = datetime.now(timezone.utc)
+            
+            # Credit POS
+            pos.balance = (pos.balance or Decimal("0")) + purchase_amount
+            
+            # Create sale record
+            sale = Sale(
+                pos_id=pos_id,
+                customer_id=client_id,
+                created_by_id=user_id,
+                payment_mode=PaymentMethod.CREDIT,
+                total_items_amount=purchase_amount,
+                tax_amount=Decimal("0"),
+                discount_amount=Decimal("0"),
+                total_amount=purchase_amount,
+                status=SaleStatus.COMPLETED,
+                transaction_date=datetime.now(timezone.utc),
+                notes=f"QR Debit - {notes}" if notes else "QR Debit Sale"
+            )
+            
+            db.add(sale)
+            db.commit()
+            db.refresh(sale)
+            
+            logger.info(
+                f"QR Debit Sale: {sale.id} | "
+                f"Client: {client_id} | "
+                f"Amount: {purchase_amount} | "
+                f"POS: {pos_id}"
+            )
+            
+            return sale
+            
+        except SaleException:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error creating QR debit sale: {str(e)}")
+            raise SaleValidationException(f"Error creating QR debit sale: {str(e)}")
+    
+    @staticmethod
     def update_sale(db: Session, sale_id: int, data: SaleUpdate) -> Sale:
         """Update sale information (limited updates allowed)"""
         sale = SaleService.get_sale(db, sale_id)

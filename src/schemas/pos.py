@@ -236,32 +236,31 @@ class SaleItemOut(SaleItemBase):
 class SaleBase(BaseModel):
     pos_id: int
     created_by_id: int
-    customer_id: Optional[int] = None
+    customer_id: int | None = None
     payment_mode: PaymentMethod
-    transaction_date: Optional[datetime] = None
-    tax_rate: Optional[Decimal] = Decimal('0')
-    discount_amount: Optional[Decimal] = Decimal('0')
-    notes: Optional[str] = None
+    transaction_date: datetime | None = None
+    tax_rate: Decimal | None = Decimal('0')
+    discount_amount: Decimal | None = Decimal('0')
+    notes: str | None = None
     payment_operator_name: str | None = None
     payment_operator_reference: str | None = None
 
 
-
 class SaleCreate(SaleBase):
     items: List[SaleItemCreate]
-    customer_info: Optional[CustomerInfoCreate] = None
+    customer_info: CustomerInfoCreate | None = None
 
 
 class SaleItemUpdate(BaseModel):
-    qty: Optional[Decimal] = None
-    unit_price: Optional[Decimal] = None
+    qty: Decimal | None = None
+    unit_price: Decimal | None = None
 
 
 class SaleUpdate(BaseModel):
-    total_amount: Optional[Decimal] = None
-    payment_mode: Optional[PaymentMethod] = None
-    status: Optional[SaleStatus] = None
-    items: Optional[List[SaleItemUpdate]] = None
+    total_amount: Decimal | None = None
+    payment_mode: PaymentMethod | None = None
+    status: SaleStatus | None = None
+    items: List[SaleItemUpdate] | None = None
 
 class SaleOut(SaleBase):
     id: int
@@ -271,11 +270,11 @@ class SaleOut(SaleBase):
     status: SaleStatus
     created_at: datetime
     items: List[SaleItemOut] = Field(default_factory=list)
-    customer: Optional[dict] = None
-    counter_customer: Optional[CustomerInfoOut] = None
+    customer: dict | None = None
+    counter_customer: CustomerInfoOut | None = None
 
-    pos: Optional[POSMini] = None
-    created_by: Optional[POSUserOut] = None
+    pos: POSMini | None = None
+    created_by: POSUserOut | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

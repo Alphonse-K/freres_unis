@@ -354,6 +354,12 @@ class POSUserService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="POS user phone already exists"
             )
+        
+        if db.query(POSUser).filter(POSUser.email == data.email).first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="POS user email already exists"
+            )
 
         payload = data.model_dump(exclude={"password_hash", "pin_hash"})
 
