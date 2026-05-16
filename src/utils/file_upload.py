@@ -3,11 +3,11 @@ import uuid
 import shutil
 from fastapi import UploadFile
 
-UPLOAD_ROOT = Path(__file__).resolve().parent.parent / "uploads"
+UPLOAD_ROOT = Path("/app/uploads")
 
 def save_image(file: UploadFile, folder: str):
     folder = folder.strip().replace("..", "")
-    
+
     folder_path = UPLOAD_ROOT / folder
     folder_path.mkdir(parents=True, exist_ok=True)
 
