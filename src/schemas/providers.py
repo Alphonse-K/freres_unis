@@ -123,7 +123,7 @@ class PurchaseInvoiceResponse(PurchaseInvoiceBase):
     status: PurchaseInvoiceStatus
     due_amount: Decimal
     is_overdue: bool
-    age_days: int
+    # age_days: int
     created_at: datetime
     updated_at: Optional[datetime]  
     model_config = ConfigDict(from_attributes=True)

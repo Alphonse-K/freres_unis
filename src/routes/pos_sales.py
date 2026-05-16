@@ -80,49 +80,49 @@ def get_sale(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-# @sales_router.post("/qr-debit",
-#     response_model=SaleOut,
-#     status_code=status.HTTP_201_CREATED,
-#     summary="QR code sale - debit client, credit POS",
-#     description="Simple endpoint: debit client account, credit POS balance"
-# )
-# def create_qr_sale(
-#     client_id: int = Query(..., gt=0, description="Client ID"),
-#     purchase_amount: Decimal = Query(..., gt=0, description="Purchase amount"),
-#     pos_id: int = Query(..., gt=0, description="POS ID"),
-#     notes: Optional[str] = Query(None, description="Optional notes"),
-#     current_account: dict = Depends(require_permission(Permissions.CREATE_SALE)),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Create a sale from QR code scan.
+@sales_router.post("/qr-debit",
+    response_model=SaleOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="QR code sale - debit client, credit POS",
+    description="Simple endpoint: debit client account, credit POS balance"
+)
+def create_qr_sale(
+    client_id: int = Query(..., gt=0, description="Client ID"),
+    purchase_amount: Decimal = Query(..., gt=0, description="Purchase amount"),
+    pos_id: int = Query(..., gt=0, description="POS ID"),
+    notes: Optional[str] = Query(None, description="Optional notes"),
+    current_account: dict = Depends(require_permission(Permissions.CREATE_SALE)),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a sale from QR code scan.
     
-#     Simple flow:
-#     - Debit client account
-#     - Credit POS account
-#     - Create sale record
+    Simple flow:
+    - Debit client account
+    - Credit POS account
+    - Create sale record
     
-#     Query Parameters:
-#     - **client_id**: Client to debit
-#     - **purchase_amount**: Amount to debit/credit
-#     - **pos_id**: POS to credit
-#     - **notes**: Optional transaction notes
-#     """
-#     try:
-#         return SaleService.create_qr_debit_sale(
-#             db, 
-#             client_id, 
-#             purchase_amount, 
-#             pos_id,
-#             current_account["id"],
-#             notes
-#         )
-#     except ClientException as e:
-#         raise HTTPException(status_code=e.status_code, detail=e.message)
-#     except SaleValidationException as e:
-#         raise HTTPException(status_code=e.status_code, detail=e.message)
-#     except Exception as e:
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    Query Parameters:
+    - **client_id**: Client to debit
+    - **purchase_amount**: Amount to debit/credit
+    - **pos_id**: POS to credit
+    - **notes**: Optional transaction notes
+    """
+    try:
+        return SaleService.create_qr_debit_sale(
+            db, 
+            client_id, 
+            purchase_amount, 
+            pos_id,
+            current_account["id"],
+            notes
+        )
+    except ClientException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except SaleValidationException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @sales_router.put("/{sale_id}",
     response_model=SaleOut,

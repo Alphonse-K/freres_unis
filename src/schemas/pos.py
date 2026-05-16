@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from src.schemas.inventory import WarehouseOut
 from src.schemas.catalog import ProductVariantOut
 from enum import Enum
+from pydantic import BaseModel
 import re
 
 from src.models.pos import PosType
@@ -74,22 +75,22 @@ class POSExpenseStatus(str, Enum):
 # -------------------------------
 # POS USER SCHEMAS
 # -------------------------------
-from pydantic import BaseModel
 
 class RoleSchema(BaseModel):
     id: int
     name: str
     model_config = {"from_attributes": True}
 
+
 class POSUserBase(BaseModel):
-    first_name: Optional[str] = Field(None, max_length=120)
-    last_name: Optional[str] = Field(None, max_length=120)
+    first_name: str | None = Field(None, max_length=120)
+    last_name: str | None = Field(None, max_length=120)
     username: str = Field(..., max_length=120)
     phone: str = Field(..., max_length=40)
-    email: Optional[str] = Field(None, max_length=255)
-    is_active: Optional[bool] = True
-    allowed_login_start: Optional[time] = None
-    allowed_login_end: Optional[time] = None
+    email: str = Field(..., description="The email address of the user", max_length=255)
+    is_active: bool | None = True
+    allowed_login_start: time | None = None
+    allowed_login_end: time | None = None
 
 
 class POSUserCreate(POSUserBase):
@@ -98,34 +99,31 @@ class POSUserCreate(POSUserBase):
 
 
 class POSUserUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    email: Optional[str] = None
-    is_active: Optional[bool] = None
-    allowed_login_start: Optional[time] = None
-    allowed_login_end: Optional[time] = None
-    password_hash: Optional[str] = None
-    pin_hash: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    is_active: bool | None = None
+    allowed_login_start: time | None = None
+    allowed_login_end: time | None = None
+    password_hash: str | None = None
+    pin_hash: str | None = None
 
 
 class POSUserOut(POSUserBase):
     id: int
     pos_id: int
-
     model_config = ConfigDict(from_attributes=True)
-
 
 # -------------------------------
 # POS SCHEMAS
 # -------------------------------
-
 class POSBase(BaseModel):
     type: PosType
     pos_business_name: str = Field(..., max_length=255)
     phone: str = Field(..., max_length=40)
-    balance: Optional[Decimal] = Field(0, ge=0)
-    status: Optional[PosStatus] = PosStatus.CREATED
-    warehouse_id: Optional[int] = Field(None, description="Associated warehouse ID")
+    balance: Decimal | None = Field(0, ge=0)
+    status: PosStatus | None = PosStatus.CREATED
+    warehouse_id: int | None = Field(None, description="Associated warehouse ID")
     
 
 class POSCreate(POSBase):
@@ -133,23 +131,26 @@ class POSCreate(POSBase):
 
 
 class POSUpdate(BaseModel):
-    type: Optional[PosType] = None
-    pos_business_name: Optional[str] = Field(None, max_length=255)
-    phone: Optional[str] = Field(None, max_length=40)
-    balance: Optional[Decimal] = Field(None, ge=0)
-    status: Optional[PosStatus] = None
-    warehouse_id: Optional[int] = Field(None, description="Change associated warehouse")
+    type: PosType | None = None
+    pos_business_name: str | None = Field(None, max_length=255)
+    phone: str | None = Field(None, max_length=40)
+    balance: Decimal | None = Field(None, ge=0)
+    status: PosStatus | None = None
+    warehouse_id: int | None = Field(None, description="Change associated warehouse")
     
 
 class POSOut(POSBase):
     id: int
-    warehouse: Optional[WarehouseOut] = None
+    warehouse: WarehouseOut | None = None
     users: List["POSUserOut"] = []
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
+# This is a simplified version of the POS output schema for listing purposes, 
+# excluding related users and warehouse details.
+# The POSLightOut class is currently unused and has been commented out for potential future use or removal.
 # class POSLightOut(BaseModel):
 #     id: int,
 #     pos_business_name: str = Field(..., max_length=255)
@@ -159,18 +160,18 @@ class POSOut(POSBase):
 class POSStats(BaseModel):
     pos_id: int
     pos_name: str
-    total_sales: Optional[int] = 0
-    total_revenue: Optional[float] = 0.0
-    total_expenses: Optional[float] = 0.0
+    total_sales: int | None = 0
+    total_revenue: float | None = 0.0
+    total_expenses: float | None = 0.0
     net_balance: float
-    active_users: Optional[int] = 0
-    low_stock_items: Optional[int] = 0
-    pending_procurements: Optional[int] = 0
-    warehouse_id: Optional[int]
+    active_users: int | None = 0
+    low_stock_items: int | None = 0
+    pending_procurements: int | None = 0
+    warehouse_id: int | None
     status: str
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
-# -------------------------------
+# ------------------------------- 
 # POS EXPENSE SCHEMAS
 # -------------------------------
 
@@ -182,10 +183,10 @@ class POSMini(POSBase):
 
 class POSUserSchema(BaseModel):
     id: int
-    email: Optional[EmailStr] = None
+    email: EmailStr | None = None
     username: str
-    roles: Optional[List[RoleSchema]] = None
-    pos: Optional[POSMini] = None
+    roles: list[RoleSchema] | None = None
+    pos: POSMini | None = None
     model_config = ConfigDict(from_attributes=True)
 
 

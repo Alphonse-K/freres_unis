@@ -129,7 +129,7 @@ def get_monthly_cash_register(
 @cash_register_route.get("/pos/{pos_id}/comparison", response_model=CashRegisterComparison)
 def compare_cash_register(
     pos_id: int,
-    period_type: str = Query("daily", regex="^(daily|monthly)$", description="Comparison period type"),
+    period_type: str = Query("daily", pattern="^(daily|monthly)$", description="Comparison period type"),
     start_date: Optional[date] = Query(None, description="Start date"),
     end_date: Optional[date] = Query(None, description="End date"),
     db: Session = Depends(get_db),
