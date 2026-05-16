@@ -48,10 +48,12 @@ app = FastAPI(
 )
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# BASE_DIR = Path(__file__).resolve().parent.parent
 
-UPLOAD_DIR = BASE_DIR / "uploads"
-MEDIA_DIR = BASE_DIR / "media"
+# UPLOAD_DIR = BASE_DIR / "uploads"
+# MEDIA_DIR = BASE_DIR / "media"
+UPLOAD_DIR = Path("/app/uploads")
+MEDIA_DIR = Path("/app/media")
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
