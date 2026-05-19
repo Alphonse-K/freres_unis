@@ -57,17 +57,17 @@ def login_password(
     if not identifier:
         raise HTTPException(422, "email or phone required")
 
-    # DEBUG: Print what we're trying to login with
-    print(f"Login attempt - Email: {data.email}, Phone: {data.phone}, Identifier: {identifier}")
+    # # DEBUG: Print what we're trying to login with
+    # print(f"Login attempt - Email: {data.email}, Phone: {data.phone}, Identifier: {identifier}")
     
     # DEBUG: Check all users
     all_users = db.query(User).all()
-    print("All users in DB:", [(u.email, u.roles) for u in all_users])
+    # print("All users in DB:", [(u.email, u.roles) for u in all_users])
 
     # FIX: Only query by email if email is provided and not None
     if data.email:
         user = db.query(User).filter(User.email.ilike(data.email)).first()
-        print(f"User found by email '{data.email}': {user}")
+        # print(f"User found by email '{data.email}': {user}")
         if user:
             print(f"User password hash exists: {bool(user.password_hash)}")
     else:
@@ -77,7 +77,7 @@ def login_password(
     account = AuthService.authenticate(
         db, identifier, data.password, "password", ip, ua
     )
-    print("Authenticated account:", account)
+    # print("Authenticated account:", account)
     
     if not account:
         raise HTTPException(401, "Invalid credentials")
