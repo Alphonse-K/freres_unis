@@ -23,6 +23,12 @@ class ClientApprovalService:
         Save uploaded KYC files and create ClientApproval record.
         Passwords are NOT handled here.
         """
+
+        if db.query(ClientApproval).filter_by(phone=data["phone"]).first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Phone number already in use"
+            )
         
         approval = ClientApproval(
             **data,

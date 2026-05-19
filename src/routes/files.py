@@ -16,6 +16,18 @@ router = APIRouter(prefix="/files", tags=["files"])
 # Type definitions for documentation
 AllowedDocType = Literal["face", "badge", "id-recto", "id-verso", "magnetic-card"]
 
+BASE_URL = "http://178.104.246.188:8030" 
+
+
+def normalize_upload_path(file_path: str) -> str:
+    """Always returns 'uploads/...' with no double prefix or leading slash."""
+    # Strip leading slash if present
+    path = file_path.lstrip("/")
+    # Strip leading 'uploads/' prefix if already there, then re-add once
+    if path.startswith("uploads/"):
+        path = path[len("uploads/"):]
+    return f"uploads/{path}"
+
 @router.get(
     "/clients/{client_id}/documents",
     summary="Get all document URLs for a client",
@@ -66,7 +78,6 @@ async def get_client_documents(
     ]
     
     # BASE_URL = "http://localhost:8000"  # In production, use your domain
-    BASE_URL = "http://178.104.246.188:8030"  # In production, use your domain
 
     documents = {}
     
@@ -74,11 +85,13 @@ async def get_client_documents(
         file_path = getattr(approval, db_field, None)
         if file_path:
             # Create clean URL
-            if file_path.startswith("uploads/"):
-                clean_path = file_path
-            else:
-                clean_path = f"uploads/{file_path}"
-            
+            # if file_path.startswith("uploads/"):
+            #     clean_path = file_path
+            # else:
+            #     clean_path = f"uploads/{file_path}"
+
+            clean_path = normalize_upload_path(file_path)
+
             filename = PathLib(file_path).name
             
             documents[url_key] = {
@@ -180,15 +193,13 @@ async def get_client_document(
             detail=f"{doc_type.replace('-', ' ').title()} not found"
         )
     
-    # Clean the path
-    if file_path.startswith("uploads/"):
-        clean_path = file_path
-    else:
-        clean_path = f"uploads/{file_path}"
-    
-    BASE_URL = "http://78.47.72.137:8030"  # Change to your actual domain
+    # # Clean the path
+    # if file_path.startswith("uploads/"):
+    #     clean_path = file_path
+    # else:
+    #     clean_path = f"uploads/{file_path}"
+    clean_path = normalize_upload_path(file_path)
 
-    
     return {
         "url": f"{BASE_URL}/{clean_path}",
         "filename": os.path.basename(file_path),
