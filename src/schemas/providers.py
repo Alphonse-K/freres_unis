@@ -53,7 +53,7 @@ class ProviderResponse(ProviderBase):
 # =========================
 class ProcurementSummaryOut(BaseModel):
     id: int
-    po_number: str
+    reference: str
     po_date: datetime
     status: str
 
@@ -111,7 +111,7 @@ class ProviderSummaryResponse(BaseModel):
     default_address: Optional[AddressOut]
 
     model_config = ConfigDict(from_attributes=True)
-    
+
 # Purchase Invoice Schemas
 class PurchaseInvoiceBase(BaseModel):
     invoice_number: str
