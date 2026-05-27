@@ -123,6 +123,24 @@ def update_procurement(
     return ProcurementService.update_procurement(db, procurement_id, current_user, data)
 
 
+@procurement_router.patch("/external_procurement/{procurement_id}", response_model=ProcurementResponse)
+def update_procurement(
+    procurement_id: int,
+    data: ProcurementUpdate,
+    current_user: POSUser = Depends(require_permission(Permissions.UPDATE_PROCUREMENT)),
+    db: Session = Depends(get_db)
+):
+    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
+    
+    if not procurement:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Procurement not found"
+        )
+    
+    return ProcurementService.update_external_procurement(db, procurement_id, current_user, data)
+
+
 @procurement_router.put(
     "/{procurement_id}/add/receipt",
     response_model=ProcurementResponse

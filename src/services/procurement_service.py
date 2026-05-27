@@ -297,6 +297,47 @@ class ProcurementService:
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
 
+    @staticmethod
+    def update_external_procurement(
+        db: Session,
+        procurement_id: int,
+        current_user,
+        data: ProcurementUpdate
+    ) -> Procurement:
+        """Update procurement information"""
+        procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
+        if not procurement:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Procurement {procurement_id} not found")
+        
+        # Check if procurement can be modified
+        if procurement.status in [ProcurementStatus.RECEIVED, ProcurementStatus.CANCELLED]:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot update procurement with status {procurement.status.value}"
+            )
+        
+        if procurement.pos_id != current_user.pos_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to update this procurement"
+            )
+        
+        try:
+            # Update fields
+            update_data = data.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(procurement, field, value)
+            
+            procurement.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(procurement)            
+            logger.info(f"Procurement updated: {procurement_id}")
+            return procurement            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
+            raise
+
     # ================================
     # PROCUREMENT WORKFLOW
     # ================================
