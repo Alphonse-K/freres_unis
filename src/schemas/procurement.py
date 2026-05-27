@@ -21,17 +21,17 @@ class ProcurementCreate(BaseModel):
 
 
 class ProcurementUpdate(BaseModel):
-    status: Optional[ProcurementStatus] = None
-    delivery_date: Optional[datetime] = None
-    delivery_notes: Optional[str] = None
-    driver_name: Optional[str] = None
-    driver_phone: Optional[str] = None
+    status: ProcurementStatus | None = None
+    delivery_date: datetime | None = None
+    delivery_notes: str | None = None
+    driver_name: str | None = None
+    driver_phone: str | None = None
 
 
 class ProcurementItemResponse(BaseModel):
     id: int
     product_variant_id: int
-    product_name: Optional[str] = None
+    product_name: str | None = None
     qty: Decimal
     model_config = ConfigDict(from_attributes=True)
 
@@ -40,20 +40,20 @@ class ProcurementResponse(BaseModel):
     id: int
     reference: str
     provider_id: int
-    provider_name: Optional[str] = None
+    provider_name: str | None = None
     pos_id: int
-    pos_name: Optional[str] = None
+    pos_name: str | None = None
     po_date: datetime
-    expected_delivery_date: Optional[datetime]
+    expected_delivery_date: datetime | None
     total_amount: Decimal
     status: ProcurementStatus
-    delivery_date: Optional[datetime]
+    delivery_date: datetime | None
     payment_status: str
     due_amount: Decimal
     receipt_photo: str | None = None
     items: List[ProcurementItemResponse]
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
     model_config = ConfigDict(from_attributes=True)
 
 

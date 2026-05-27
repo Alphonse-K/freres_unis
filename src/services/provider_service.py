@@ -7,7 +7,6 @@ from datetime import datetime, date, timezone, timedelta
 from decimal import Decimal
 from typing import List, Optional, Dict, Tuple
 import logging
-
 from src.models.providers import (
     Provider, PurchaseInvoice, ProviderPayment, PurchaseReturn,
     PurchaseInvoiceStatus, PaymentMethod
@@ -19,6 +18,7 @@ from src.schemas.providers import (
     PurchaseInvoiceCreate, PurchaseInvoiceUpdate
 )
 from src.schemas.location import AddressCreate, AddressUpdate
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,10 @@ class ProviderService:
         """
         provider = db.query(Provider).filter(Provider.name==data.name).first()
         if provider:
-            raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, detail=f"Provider with name {data.name} already exists!")
+            raise HTTPException(
+                status.HTTP_406_NOT_ACCEPTABLE, 
+                detail=f"Provider with name {data.name} already exists!"
+            )
         
         try:
             # Create provider

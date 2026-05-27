@@ -11,9 +11,9 @@ from src.core.auth_dependencies import require_permission, optional_permission_f
 from src.core.database import get_db
 from src.models.clients import Client, ClientApproval
 
+
 router = APIRouter(prefix="/files", tags=["files"])
 
-# Type definitions for documentation
 AllowedDocType = Literal["face", "badge", "id-recto", "id-verso", "magnetic-card"]
 
 BASE_URL = "http://178.104.246.188:8030" 
@@ -84,11 +84,6 @@ async def get_client_documents(
     for url_key, db_field, description in doc_types:
         file_path = getattr(approval, db_field, None)
         if file_path:
-            # Create clean URL
-            # if file_path.startswith("uploads/"):
-            #     clean_path = file_path
-            # else:
-            #     clean_path = f"uploads/{file_path}"
 
             clean_path = normalize_upload_path(file_path)
 
@@ -193,11 +188,6 @@ async def get_client_document(
             detail=f"{doc_type.replace('-', ' ').title()} not found"
         )
     
-    # # Clean the path
-    # if file_path.startswith("uploads/"):
-    #     clean_path = file_path
-    # else:
-    #     clean_path = f"uploads/{file_path}"
     clean_path = normalize_upload_path(file_path)
 
     return {

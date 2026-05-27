@@ -51,6 +51,23 @@ class ProviderResponse(ProviderBase):
 # =========================
 # PROVIDER SUMMARY SCHEMAS
 # =========================
+class ProcurementSummaryOut(BaseModel):
+    id: int
+    po_number: str
+    po_date: datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProviderPaymentSummaryOut(BaseModel):
+    id: int
+    payment_date: date
+    amount: Decimal
+    payment_method: PaymentMethod
+    reference: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ProviderSummaryProvider(BaseModel):
     id: int
@@ -87,11 +104,14 @@ class ProviderSummaryResponse(BaseModel):
     provider: ProviderSummaryProvider
     statistics: ProviderInvoiceStatistics
     aging: ProviderAgingSummary
-    recent_procurements: List[dict]
-    recent_payments: List[dict]
+
+    recent_procurements: List[ProcurementSummaryOut]
+    recent_payments: List[ProviderPaymentSummaryOut]
+
     default_address: Optional[AddressOut]
 
-
+    model_config = ConfigDict(from_attributes=True)
+    
 # Purchase Invoice Schemas
 class PurchaseInvoiceBase(BaseModel):
     invoice_number: str

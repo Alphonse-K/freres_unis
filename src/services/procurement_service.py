@@ -63,6 +63,7 @@ class ProcurementService:
             provider = db.query(Provider).filter(
                 Provider.id == data.provider_id
             ).first()
+
             if not provider:
                 raise NotFoundException(f"Provider {data.provider_id} not found")
 
@@ -155,6 +156,7 @@ class ProcurementService:
             db.rollback()
             logger.error(f"Error creating procurement: {str(e)}")
             raise    
+
 
     @staticmethod
     def get_procurement(
@@ -273,12 +275,12 @@ class ProcurementService:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="POS not linked to a provider"
-                ) 
+                )
             if provider and procurement.provider_id != provider.id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Not authorized to update this procurement"
-                )      
+                )
         try:
             # Update fields
             update_data = data.model_dump(exclude_unset=True)
@@ -346,16 +348,17 @@ class ProcurementService:
             db.rollback()
             logger.error(f"Error attaching delivery receipt: {str(e)}")
             raise
-        pass
+
+
     @staticmethod
     def change_procurement_status(
         db: Session,
         procurement_id: int,
         new_status: ProcurementStatus,
         user_id: int,
-        delivery_notes: Optional[str] = None,
-        driver_name: Optional[str] = None,
-        driver_phone: Optional[str] = None
+        delivery_notes: str | None = None,
+        driver_name: str | None = None,
+        driver_phone: str | None = None
     ) -> Procurement:
         """
         Change procurement status.
@@ -407,6 +410,7 @@ class ProcurementService:
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
 
+
     @staticmethod
     def cancel_procurement(
         db: Session,
@@ -446,6 +450,7 @@ class ProcurementService:
             logger.error(f"Error cancelling procurement {procurement_id}: {str(e)}")
             raise
     
+
     @staticmethod
     def create_return(
         db: Session,
