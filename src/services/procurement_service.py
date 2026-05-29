@@ -237,7 +237,7 @@ class ProcurementService:
            )
         else:
             if pos_id:
-                query = query.fiter(Procurement.pos_id == pos_id)
+                query = query.filter(Procurement.pos_id == pos_id)
 
         # Apply filters        
         if provider_id:
@@ -281,17 +281,79 @@ class ProcurementService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Not authorized to update this procurement"
                 )
+        # try:
+        #     # Update fields
+        #     update_data = data.model_dump(exclude_unset=True)
+        #     for field, value in update_data.items():
+        #         setattr(procurement, field, value)
+            
+        #     procurement.updated_at = datetime.now(timezone.utc)
+        #     db.commit()
+        #     db.refresh(procurement)            
+        #     logger.info(f"Procurement updated: {procurement_id}")
+        #     return procurement            
+        # except Exception as e:
+        #     db.rollback()
+        #     logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
+        #     raise
         try:
-            # Update fields
             update_data = data.model_dump(exclude_unset=True)
+            
+            # Extraire les items séparément avant d'update les champs simples
+            items_data = update_data.pop("items", None)
+            
+            # Update des champs simples (status, notes, date...)
             for field, value in update_data.items():
                 setattr(procurement, field, value)
-            
+
+            # Update des items si fournis
+            if items_data is not None:
+                # Vérifier que le procurement est encore en PENDING
+                if procurement.status != ProcurementStatus.PENDING:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Quantities can only be changed on a pending procurement"
+                    )
+
+                # Récupérer les variants pour recalculer le prix
+                variant_ids = [item["product_variant_id"] for item in items_data]
+                variants = db.query(ProductVariant).filter(
+                    ProductVariant.id.in_(variant_ids)
+                ).all()
+                variant_map = {v.id: v for v in variants}
+
+                # Supprimer les anciens items et recréer
+                db.query(ProcurementItem).filter(
+                    ProcurementItem.procurement_id == procurement.id
+                ).delete()
+
+                subtotal = Decimal("0")
+                for item_data in items_data:
+                    variant = variant_map.get(item_data["product_variant_id"])
+                    if not variant:
+                        raise NotFoundException(
+                            f"Variant {item_data['product_variant_id']} not found"
+                        )
+                    purchase_price = variant.purchase_price
+                    subtotal += item_data["qty"] * purchase_price
+
+                    new_item = ProcurementItem(
+                        procurement_id=procurement.id,
+                        product_variant_id=item_data["product_variant_id"],
+                        qty=item_data["qty"],
+                        price=purchase_price,
+                    )
+                    db.add(new_item)
+
+                # Recalculer le total
+                procurement.total_amount = subtotal
+
             procurement.updated_at = datetime.now(timezone.utc)
             db.commit()
-            db.refresh(procurement)            
+            db.refresh(procurement)
             logger.info(f"Procurement updated: {procurement_id}")
-            return procurement            
+            return procurement
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
@@ -322,17 +384,79 @@ class ProcurementService:
                 detail="Not authorized to update this procurement"
             )
         
+        # try:
+        #     # Update fields
+        #     update_data = data.model_dump(exclude_unset=True)
+        #     for field, value in update_data.items():
+        #         setattr(procurement, field, value)
+            
+        #     procurement.updated_at = datetime.now(timezone.utc)
+        #     db.commit()
+        #     db.refresh(procurement)            
+        #     logger.info(f"Procurement updated: {procurement_id}")
+        #     return procurement            
+        # except Exception as e:
+        #     db.rollback()
+        #     logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
+        #     raise
         try:
-            # Update fields
             update_data = data.model_dump(exclude_unset=True)
+            
+            # Extraire les items séparément avant d'update les champs simples
+            items_data = update_data.pop("items", None)
+            
+            # Update des champs simples (status, notes, date...)
             for field, value in update_data.items():
                 setattr(procurement, field, value)
-            
+
+            # Update des items si fournis
+            if items_data is not None:
+                # Vérifier que le procurement est encore en PENDING
+                if procurement.status != ProcurementStatus.PENDING:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Quantities can only be changed on a pending procurement"
+                    )
+
+                # Récupérer les variants pour recalculer le prix
+                variant_ids = [item["product_variant_id"] for item in items_data]
+                variants = db.query(ProductVariant).filter(
+                    ProductVariant.id.in_(variant_ids)
+                ).all()
+                variant_map = {v.id: v for v in variants}
+
+                # Supprimer les anciens items et recréer
+                db.query(ProcurementItem).filter(
+                    ProcurementItem.procurement_id == procurement.id
+                ).delete()
+
+                subtotal = Decimal("0")
+                for item_data in items_data:
+                    variant = variant_map.get(item_data["product_variant_id"])
+                    if not variant:
+                        raise NotFoundException(
+                            f"Variant {item_data['product_variant_id']} not found"
+                        )
+                    purchase_price = variant.purchase_price
+                    subtotal += item_data["qty"] * purchase_price
+
+                    new_item = ProcurementItem(
+                        procurement_id=procurement.id,
+                        product_variant_id=item_data["product_variant_id"],
+                        qty=item_data["qty"],
+                        price=purchase_price,
+                    )
+                    db.add(new_item)
+
+                # Recalculer le total
+                procurement.total_amount = subtotal
+
             procurement.updated_at = datetime.now(timezone.utc)
             db.commit()
-            db.refresh(procurement)            
+            db.refresh(procurement)
             logger.info(f"Procurement updated: {procurement_id}")
-            return procurement            
+            return procurement
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")

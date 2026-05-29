@@ -20,12 +20,26 @@ class ProcurementCreate(BaseModel):
     notes: Optional[str] = None
 
 
+# class ProcurementUpdate(BaseModel):
+#     status: ProcurementStatus | None = None
+#     delivery_date: datetime | None = None
+#     delivery_notes: str | None = None
+#     driver_name: str | None = None
+#     driver_phone: str | None = None
+
+
+class ProcurementItemUpdate(BaseModel):
+    product_variant_id: int
+    qty: int
+
+
 class ProcurementUpdate(BaseModel):
     status: ProcurementStatus | None = None
     delivery_date: datetime | None = None
     delivery_notes: str | None = None
     driver_name: str | None = None
     driver_phone: str | None = None
+    items: list[ProcurementItemUpdate] | None = None 
 
 
 class ProcurementItemResponse(BaseModel):
