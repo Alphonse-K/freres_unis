@@ -208,7 +208,7 @@ async def get_procurement_receipt(
     procurement_id: int = FastAPIPath(..., gt=0),
     db: Session = Depends(get_db),
     current_user = Depends(
-        require_permission(Permissions.VIEW_PROCUREMENT)
+        require_permission(Permissions.READ_PROCUREMENT)
     )
 ):
     
