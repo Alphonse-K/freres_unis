@@ -10,6 +10,7 @@ from src.core.auth_dependencies import require_permission, optional_permission_f
 
 from src.core.database import get_db
 from src.models.clients import Client, ClientApproval
+from src.models.procurement import Procurement
 
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -196,6 +197,47 @@ async def get_client_document(
         "api_endpoint": f"/api/v1/files/clients/{client_id}/document/{doc_type}",
         "description": doc_descriptions.get(doc_type, doc_type),
         "type": doc_type
+    }
+
+@router.get(
+    "/procurements/{procurement_id}/receipt",
+    summary="Get procurement receipt",
+    description="Get receipt URL for a procurement"
+)
+async def get_procurement_receipt(
+    procurement_id: int = FastAPIPath(..., gt=0),
+    db: Session = Depends(get_db),
+    current_user = Depends(
+        require_permission(Permissions.VIEW_PROCUREMENT)
+    )
+):
+    
+    procurement = db.query(Procurement).filter(
+        Procurement.id == procurement_id
+    ).first()
+
+    if not procurement:
+        raise HTTPException(
+            status_code=404,
+            detail="Procurement not found"
+        )
+
+    if not procurement.receipt_photo:
+        raise HTTPException(
+            status_code=404,
+            detail="Receipt not found"
+        )
+
+    clean_path = normalize_upload_path(
+        procurement.receipt_photo
+    )
+
+    return {
+        "procurement_id": procurement.id,
+        "reference": procurement.reference,
+        "url": f"{BASE_URL}/{clean_path}",
+        "filename": os.path.basename(procurement.receipt_photo),
+        "type": "procurement-receipt"
     }
 
 @router.get(
