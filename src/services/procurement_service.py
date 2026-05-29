@@ -269,8 +269,8 @@ class ProcurementService:
                 detail=f"Cannot update procurement with status {procurement.status.value}"
             )
         is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_user.roles)
-        provider = current_user.pos.provider
         if not is_super_admin:
+            provider = current_user.pos.provider
             if not provider:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -377,13 +377,14 @@ class ProcurementService:
                 status.HTTP_403_FORBIDDEN,
                 detail=f"Cannot update procurement with status {procurement.status.value}"
             )
-        
-        if procurement.pos_id != current_user.pos_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this procurement"
-            )
-        
+        is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_user.roles)
+        if not is_super_admin:
+            if procurement.pos_id != current_user.pos_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to update this procurement"
+                )
+            
         # try:
         #     # Update fields
         #     update_data = data.model_dump(exclude_unset=True)
