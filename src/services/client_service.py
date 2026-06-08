@@ -52,7 +52,7 @@ from src.core.audit import audit_log
 from ulid import ULID
 from pathlib import Path
 from uuid import UUID
-
+from src.services.account_service import FundTransferService
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MEDIA_DIR = BASE_DIR / "media"
 
@@ -1029,7 +1029,16 @@ class ClientCardService:
         )
 
         db.add(card)
-        client.current_balance -= price.price
+
+        # 5. FINANCIAL OPERATION ONLY THROUGH SERVICE
+        FundTransferService.create_card_fee_transfer(
+            db=db,
+            client=client,
+            amount=price.price,
+            card_request_id=req.id,
+            created_by_user_id=reviewer_id
+        )
+        
         req.status = CardRequestStatus.APPROVED
         req.reviewed_at = datetime.now(timezone.utc)
         req.reviewer_id = reviewer_id

@@ -27,6 +27,7 @@ from src.routes.partner_company import partner_company_router
 from src.routes.notifications import notification_router
 from src.routes.cash_register import cash_register_route
 from src.routes import files
+from src.routes.accounts import router as accounts_router
 
 
 @asynccontextmanager
@@ -48,12 +49,10 @@ app = FastAPI(
 )
 
 
-# BASE_DIR = Path(__file__).resolve().parent.parent
+IS_DOCKER = Path("/app").exists()
 
-# UPLOAD_DIR = BASE_DIR / "uploads"
-# MEDIA_DIR = BASE_DIR / "media"
-UPLOAD_DIR = Path("/app/uploads")
-MEDIA_DIR = Path("/app/media")
+UPLOAD_DIR = Path("/app/uploads") if IS_DOCKER else Path("uploads")
+MEDIA_DIR = Path("/app/media") if IS_DOCKER else Path("media")
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
@@ -83,6 +82,8 @@ app.include_router(company_router, prefix=API_PREFIX)
 app.include_router(partner_company_router, prefix=API_PREFIX)
 app.include_router(partner_company_router, prefix=API_PREFIX)
 app.include_router(notification_router, prefix=API_PREFIX)
+app.include_router(accounts_router, prefix=API_PREFIX)
+
 
 
 @app.get(f"{API_PREFIX}/")
