@@ -74,7 +74,7 @@ class FundTransfer(Base):
     source_account_id = Column(
         Integer,
         ForeignKey("accounts.id"),
-        nullable=False
+        nullable=True
     )
 
     destination_account_id = Column(

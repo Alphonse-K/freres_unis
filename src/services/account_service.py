@@ -1,5 +1,5 @@
 from typing import Optional, List
-
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
 from src.models.pos import POS
@@ -215,15 +215,16 @@ class FundTransferService:
     ) -> FundTransfer:
 
         pos = db.query(POS).filter(
-            POS.id == current_user.pos_id
+            POS.id == current_user["account"].id
         ).first()
 
         if not pos:
             raise NotFoundException("POS not found")
 
         if pos.balance < data.amount:
-            raise BusinessRuleException(
-                "Insufficient POS balance"
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Insufficient POS balance"
             )
 
         destination = db.query(Account).filter(
@@ -232,19 +233,19 @@ class FundTransferService:
         ).first()
 
         if not destination:
-            raise NotFoundException(
-                "Destination account not found or inactive"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Destination account not found or inactive"
             )
-
+        
         transfer = FundTransfer(
-            pos_id=pos.id,
             source_account_id=None,
             destination_account_id=destination.id,
             transfer_type=TransferType.POS_DEPOSIT,
             amount=data.amount,
             note=data.note,
             status=TransferStatus.PENDING,
-            created_by_pos_user_id=current_user.id
+            created_by_pos_user_id=current_user["account"].id
         )
 
         db.add(transfer)
@@ -265,8 +266,9 @@ class FundTransferService:
     ) -> FundTransfer:
 
         if data.source_account_id == data.destination_account_id:
-            raise BusinessRuleException(
-                "Source and destination cannot be the same"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Source and destination cannot be the same"
             )
 
         source = db.query(Account).filter(
@@ -275,13 +277,15 @@ class FundTransferService:
         ).first()
 
         if not source:
-            raise NotFoundException(
-                "Source account not found or inactive"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Source account not found or inactive"
             )
 
         if source.balance < data.amount:
-            raise BusinessRuleException(
-                "Insufficient balance in source account"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Insufficient balance in source account"
             )
 
         destination = db.query(Account).filter(
@@ -290,19 +294,19 @@ class FundTransferService:
         ).first()
 
         if not destination:
-            raise NotFoundException(
-                "Destination account not found or inactive"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Destination account not found or inactive"
             )
 
         transfer = FundTransfer(
-            pos_id=None,
             source_account_id=source.id,
             destination_account_id=destination.id,
             transfer_type=TransferType.ACCOUNT_TRANSFER,
             amount=data.amount,
             note=data.note,
             status=TransferStatus.PENDING,
-            created_by_user_id=current_user.id
+            created_by_pos_user_id=current_user["account"].id
         )
 
         db.add(transfer)
@@ -387,11 +391,15 @@ class FundTransferService:
         ).first()
 
         if not transfer:
-            raise NotFoundException("Transfer not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Transfer not found"
+            )
 
         if transfer.status != TransferStatus.PENDING:
-            raise BusinessRuleException(
-                f"Transfer already {transfer.status.value}"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transfer already {transfer.status.value}"
             )
 
         # ---------------------------------------
@@ -399,16 +407,30 @@ class FundTransferService:
         # ---------------------------------------
         if transfer.transfer_type == TransferType.POS_DEPOSIT:
 
+            pos_user = db.query(POSUser).filter(
+                POSUser.id == transfer.created_by_pos_user_id
+            ).first()
+
+            if not pos_user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="POS user not found"
+                )
+
             pos = db.query(POS).filter(
-                POS.id == transfer.pos_id
+                POS.id == pos_user.pos_id
             ).first()
 
             if not pos:
-                raise NotFoundException("POS not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="POS not found"
+                )
 
             if pos.balance < transfer.amount:
-                raise BusinessRuleException(
-                    "Insufficient POS balance"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Insufficient POS balance"
                 )
 
             pos.balance -= transfer.amount
@@ -421,22 +443,29 @@ class FundTransferService:
 
             source = transfer.source_account
 
+            if not source:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Source account not found"
+                )
+
             if source.balance < transfer.amount:
-                raise BusinessRuleException(
-                    "Insufficient source account balance"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Insufficient source account balance"
                 )
 
             source.balance -= transfer.amount
             transfer.destination_account.balance += transfer.amount
 
         transfer.status = TransferStatus.APPROVED
-        transfer.approved_by_user_id = current_user.id
+        transfer.approved_by_user_id = current_user["account"].id
         transfer.approved_at = datetime.now(timezone.utc)
 
         db.commit()
         db.refresh(transfer)
 
-        return transfer
+        return transfer    
     
     @staticmethod
     def reject_transfer(
@@ -451,19 +480,59 @@ class FundTransferService:
         ).first()
 
         if not transfer:
-            raise NotFoundException("Transfer not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Transfer not found"
+            )
 
         if transfer.status != TransferStatus.PENDING:
-            raise BusinessRuleException(
-                f"Transfer already {transfer.status.value}"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transfer already {transfer.status.value}"
             )
 
         transfer.status = TransferStatus.REJECTED
         transfer.rejection_reason = data.reason
-        transfer.approved_by_user_id = current_user.id
-        transfer.approved_at = datetime.now(timezone.utc)
+
+        transfer.rejected_by_user_id = current_user.id
+        transfer.rejected_at = datetime.now(timezone.utc)
 
         db.commit()
         db.refresh(transfer)
+
+        return transfer    
+
+    @staticmethod
+    def list_transfers(
+        db: Session,
+        limit: int = 100,
+        offset: int = 0
+    ):
+        transfers = (
+            db.query(FundTransfer)
+            .order_by(FundTransfer.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        return transfers
+
+    @staticmethod
+    def get_transfer(
+        db: Session,
+        transfer_id: int
+    ):
+        transfer = (
+            db.query(FundTransfer)
+            .filter(FundTransfer.id == transfer_id)
+            .first()
+        )
+
+        if not transfer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Transfer not found"
+            )
 
         return transfer

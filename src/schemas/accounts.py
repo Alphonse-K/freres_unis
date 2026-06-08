@@ -97,8 +97,6 @@ class AccountResponse(BaseModel):
 class FundTransferResponse(BaseModel):
     id: int
 
-    pos_id: Optional[int]
-
     source_account_id: Optional[int]
     destination_account_id: int
 
@@ -109,15 +107,13 @@ class FundTransferResponse(BaseModel):
     note: Optional[str]
 
     created_by_pos_user_id: Optional[int]
-    created_by_user_id: Optional[int]
 
     approved_by_user_id: Optional[int]
 
-    transfer_date: datetime
+    created_at: datetime
     approved_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
-
 
 # =========================
 # POS -> ACCOUNT
