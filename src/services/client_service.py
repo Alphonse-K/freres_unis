@@ -400,6 +400,41 @@ class ClientService:
         
         db.commit()
         return request
+    
+    # In ClientService
+
+    @staticmethod
+    def list_by_company(db: Session, company: str, pagination: PaginationParams):
+        query = (
+            db.query(Client)
+            .join(ClientApproval, ClientApproval.client_id == Client.id)
+            .filter(ClientApproval.employee_company == company)
+        )
+        total = query.count()
+        items = (
+            query
+            .order_by(Client.id.desc())
+            .offset(pagination.offset)
+            .limit(pagination.page_size)
+            .all()
+        )
+        return total, items
+
+    @staticmethod
+    def get_by_company(db: Session, client_id: int, company: str) -> Client:
+        client = (
+            db.query(Client)
+            .join(ClientApproval, ClientApproval.client_id == Client.id)
+            .filter(Client.id == client_id, ClientApproval.employee_company == company)
+            .first()
+        )
+        if not client:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail="Client not found in your company"
+            )
+        return client
+
 
 class ClientInvoiceService:
 
@@ -542,6 +577,31 @@ class LedgerService:
         total = query.count()
         items = (
             query.order_by(LedgerEntry.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+        return total, items
+    
+    @staticmethod
+    def list_by_company(db: Session, client_id: int, company: str, offset: int, limit: int):
+        client = (
+            db.query(Client)
+            .join(ClientApproval, ClientApproval.client_id == Client.id)
+            .filter(Client.id == client_id, ClientApproval.employee_company == company)
+            .first()
+        )
+        if not client:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail="Client not found in your company"
+            )
+
+        query = db.query(LedgerEntry).filter(LedgerEntry.client_id == client_id)
+        total = query.count()
+        items = (
+            query
+            .order_by(LedgerEntry.created_at.desc())
             .offset(offset)
             .limit(limit)
             .all()

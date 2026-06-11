@@ -33,6 +33,7 @@ class User(Base):
     first_name = Column(String(120))
     last_name = Column(String(120))
     username = Column(String(120), unique=True, nullable=False)
+    company = Column(String(255), nullable=True)
     email = Column(String(255), unique=True)
     phone = Column(String(50), unique=True)
     password_hash = Column(String(255), nullable=False)

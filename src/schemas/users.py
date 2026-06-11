@@ -14,6 +14,7 @@ class UserBase(BaseModel):
     username: str = Field(..., min_length=2, max_length=120)
     email: EmailStr = Field(..., example="user@company.com")
     phone: Optional[str] = Field(None, max_length=15)
+    company: str | None = Field(None, max_length=255)
     status: UserStatus = UserStatus.ACTIVE
     failed_attempts: int = 0
     suspended_until: Optional[datetime] = None
@@ -46,6 +47,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, max_length=120)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=50)
+    company: str | None = Field(None, max_length=255)
     status: Optional[UserStatus] = None
     suspended_until: Optional[datetime] = None
     allowed_login_start: Optional[time] = None
@@ -74,8 +76,8 @@ class PinLogin(BaseModel):
 class UserOut(UserBase):
     id: int
     created_at: datetime
-    updated_at: Optional[datetime]
-    last_login: Optional[datetime]
+    updated_at: datetime | None = None
+    last_login: datetime | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -97,6 +99,7 @@ class UserFilter(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
     phone: Optional[str] = None
+    company: Optional[str] = None
     created_from: Optional[datetime] = None
     created_to: Optional[datetime] = None
 
@@ -107,6 +110,7 @@ def get_user_filters(
     email: Optional[str] = Query(None),
     username: Optional[str] = Query(None),
     phone: Optional[str] = Query(None),
+    company: Optional[str] = Query(None),
     created_from: Optional[datetime] = Query(None),
     created_to: Optional[datetime] = Query(None),
 ) -> UserFilter:
@@ -116,6 +120,7 @@ def get_user_filters(
         email=email,
         username=username,
         phone=phone,
+        company=company,
         created_from=created_from,
         created_to=created_to,
     )

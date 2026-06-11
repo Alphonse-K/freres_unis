@@ -33,6 +33,7 @@ class UserService:
             username=user_data.username,
             email=user_data.email,
             phone=user_data.phone,
+            company=user_data.company,
             status=user_data.status,
             failed_attempts=user_data.failed_attempts,
             suspended_until=user_data.suspended_until,

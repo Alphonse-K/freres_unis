@@ -11,7 +11,10 @@ from src.models.clients import (
     ClientRequest,
     LoanStatus
 )
+
 from src.models.id import IDType
+from src.models.clients import LedgerEntry
+from src.models.users import User
 from src.schemas.clients import (
     ClientResponse,
     ClientUpdate,
@@ -52,7 +55,7 @@ from src.schemas.ecommerce import (
     OrderBeneficiaryInfoCreate,
 )
 from src.services.client_return_service import ClientReturnService
-
+from typing import Annotated
 from src.services.client_service import (
     ClientService, 
     CartService,
@@ -75,6 +78,23 @@ client_router = APIRouter(
     prefix="/clients",
     tags=["Clients"]
 )
+
+
+
+CanReadClient = Annotated[User, Depends(require_permission(Permissions.READ_CLIENT))]
+DB = Annotated[Session, Depends(get_db)]
+
+def get_user_company(current_user: CanReadClient) -> str:
+    """Extracts and validates the connected user's company."""
+    company = getattr(current_user, "company", None)
+    if not company:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Your account is not associated with a company"
+        )
+    return company
+
+CompanyUser = Annotated[str, Depends(get_user_company)]
 
 
 # -----------------------------
@@ -280,6 +300,24 @@ def list_clients(
         "page_size": pagination.page_size,
         "items": items,
     }
+
+@client_router.get("/company", response_model=PaginatedResponse[ClientResponse])
+def list_clients_by_company(
+    db: DB,
+    company: CompanyUser,
+    pagination: PaginationParams = Depends()
+):
+    total, items = ClientService.list_by_company(db, company, pagination)
+    return PaginatedResponse(total=total, items=items)
+
+
+@client_router.get("/company/{client_id}", response_model=ClientResponse)
+def get_client_by_company(
+    client_id: int,
+    db: DB,
+    company: CompanyUser,
+):
+    return ClientService.get_by_company(db, client_id, company)
 
 @client_router.patch(
     "/{client_id}",
@@ -519,7 +557,45 @@ def get_client_ledger_paginated(
         "page_size": page_size,
         "items": items,
     }
-        
+
+@client_router.get("/company/{client_id}/ledger", response_model=PaginatedResponse[ClientLedgerResponse])
+def list_client_ledger_by_company(
+    client_id: int,
+    db: DB,
+    company: CompanyUser,
+    pagination: PaginationParams = Depends()
+):
+    total, items = LedgerService.list_by_company(
+        db, client_id, company,
+        offset=pagination.offset,
+        limit=pagination.page_size
+    )
+    return PaginatedResponse(total=total, items=items)
+
+
+@client_router.get("/company/{client_id}/ledger/{ledger_id}", response_model=ClientLedgerResponse)
+def get_client_ledger_entry_by_company(
+    client_id: int,
+    ledger_id: int,
+    db: DB,
+    company: CompanyUser,
+):
+    # Verify client belongs to company first
+    ClientService.get_by_company(db, client_id, company)
+
+    entry = db.query(LedgerEntry).filter(
+        LedgerEntry.id == ledger_id,
+        LedgerEntry.client_id == client_id
+    ).first()
+
+    if not entry:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail="Ledger entry not found"
+        )
+    return entry
+
+
 @client_router.post(
     "/client-returns",
     response_model=ClientReturnResponse,
