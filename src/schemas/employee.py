@@ -1,4 +1,3 @@
-# src/schemas/employee.py
 from typing import Optional, List
 from decimal import Decimal
 from datetime import date, datetime
@@ -52,10 +51,10 @@ class EmployeeUpdate(BaseModel):
 
 class EmployeeOut(EmployeeBase):
     id: int
-    contracts: List["ContractOut"] = []
-    attendances: List["AttendanceOut"] = []
-    leaves: List["LeaveRequestOut"] = []
-    salaries: List["SalaryOut"] = []
+    # contracts: List["ContractOut"] = []
+    # attendances: List["AttendanceOut"] = []
+    # leaves: List["LeaveRequestOut"] = []
+    # salaries: List["SalaryOut"] = []
     addresses: List["AddressOut"] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -79,7 +78,6 @@ class ContractBase(BaseModel):
     start_date: date
     end_date: date
     slip: str
-    salary_amount: Decimal
     is_active: bool | None = True
 
 
@@ -91,8 +89,7 @@ class ContractUpdate(BaseModel):
     title: str | None = None
     start_date: date | None = None
     end_date: date | None = None
-    slip: str
-    salary_amount: Decimal | None = None
+    slip: str | None = None
     is_active: bool | None = None
 
 
@@ -162,15 +159,12 @@ class SalaryBase(BaseModel):
     month_of_function: str
     period: str
     base_salary: Decimal
-    additional_hours: Optional[Decimal] = None
-    compensations: Optional[Decimal] = None
-    gross_total: Decimal
+    additional_hours: Decimal | None = None
+    compensations: Decimal | None = None
     cnss_insurances: Decimal
     income_tax: Decimal
-    other_taxes: Optional[Decimal] = None
-    total_held: Decimal
-    bonus: Optional[Decimal] = None
-    net_salary_to_be_paid: Decimal
+    other_taxes: Decimal | None = None
+    bonus: Decimal | None = None
 
 
 class SalaryCreate(SalaryBase):
@@ -178,28 +172,25 @@ class SalaryCreate(SalaryBase):
 
 
 class SalaryUpdate(BaseModel):
-    registration_number: Optional[str] = None
-    position: Optional[str] = None
-    month_of_function: Optional[str] = None
-    period: Optional[str] = None
-
+    registration_number: str | None = None
+    position: str | None = None
+    month_of_function: str | None = None
+    period: str | None = None
     base_salary: Decimal | None = None
     additional_hours: Decimal | None = None
     compensations: Decimal | None = None
-
-    gross_total: Decimal | None = None
     cnss_insurances: Decimal | None = None
     income_tax: Decimal | None = None
     other_taxes: Decimal | None = None
-    total_held: Decimal | None = None
-
-    bonus: Optional[Decimal] = None
-    net_salary_to_be_paid: Optional[Decimal] = None
+    bonus: Decimal | None = None
 
 
 class SalaryOut(SalaryBase):
     id: int
     employee: EmployeeSimple
+    gross_total: Decimal
+    total_held: Decimal
+    net_salary_to_be_paid: Decimal
 
     model_config = ConfigDict(from_attributes=True)
 

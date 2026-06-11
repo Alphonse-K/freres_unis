@@ -1,4 +1,3 @@
-# src/schemas/procurement.py
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from decimal import Decimal
@@ -18,14 +17,6 @@ class ProcurementCreate(BaseModel):
     payment_terms: Optional[str] = None
     shipping_terms: Optional[str] = None
     notes: Optional[str] = None
-
-
-# class ProcurementUpdate(BaseModel):
-#     status: ProcurementStatus | None = None
-#     delivery_date: datetime | None = None
-#     delivery_notes: str | None = None
-#     driver_name: str | None = None
-#     driver_phone: str | None = None
 
 
 class ProcurementItemUpdate(BaseModel):

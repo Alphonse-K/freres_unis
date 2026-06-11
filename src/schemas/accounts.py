@@ -40,20 +40,15 @@ class AccountCreate(BaseModel):
         str,
         Field(min_length=2, max_length=255)
     ]
-
     type: AccountType
-
     sub_type: Optional[AccountSubType] = AccountSubType.OTHER
-
     account_number: Annotated[
         str,
         Field(min_length=2, max_length=120)
     ]
-
     remark: Optional[
         Annotated[str, Field(max_length=255)]
     ] = None
-
     balance: NonNegativeAmount = Decimal("0")
 
 

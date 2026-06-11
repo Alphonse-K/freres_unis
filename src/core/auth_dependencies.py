@@ -116,5 +116,4 @@ def optional_permission_for_client(permission_name: Permissions):
 
         # Otherwise enforce the normal permission
         return require_permission(permission_name)(current_user)
-    
     return dependency

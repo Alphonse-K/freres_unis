@@ -14,7 +14,9 @@ from src.schemas.employee import (
     SalaryUpdate,
     LeaveStatus
 )
-
+from src.schemas.users import PaginationParams    
+from datetime import date
+from decimal import Decimal
 
 class EmployeeService:
 
@@ -69,6 +71,30 @@ class ContractService:
         return contract
 
     @staticmethod
+    def list(db, pagination: PaginationParams):
+        query = db.query(Contract)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+    
+    @staticmethod
+    def get(db, contract_id: int):
+        contract = db.query(Contract).get(contract_id)
+        if not contract:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Contract not found"
+            )
+        return contract
+    
+    @staticmethod
+    def list_by_employee(db, employee_id: int, pagination: PaginationParams):
+        query = db.query(Contract).filter_by(employee_id=employee_id)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+
+    @staticmethod
     def update(db, contract_id: int, data: ContractUpdate):
         contract = db.query(Contract).get(contract_id)
         if not contract:
@@ -95,7 +121,38 @@ class AttendanceService:
         db.commit()
         db.refresh(attendance)
         return attendance
+    
+    @staticmethod
+    def list_by_employee(db, employee_id: int, pagination: PaginationParams):
+        query = db.query(Attendance).filter_by(employee_id=employee_id)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
 
+    @staticmethod
+    def list(db, pagination: PaginationParams):
+        query = db.query(Attendance)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+    
+    @staticmethod
+    def list_by_date(db, attendance_date: date, pagination: PaginationParams):
+        query = db.query(Attendance).filter_by(attendance_date=attendance_date)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+    
+    @staticmethod
+    def get(db, attendance_id: int):
+        attendance = db.query(Attendance).get(attendance_id)
+        if not attendance:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Attendance not found"
+            )
+        return attendance
+    
     @staticmethod
     def update(db, attendance_id: int, data: AttendanceUpdate):
         attendance = db.query(Attendance).get(attendance_id)
@@ -113,6 +170,17 @@ class AttendanceService:
         db.refresh(attendance)
         return attendance
     
+    @staticmethod
+    def delete(db, attendance_id: int):
+        attendance = db.query(Attendance).get(attendance_id)
+        if not attendance:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Attendance not found"
+            )
+        db.delete(attendance)
+        db.commit()
+
 
 class LeaveService:
 
@@ -124,6 +192,30 @@ class LeaveService:
         db.refresh(leave)
         return leave
 
+    @staticmethod
+    def list(db, pagination: PaginationParams):
+        query = db.query(LeaveRequest)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+    
+    @staticmethod
+    def list_by_employee(db, employee_id: int, pagination: PaginationParams):
+        query = db.query(LeaveRequest).filter_by(employee_id=employee_id)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+    
+    @staticmethod
+    def get(db, leave_id: int):
+        leave = db.query(LeaveRequest).get(leave_id)
+        if not leave:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Leave not found"
+            )
+        return leave    
+    
     @staticmethod
     def update(db, leave_id: int, data: LeaveRequestUpdate):
         leave = db.query(LeaveRequest).get(leave_id)
@@ -144,31 +236,116 @@ class LeaveService:
         db.refresh(leave)
         return leave
     
+    @staticmethod
+    def delete(db, leave_id: int):
+        leave = db.query(LeaveRequest).get(leave_id)
+        if not leave:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Leave not found"
+            )
+        if leave.status == LeaveStatus.APPROVED:
+            raise HTTPException(400, "Cannot delete approved leave")
+        db.delete(leave)
+        db.commit()
+
 
 class SalaryService:
 
     @staticmethod
     def create(db, data: SalaryCreate):
-        salary = Salary(**data.model_dump())
+        d = data.model_dump()
+
+        gross_total = (
+            d["base_salary"]
+            + (d["additional_hours"] or Decimal("0"))
+            + (d["compensations"] or Decimal("0"))
+        )
+
+        total_held = (
+            d["cnss_insurances"]
+            + d["income_tax"]
+            + (d["other_taxes"] or Decimal("0"))
+        )
+
+        net_salary_to_be_paid = gross_total - total_held + (d["bonus"] or Decimal("0"))
+
+        salary = Salary(
+            **d,
+            gross_total=gross_total,
+            total_held=total_held,
+            net_salary_to_be_paid=net_salary_to_be_paid
+        )
+
         db.add(salary)
         db.commit()
         db.refresh(salary)
         return salary
     
     @staticmethod
-    def update(db, salary_id: int, data: SalaryUpdate):
-        salary = db.query(Salary).filter_by(id=salary_id).first()
+    def list(db, pagination: PaginationParams):
+        query = db.query(Salary)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+
+    @staticmethod
+    def list_by_employee(db, employee_id: int, pagination: PaginationParams):
+        query = db.query(Salary).filter_by(employee_id=employee_id)
+        if pagination:
+            query = query.offset(pagination.offset).limit(pagination.page_size)
+        return query.all()
+
+    @staticmethod
+    def get(db, salary_id: int):
+        salary = db.query(Salary).get(salary_id)
         if not salary:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Salary not found"
             )
-        
+        return salary
+
+    @staticmethod
+    def update(db, salary_id: int, data: SalaryUpdate):
+        salary = db.query(Salary).get(salary_id)
+        if not salary:
+            raise HTTPException(status_code=404, detail="Salary not found")
+
         update_data = data.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             setattr(salary, k, v)
+
+        # Recalculate derived fields
+        salary.gross_total = (
+            salary.base_salary
+            + (salary.additional_hours or Decimal("0"))
+            + (salary.compensations or Decimal("0"))
+        )
+
+        salary.total_held = (
+            salary.cnss_insurances
+            + salary.income_tax
+            + (salary.other_taxes or Decimal("0"))
+        )
+
+        salary.net_salary_to_be_paid = (
+            salary.gross_total
+            - salary.total_held
+            + (salary.bonus or Decimal("0"))
+        )
 
         db.commit()
         db.refresh(salary)
         return salary
     
+    @staticmethod
+    def delete(db, salary_id: int):
+        salary = db.query(Salary).get(salary_id)
+        if not salary:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Salary not found"
+            )
+        db.delete(salary)
+        db.commit()

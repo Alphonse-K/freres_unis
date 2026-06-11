@@ -1,33 +1,13 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
-from src.core.database import Base, engine, SessionLocal
-from src.core.seed_permissions import seed_permissions, seed_role
 from pathlib import Path
 
-import src.models
+from src.core.database import Base, engine, SessionLocal
+from src.core.seed_permissions import seed_permissions, seed_role
+from src.routes import register_routers
 
-from src.routes.auth import auth_router
-from src.routes.system_user import user_router
-from src.routes.clients import client_router
-from src.routes.pos import pos_router
-from src.routes.address import address_router
-from src.routes.id_types_routes import id_type_router
-from src.routes.pos_inventory import inventory_router
-from src.routes.pos_sales import sales_router
-from src.routes.pos_expenses import expenses_router
-from src.routes.procurements import procurement_router
-from src.routes.provider import provider_router
-from src.routes.catalog_route import product_router
-from src.routes.role import role_router
-from src.routes.tax import tax_router
-from src.routes.company import company_router
-from src.routes.employee import employee_router
-from src.routes.partner_company import partner_company_router
-from src.routes.notifications import notification_router
-from src.routes.cash_register import cash_register_route
-from src.routes import files
-from src.routes.accounts import router as accounts_router
+import src.models
 
 
 @asynccontextmanager
@@ -48,9 +28,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-
 IS_DOCKER = Path("/app").exists()
-
 UPLOAD_DIR = Path("/app/uploads") if IS_DOCKER else Path("uploads")
 MEDIA_DIR = Path("/app/media") if IS_DOCKER else Path("media")
 
@@ -60,32 +38,8 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
-API_PREFIX = "/api/v1"
+register_routers(app)
 
-app.include_router(auth_router, prefix=API_PREFIX)
-app.include_router(user_router, prefix=API_PREFIX)
-app.include_router(client_router, prefix=API_PREFIX)
-app.include_router(pos_router, prefix=API_PREFIX)
-app.include_router(cash_register_route, prefix=API_PREFIX)
-app.include_router(product_router, prefix=API_PREFIX)
-app.include_router(inventory_router, prefix=API_PREFIX)
-app.include_router(tax_router, prefix=API_PREFIX)
-app.include_router(sales_router, prefix=API_PREFIX)
-app.include_router(expenses_router, prefix=API_PREFIX)
-app.include_router(procurement_router, prefix=API_PREFIX)
-app.include_router(provider_router, prefix=API_PREFIX)
-app.include_router(address_router, prefix=API_PREFIX)
-app.include_router(id_type_router, prefix=API_PREFIX)
-app.include_router(role_router, prefix=API_PREFIX)
-app.include_router(files.router, prefix=API_PREFIX)
-app.include_router(company_router, prefix=API_PREFIX)
-app.include_router(partner_company_router, prefix=API_PREFIX)
-app.include_router(partner_company_router, prefix=API_PREFIX)
-app.include_router(notification_router, prefix=API_PREFIX)
-app.include_router(accounts_router, prefix=API_PREFIX)
-
-
-
-@app.get(f"{API_PREFIX}/")
+@app.get("/api/v1/")
 def root():
     return {"message": "Freres Unis API is running"}
