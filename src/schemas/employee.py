@@ -35,7 +35,7 @@ class EmployeeBase(BaseModel):
 
 
 class EmployeeCreate(EmployeeBase):
-    pass
+    pos_id: int | None = None
 
 
 class EmployeeUpdate(BaseModel):
@@ -51,6 +51,7 @@ class EmployeeUpdate(BaseModel):
 
 class EmployeeOut(EmployeeBase):
     id: int
+    pos_id: int | None = None
     # contracts: List["ContractOut"] = []
     # attendances: List["AttendanceOut"] = []
     # leaves: List["LeaveRequestOut"] = []
@@ -185,14 +186,34 @@ class SalaryUpdate(BaseModel):
     bonus: Decimal | None = None
 
 
-class SalaryOut(SalaryBase):
-    id: int
+class SalaryOut(BaseModel):
     employee: EmployeeSimple
+    registration_number: str
+    position: str
+    month_of_function: str
+    period: str
+    base_salary: Decimal
+    additional_hours: Decimal | None
+    compensations: Decimal | None
+    cnss_insurances: Decimal
+    income_tax: Decimal
+    other_taxes: Decimal | None
+    bonus: Decimal | None
     gross_total: Decimal
     total_held: Decimal
     net_salary_to_be_paid: Decimal
 
+    status: str
+    rejection_reason: str | None
+    created_by_id: int
+    reviewed_by_id: int | None
+    reviewed_at: datetime | None
+
     model_config = ConfigDict(from_attributes=True)
+
+
+class SalaryReject(BaseModel):
+    reason: str | None = None
 
 # -------------------------------
 # Pydantic v2: rebuild forward references

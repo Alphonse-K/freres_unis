@@ -345,6 +345,16 @@ def generate_card_token(card_id: UUID, client_id: int):
         "type": "client_card"
     }
 
+def generate_employee_card_token(card_id: UUID, employee_id: int):
+    payload = {
+        "sub": str(card_id),
+        "cid": employee_id,
+        "iss": "FRERES_UNIS",
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(days=365),
+        "type": "employee_card"
+    }
+
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 

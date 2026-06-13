@@ -12,16 +12,19 @@ from src.schemas.employee import (
     LeaveRequestUpdate,
     SalaryCreate,
     SalaryUpdate,
-    LeaveStatus
+    LeaveStatus,
+    SalaryReject
 )
+from sqlalchemy.orm import Session
+from datetime import datetime
 from src.schemas.users import PaginationParams    
-from datetime import date
+from datetime import date, timezone
 from decimal import Decimal
 
 class EmployeeService:
 
     @staticmethod
-    def create(db, data: EmployeeCreate):
+    def create(db: Session, data: EmployeeCreate):
         employee = Employee(**data.model_dump())
         db.add(employee)
         db.commit()
@@ -253,7 +256,7 @@ class LeaveService:
 class SalaryService:
 
     @staticmethod
-    def create(db, data: SalaryCreate):
+    def create(db: Session, data: SalaryCreate, created_by_id: int):
         d = data.model_dump()
 
         gross_total = (
@@ -261,74 +264,92 @@ class SalaryService:
             + (d["additional_hours"] or Decimal("0"))
             + (d["compensations"] or Decimal("0"))
         )
-
         total_held = (
             d["cnss_insurances"]
             + d["income_tax"]
             + (d["other_taxes"] or Decimal("0"))
         )
-
         net_salary_to_be_paid = gross_total - total_held + (d["bonus"] or Decimal("0"))
 
         salary = Salary(
             **d,
             gross_total=gross_total,
             total_held=total_held,
-            net_salary_to_be_paid=net_salary_to_be_paid
+            net_salary_to_be_paid=net_salary_to_be_paid,
+            status="pending",
+            created_by_id=created_by_id
         )
-
         db.add(salary)
         db.commit()
         db.refresh(salary)
         return salary
-    
-    @staticmethod
-    def list(db, pagination: PaginationParams):
-        query = db.query(Salary)
-        if pagination:
-            query = query.offset(pagination.offset).limit(pagination.page_size)
-        return query.all()
 
     @staticmethod
-    def list_by_employee(db, employee_id: int, pagination: PaginationParams):
-        query = db.query(Salary).filter_by(employee_id=employee_id)
-        if pagination:
-            query = query.offset(pagination.offset).limit(pagination.page_size)
-        return query.all()
-
-    @staticmethod
-    def get(db, salary_id: int):
-        salary = db.query(Salary).get(salary_id)
+    def approve(db: Session, salary_id: int, reviewer_id: int):
+        salary = db.get(Salary, salary_id)
         if not salary:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Salary not found"
-            )
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Salary not found")
+
+        # Idempotency
+        if salary.status == "approved":
+            return salary
+
+        if salary.status != "pending":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid salary state")
+
+        salary.status = "approved"
+        salary.reviewed_by_id = reviewer_id
+        salary.reviewed_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(salary)
         return salary
 
     @staticmethod
-    def update(db, salary_id: int, data: SalaryUpdate):
-        salary = db.query(Salary).get(salary_id)
+    def reject(db: Session, salary_id: int, reviewer_id: int, data: SalaryReject):
+        salary = db.get(Salary, salary_id)
         if not salary:
-            raise HTTPException(status_code=404, detail="Salary not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Salary not found")
 
-        update_data = data.model_dump(exclude_unset=True)
-        for k, v in update_data.items():
+        # Idempotency
+        if salary.status == "rejected":
+            return salary
+
+        if salary.status != "pending":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid salary state")
+
+        salary.status = "rejected"
+        salary.reviewed_by_id = reviewer_id
+        salary.reviewed_at = datetime.now(timezone.utc)
+        salary.rejection_reason = data.reason
+
+        db.commit()
+        db.refresh(salary)
+        return salary
+
+    @staticmethod
+    def update(db: Session, salary_id: int, data: SalaryUpdate):
+        salary = db.get(Salary, salary_id)
+        if not salary:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Salary not found")
+
+        if salary.status == "approved":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot modify approved salary")
+
+        for k, v in data.model_dump(exclude_unset=True).items():
             setattr(salary, k, v)
 
-        # Recalculate derived fields
+        # Recalculate
         salary.gross_total = (
             salary.base_salary
             + (salary.additional_hours or Decimal("0"))
             + (salary.compensations or Decimal("0"))
         )
-
         salary.total_held = (
             salary.cnss_insurances
             + salary.income_tax
             + (salary.other_taxes or Decimal("0"))
         )
-
         salary.net_salary_to_be_paid = (
             salary.gross_total
             - salary.total_held
@@ -338,14 +359,34 @@ class SalaryService:
         db.commit()
         db.refresh(salary)
         return salary
-    
+
     @staticmethod
-    def delete(db, salary_id: int):
-        salary = db.query(Salary).get(salary_id)
+    def list(db: Session, pagination: PaginationParams):
+        query = db.query(Salary).order_by(Salary.id.desc())
+        total = query.count()
+        items = query.offset(pagination.offset).limit(pagination.page_size).all()
+        return total, items
+
+    @staticmethod
+    def list_by_employee(db: Session, employee_id: int, pagination: PaginationParams):
+        query = db.query(Salary).filter_by(employee_id=employee_id).order_by(Salary.id.desc())
+        total = query.count()
+        items = query.offset(pagination.offset).limit(pagination.page_size).all()
+        return total, items
+
+    @staticmethod
+    def get(db: Session, salary_id: int):
+        salary = db.get(Salary, salary_id)
         if not salary:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Salary not found"
-            )
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        return salary
+
+    @staticmethod
+    def delete(db: Session, salary_id: int):
+        salary = db.get(Salary, salary_id)
+        if not salary:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        if salary.status == "approved":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot delete approved salary")
         db.delete(salary)
         db.commit()

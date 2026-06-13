@@ -2,7 +2,6 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from src.models.role import Role 
 from src.models.permission import Permission
-from src.core.permissions import Permissions
 from typing import List
 from src.models.clients import Client
 from src.models.users import User
@@ -117,14 +116,17 @@ def assign_permissions_to_role(
     permissions = db.query(Permission).filter(
         Permission.id.in_(permission_ids)
     ).all()
-
+    
     if not permissions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No valid permissions found"
         )
 
-    role.permissions = permissions
+    for permission in permissions:
+        if permission not in role.permissions:
+            role.permissions.append(permission)         
+
     db.commit()
     db.refresh(role)
     return role

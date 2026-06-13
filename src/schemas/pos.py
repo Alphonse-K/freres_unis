@@ -114,6 +114,18 @@ class POSUserOut(POSUserBase):
     pos_id: int
     model_config = ConfigDict(from_attributes=True)
 
+
+class POSUserSimple(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    username: str
+    phone: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # -------------------------------
 # POS SCHEMAS
 # -------------------------------

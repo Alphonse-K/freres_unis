@@ -119,6 +119,7 @@ class POS(Base):
     warehouse = relationship("Warehouse", back_populates="pos", uselist=False, foreign_keys=[warehouse_id])
     provider = relationship("Provider", back_populates="linked_pos", uselist=False)
     ledgers = relationship("POSLedger", back_populates="pos")
+    employees = relationship("Employee", back_populates="pos")
 
 
 class POSUser(Base):

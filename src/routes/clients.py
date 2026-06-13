@@ -1,4 +1,14 @@
-from fastapi import APIRouter, Depends, status, Query, HTTPException, Form, UploadFile, File, Request
+from fastapi import (
+    APIRouter, 
+    Depends, 
+    status, 
+    Query, 
+    HTTPException, 
+    Form, 
+    UploadFile, 
+    File, 
+    Request
+)
 from sqlalchemy.orm import Session
 from typing import Optional
 from src.core.database import get_db
@@ -9,9 +19,8 @@ from src.models.clients import (
     ClientStatus, 
     ClientReturn, 
     ClientRequest,
-    LoanStatus
+    # LoanStatus
 )
-
 from src.models.id import IDType
 from src.models.clients import LedgerEntry
 from src.models.users import User
@@ -36,8 +45,8 @@ from src.schemas.clients import (
     CardRequestCreate,
     ScanRequest,
     ScanResponse,
-    ClientCardResponse,
-    CardApproveRequest,
+    # ClientCardResponse,
+    # CardApproveRequest,
     CardRequestResponse,
     CardRequestCreate,
     ClientHeirCreate,
@@ -69,17 +78,20 @@ from src.services.client_service import (
 from src.services.pos import POSService
 from src.services.client_approval_service import ClientApprovalService
 from src.core.security import SecurityUtils
-from src.core.auth_dependencies import optional_permission_for_client, require_permission, get_current_account
+from src.core.auth_dependencies import (
+    optional_permission_for_client, 
+    require_permission, 
+    get_current_account
+)
 from src.core.permissions import Permissions
 from decimal import Decimal
 from uuid import UUID
+
 
 client_router = APIRouter(
     prefix="/clients",
     tags=["Clients"]
 )
-
-
 
 CanReadClient = Annotated[User, Depends(require_permission(Permissions.READ_CLIENT))]
 DB = Annotated[Session, Depends(get_db)]
@@ -93,6 +105,7 @@ def get_user_company(current_user: CanReadClient) -> str:
             detail="Your account is not associated with a company"
         )
     return company
+
 
 CompanyUser = Annotated[str, Depends(get_user_company)]
 
@@ -558,7 +571,10 @@ def get_client_ledger_paginated(
         "items": items,
     }
 
-@client_router.get("/company/{client_id}/ledger", response_model=PaginatedResponse[ClientLedgerResponse])
+@client_router.get(
+    "/company/{client_id}/ledger", 
+    response_model=PaginatedResponse[ClientLedgerResponse]
+)
 def list_client_ledger_by_company(
     client_id: int,
     db: DB,
@@ -573,7 +589,10 @@ def list_client_ledger_by_company(
     return PaginatedResponse(total=total, items=items)
 
 
-@client_router.get("/company/{client_id}/ledger/{ledger_id}", response_model=ClientLedgerResponse)
+@client_router.get(
+    "/company/{client_id}/ledger/{ledger_id}", 
+    response_model=ClientLedgerResponse
+)
 def get_client_ledger_entry_by_company(
     client_id: int,
     ledger_id: int,
@@ -644,9 +663,13 @@ def get_client_return(
 
 
 @client_router.post(
-        "/client-return/{return_id}/cancel"
+    "/client-return/{return_id}/cancel"
 )
-def cancel_return(return_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_account)):
+def cancel_return(
+    return_id: int, 
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_account)
+):
     client_return = db.query(ClientReturn).filter_by(id=return_id).first()
     if not client_return:
         raise HTTPException(

@@ -1,5 +1,15 @@
-# src/models/employee.py
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, Boolean, Numeric, Enum, Text
+from sqlalchemy import (
+    Column, 
+    Integer, 
+    String, 
+    ForeignKey, 
+    Date, 
+    DateTime, 
+    Boolean, 
+    Numeric, 
+    Enum, 
+    Text
+)
 from sqlalchemy.orm import relationship
 from src.core.database import Base
 import enum
@@ -19,6 +29,7 @@ class LeaveStatus(str, enum.Enum):
 class Employee(Base):
     __tablename__ = "employees"
     id = Column(Integer, primary_key=True)
+    pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
     first_name = Column(String(120))
     last_name = Column(String(120))
     gender = Column(Enum(Gender))
@@ -28,12 +39,14 @@ class Employee(Base):
     address = Column(String(255))
     hire_date = Column(Date)
 
-    # relationships
     contracts = relationship("Contract", back_populates="employee")
     attendances = relationship("Attendance", back_populates="employee")
     leaves = relationship("LeaveRequest", back_populates="employee")
     salaries = relationship("Salary", back_populates="employee")
     addresses = relationship("Address", back_populates="employee", cascade="all, delete-orphan")
+    card_requests = relationship("EmployeeCardRequest", back_populates="employee")
+    card = relationship("EmployeeCard", back_populates="employee", uselist=False)
+    pos = relationship("POS", back_populates="employees")
 
 
 class Contract(Base):
@@ -45,6 +58,7 @@ class Contract(Base):
     start_date = Column(Date)
     end_date = Column(Date)
     is_active = Column(Boolean, default=True)
+
     employee = relationship("Employee", back_populates="contracts")
 
 
@@ -55,6 +69,7 @@ class Attendance(Base):
     attendance_date = Column(Date)
     check_in = Column(DateTime)
     check_out = Column(DateTime)
+
     employee = relationship("Employee", back_populates="attendances")
 
 
@@ -66,6 +81,7 @@ class LeaveRequest(Base):
     end_date = Column(Date)
     reason = Column(Text)
     status = Column(Enum(LeaveStatus), default=LeaveStatus.PENDING)
+
     employee = relationship("Employee", back_populates="leaves")
 
 
@@ -81,10 +97,20 @@ class Salary(Base):
     additional_hours = Column(Numeric(12, 2), nullable=True)
     compensations = Column(Numeric(12, 2), nullable=True)
     gross_total = Column(Numeric(12, 2), nullable=False)
-    cnss_insurances= Column(Numeric(12, 2), nullable=False)
+    cnss_insurances = Column(Numeric(12, 2), nullable=False)
     income_tax = Column(Numeric(12, 2), nullable=False)
     other_taxes = Column(Numeric(12, 2), nullable=True)
     total_held = Column(Numeric(12, 2), nullable=False)
     bonus = Column(Numeric(12, 2), nullable=True)
     net_salary_to_be_paid = Column(Numeric(12, 2), nullable=False)
+
+    # Workflow
+    status = Column(String, default="pending")
+    rejection_reason = Column(String, nullable=True)
+    created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)
+    reviewed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
     employee = relationship("Employee", back_populates="salaries")
+    created_by = relationship("POSUser", foreign_keys=[created_by_id])
+    reviewed_by = relationship("User", foreign_keys=[reviewed_by_id])

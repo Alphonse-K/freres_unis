@@ -41,6 +41,17 @@ class UserCreate(UserBase):
         return value
  
 
+class UserSimple(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    username: str
+    email: str
+    phone: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserUpdate(BaseModel):
     first_name: Optional[str] = Field(None, max_length=120)
     last_name: Optional[str] = Field(None, max_length=120)
