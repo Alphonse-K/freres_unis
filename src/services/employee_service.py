@@ -21,7 +21,48 @@ from src.schemas.users import PaginationParams
 from datetime import date, timezone
 from decimal import Decimal
 
+
 class EmployeeService:
+
+    @staticmethod
+    def get(db, employee_id: int, pos_id: int | None = None):
+        query = db.query(Employee).filter(Employee.id == employee_id)
+
+        # pos_id=None means admin — no POS restriction
+        if pos_id is not None:
+            query = query.filter(Employee.pos_id == pos_id)
+
+        employee = query.first()
+        if not employee:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Employee not found"
+            )
+        return employee
+
+    @staticmethod
+    def list(db, pos_id: int | None = None):
+        query = db.query(Employee)
+
+        if pos_id is not None:
+            query = query.filter(Employee.pos_id == pos_id)
+
+        return query.all()
+
+    @staticmethod
+    def update(db, employee_id: int, data: EmployeeUpdate, pos_id: int | None = None):
+        employee = EmployeeService.get(db, employee_id, pos_id)
+        for key, value in data.model_dump(exclude_unset=True).items():
+            setattr(employee, key, value)
+        db.commit()
+        db.refresh(employee)
+        return employee
+
+    @staticmethod
+    def delete(db, employee_id: int, pos_id: int | None = None):
+        employee = EmployeeService.get(db, employee_id, pos_id)
+        db.delete(employee)
+        db.commit()
 
     @staticmethod
     def create(db: Session, data: EmployeeCreate):
@@ -30,37 +71,6 @@ class EmployeeService:
         db.commit()
         db.refresh(employee)
         return employee
-
-    @staticmethod
-    def get(db, employee_id: int):
-        employee = db.query(Employee).filter_by(id=employee_id).first()
-        if not employee:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Employee not found"
-            )
-        return employee
-
-    @staticmethod
-    def list(db):
-        return db.query(Employee).all()
-
-    @staticmethod
-    def update(db, employee_id: int, data: EmployeeUpdate):
-        employee = EmployeeService.get(db, employee_id)
-        update_data = data.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(employee, key, value)
-
-        db.commit()
-        db.refresh(employee)
-        return employee
-
-    @staticmethod
-    def delete(db, employee_id: int):
-        employee = EmployeeService.get(db, employee_id)
-        db.delete(employee)
-        db.commit()
 
 
 class ContractService:

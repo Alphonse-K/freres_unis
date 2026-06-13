@@ -10,8 +10,9 @@ from src.core.permissions import Permissions
 
 security = HTTPBearer()
 
+
 def get_current_account(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security) , 
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security), 
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -33,9 +34,9 @@ def get_current_account(
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired access token"
-        )
-    
+        )    
     return account_info
+
 
 def get_api_key(
         x_api_key: str = Header(..., alias="X-API-Key"),
@@ -50,6 +51,7 @@ def get_api_key(
             detail="Invalid API Key or secret"
         )
     return api_key
+
 
 def require_role(required_roles: list[str]):
     def checker(current_user: dict =  Depends(get_current_account)):
@@ -71,6 +73,7 @@ def require_role(required_roles: list[str]):
         )
     return checker
 
+
 def require_permission(permission_name: Permissions):
     def checker(current_user: dict = Depends(get_current_account)):
         account = current_user["account"]
@@ -90,6 +93,7 @@ def require_permission(permission_name: Permissions):
             detail=f"Required: {permission_name.value}"
         )
     return checker
+
 
 def api_key_permission(required_permission: str):
     def checker(api_key: APIKey = Depends(get_api_key)):
@@ -117,3 +121,10 @@ def optional_permission_for_client(permission_name: Permissions):
         # Otherwise enforce the normal permission
         return require_permission(permission_name)(current_user)
     return dependency
+
+
+# dependencies.py — add this helper function to extract pos_id from current_user, 
+# returning None for admin users without a pos_id   
+def get_pos_id_or_none(current_user) -> int | None:
+    """Returns pos_id if POSUser, None if admin User."""
+    return getattr(current_user, 'pos_id', None)
