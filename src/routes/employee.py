@@ -284,7 +284,7 @@ def list_salaries(
 
 @employee_router.get(
     "/salaries/employee/{employee_id}", 
-    response_model=Paginated
+    response_model=list[SalaryOut]
 )
 def list_salaries_by_employee(
     employee_id: int,

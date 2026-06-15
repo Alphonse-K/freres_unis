@@ -211,8 +211,6 @@ class PaginatedSalaryOut(BaseModel):
     total: int
     items: List[SalaryOut]
 
-    # model_config = ConfigDict(from_attributes=True)
-    
 
 class SalaryReject(BaseModel):
     reason: str | None = None

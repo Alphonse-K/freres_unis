@@ -1,12 +1,13 @@
 from fastapi import HTTPException, status
 from src.models.employee import Employee, Contract, Attendance, LeaveRequest, Salary
+from src.models.pos import POSUser
 from src.schemas.employee import (
     EmployeeCreate, 
     EmployeeUpdate,
     ContractCreate,
     ContractUpdate,
     AttendanceCreate,
-    AttendanceUpdate,
+    AttendanceUpdate,   
     LeaveRequestCreate,
     LeaveRequestUpdate,
     SalaryCreate,
@@ -123,7 +124,17 @@ class ContractService:
         db.refresh(contract)
         return contract
     
-
+    @staticmethod
+    def delete(db, contract_id: int):
+        contract = db.query(Contract).get(contract_id)
+        if not contract:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Contract not found"
+            )
+        db.delete(contract)
+        db.commit()
+        
 class AttendanceService:
 
     @staticmethod
@@ -267,6 +278,14 @@ class SalaryService:
     @staticmethod
     def create(db: Session, data: SalaryCreate, created_by_id: int):
         d = data.model_dump()
+
+        pos_user = db.query(POSUser).get(created_by_id)
+        print(f"POS User: {pos_user.username}")
+        if not pos_user:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, 
+                detail="POS User not found"
+            )
 
         gross_total = (
             d["base_salary"]
