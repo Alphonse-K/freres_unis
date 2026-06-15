@@ -116,8 +116,8 @@ def update_salary(
 )
 def delete_salary(
     salary_id: int, 
-db: DB, 
-current_user: CanDeleteEmployee
+    db: DB, 
+    current_user: CanDeleteEmployee
 ):
     SalaryService.delete(db, salary_id)
     return {"message": "Deleted"}

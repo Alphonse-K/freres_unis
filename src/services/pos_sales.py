@@ -1,4 +1,3 @@
-# src/services/sale_service.py
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
@@ -10,13 +9,16 @@ from src.models.pos import (
     Sale, SaleItem, SaleReturn, SaleCustomerInfo, SaleStatus, PaymentMethod
 )
 from src.models.pos import POS, POSUser
+from src.schemas.users import PaginationParams
 from src.models.clients import Client
 from src.models.catalog import ProductVariant
 from src.schemas.pos import (
     SaleCreate, SaleItemCreate, SaleUpdate, 
     SaleReturnCreate, CustomerInfoCreate
 )
+from src.models.ecommerce import OrderStatus, Order, OrderItem
 from src.services.inventory import InventoryService
+from src.models.inventory import Warehouse
 from src.services.pos import POSService, POSUserService
 
 logger = logging.getLogger(__name__)
@@ -470,6 +472,59 @@ class SaleService:
         
         return sales, total
     
+    @staticmethod
+    def list_orders(
+        db: Session,
+        warehouse_id: int,
+        pagination: PaginationParams,
+        pos_id: int | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: OrderStatus | None = None
+    ):
+        orders = (
+            db.query(Order)
+            .options(
+                joinedload(Order.warehouse),
+                # .joinedload(Warehouse.pos),
+                joinedload(Order.client),
+                joinedload(Order.items).joinedload(OrderItem.product_variant),
+            )
+        )
+
+        if warehouse_id:
+            orders = orders.filter(Order.warehouse_id == warehouse_id)
+
+        if pos_id:
+            orders = orders.join(Order.warehouse).join(Warehouse.pos).filter(POS.id == pos_id)
+        
+        if start_date:
+            orders = orders.filter(Order.created_at >= start_date)
+
+        if end_date:
+            orders = orders.filter(Order.created_at <= end_date)
+        
+        if status:
+            orders = orders.filter(Order.status == status)
+
+        total = orders.count()
+
+        orders = (
+            orders
+            .order_by(desc(Order.created_at))
+            .offset(pagination.offset)
+            .limit(pagination.page_size)
+        )
+
+
+        return {
+            "total": total,
+            "page": pagination.page,
+            "page_size": pagination.page_size,
+            "items": orders
+        }
+    
+
     @staticmethod
     def get_sales_summary(
         db: Session,

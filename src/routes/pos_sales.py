@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.core.database import get_db
-from src.core.auth_dependencies import get_current_account, require_permission
+from src.core.auth_dependencies import get_current_account, require_permission, get_pos_id_or_none
 from src.core.permissions import Permissions
 from src.models.pos import SaleStatus, PaymentMethod
 from src.schemas.pos import (
@@ -14,6 +14,9 @@ from src.schemas.pos import (
     SaleReturnCreate, SaleReturnOut, CustomerInfoOut,
     SaleSummary, DailySalesReport, SalesTrendItem, TopProductReport
 )
+from src.schemas.ecommerce import OrderOut
+from src.models.ecommerce import OrderStatus
+from src.schemas.users import PaginatedResponse, PaginationParams
 from src.services.pos_sales import SaleService, SaleNotFoundException, SaleValidationException, SaleBusinessRuleException
 
 sales_router = APIRouter(prefix="/sales", tags=["POS Sales"])
@@ -117,8 +120,6 @@ def create_qr_sale(
             current_account["id"],
             notes
         )
-    except ClientException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
     except SaleValidationException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
@@ -217,6 +218,30 @@ def list_sales(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
+@sales_router.get(
+    "/orders/",
+    response_model=PaginatedResponse[OrderOut],
+    description="List orders made to POS"
+)
+def list_orders(
+    warehouse_id: int,
+    pagination: PaginationParams = Depends(),
+    start_date: date | None = None,
+    end_date: date | None = None,
+    status: OrderStatus | None = None,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.READ_ORDER))
+):
+    pos_id = get_pos_id_or_none(current_user)
+    return SaleService.list_orders(
+        db,
+        warehouse_id,
+        pagination,
+        pos_id,
+        start_date,
+        end_date,
+        status
+    )
 
 # ================================
 # SALE RETURNS ROUTES

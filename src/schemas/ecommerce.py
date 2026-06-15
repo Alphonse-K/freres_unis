@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
+from src.schemas.common import SimpleWarehouse
 
 
 class CartItemBase(BaseModel):
@@ -79,6 +80,7 @@ class OrderOut(OrderBase):
     id: int
     created_at: datetime
     order_code: str
+    warehouse: SimpleWarehouse
     items: List[OrderItemOut] = []
     beneficiary: OrderBeneficiaryInfoOut | None = None
     model_config = ConfigDict(from_attributes=True)
