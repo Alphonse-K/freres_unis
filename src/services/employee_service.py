@@ -15,6 +15,7 @@ from src.schemas.employee import (
     LeaveStatus,
     SalaryReject
 )
+from src.utils.file_upload import save_image
 from sqlalchemy.orm import Session
 from datetime import datetime
 from src.schemas.users import PaginationParams    
@@ -50,10 +51,20 @@ class EmployeeService:
         return query.all()
 
     @staticmethod
-    def update(db, employee_id: int, data: EmployeeUpdate, pos_id: int | None = None):
+    def update(
+        db, 
+        employee_id: int, 
+        data: EmployeeUpdate, 
+        pos_id: int | None = None, 
+        face_image: str | None = None
+    ):
         employee = EmployeeService.get(db, employee_id, pos_id)
         for key, value in data.model_dump(exclude_unset=True).items():
             setattr(employee, key, value)
+
+        if face_image:
+            employee.face_image=save_image(face_image, "face_image")
+
         db.commit()
         db.refresh(employee)
         return employee
@@ -65,8 +76,11 @@ class EmployeeService:
         db.commit()
 
     @staticmethod
-    def create(db: Session, data: EmployeeCreate):
-        employee = Employee(**data.model_dump())
+    def create(db: Session, data: EmployeeCreate, face_image: str | None = None):
+        employee = Employee(
+            **data,
+            face_image=save_image(face_image, "face_image")
+        )
         db.add(employee)
         db.commit()
         db.refresh(employee)

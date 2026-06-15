@@ -486,7 +486,6 @@ class SaleService:
             db.query(Order)
             .options(
                 joinedload(Order.warehouse),
-                # .joinedload(Warehouse.pos),
                 joinedload(Order.client),
                 joinedload(Order.items).joinedload(OrderItem.product_variant),
             )

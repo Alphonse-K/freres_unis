@@ -30,6 +30,7 @@ class EmployeeBase(BaseModel):
     birth_date: date
     phone: str
     email: str | None = None
+    face_image: str | None = None
     address: str
     hire_date: date
 
@@ -42,7 +43,7 @@ class EmployeeUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     gender: Gender | None = None
-    birth_date: Optional[date] = None
+    birth_date: date | None = None
     phone: str | None = None
     email: str | None = None
     address: str | None = None

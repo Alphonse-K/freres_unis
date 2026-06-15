@@ -36,6 +36,7 @@ class Employee(Base):
     birth_date = Column(Date)
     phone = Column(String(30))
     email = Column(String(255))
+    face_image = Column(String(255), nullable=True)
     address = Column(String(255))
     hire_date = Column(Date)
 

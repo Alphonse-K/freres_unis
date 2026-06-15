@@ -3,7 +3,10 @@ import uuid
 import shutil
 from fastapi import UploadFile
 
-UPLOAD_ROOT = Path("/app/uploads")
+
+IS_DOCKER = Path("/app").exists()
+
+UPLOAD_ROOT = Path("/app/uploads") if IS_DOCKER else Path("uploads")
 
 def save_image(file: UploadFile, folder: str):
     folder = folder.strip().replace("..", "")
