@@ -59,6 +59,7 @@ class EmployeeService:
         face_image: str | None = None
     ):
         employee = EmployeeService.get(db, employee_id, pos_id)
+
         for key, value in data.model_dump(exclude_unset=True).items():
             setattr(employee, key, value)
 
@@ -78,7 +79,7 @@ class EmployeeService:
     @staticmethod
     def create(db: Session, data: EmployeeCreate, face_image: str | None = None):
         employee = Employee(
-            **data,
+            **data.model_dump(),
             face_image=save_image(face_image, "face_image")
         )
         db.add(employee)

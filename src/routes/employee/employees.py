@@ -32,17 +32,16 @@ def create_employee(
     hire_date: date = Form(None),
     face_image: UploadFile = File(None),
 ):
-    data = {
-        "first_name": first_name,
-        "last_name": last_name,
-        "gender": gender,
-        "birth_date": birth_date,
-        "phone": phone,
-        "email": email,
-        "address": address,
-        "hire_date": hire_date,
-    }
-
+    data = EmployeeCreate(
+        first_name=first_name,
+        last_name=last_name,
+        gender=gender,
+        birth_date=birth_date,
+        phone=phone,
+        email=email,
+        address=address,
+        hire_date=hire_date,
+    )
     return EmployeeService.create(db, data, face_image)
 
 
@@ -82,16 +81,18 @@ def update_employee(
 ):
     
     pos_id = get_pos_id_or_none(current_user)
-    data = EmployeeUpdate(
-        first_name=first_name,
-        last_name=last_name,
-        gender=gender,
-        birth_date=birth_date,
-        phone=phone,
-        email=email,
-        address=address,
-        hire_date=hire_date,
-    )
+    raw = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "gender": gender,
+        "birth_date": birth_date,
+        "phone": phone,
+        "email": email,
+        "address": address,
+        "hire_date": hire_date,
+    }
+    filtered = {k: v for k, v in raw if v is not None}
+    data = EmployeeUpdate(**filtered)
     return EmployeeService.update(db, employee_id, data, pos_id, face_image)
 
 

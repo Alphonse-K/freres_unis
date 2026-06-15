@@ -30,7 +30,6 @@ class EmployeeBase(BaseModel):
     birth_date: date
     phone: str
     email: str | None = None
-    face_image: str | None = None
     address: str
     hire_date: date
 
