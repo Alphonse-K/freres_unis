@@ -91,7 +91,7 @@ def update_employee(
         "address": address,
         "hire_date": hire_date,
     }
-    filtered = {k: v for k, v in raw if v is not None}
+    filtered = {k: v for k, v in raw.items() if v is not None}
     data = EmployeeUpdate(**filtered)
     return EmployeeService.update(db, employee_id, data, pos_id, face_image)
 

@@ -52,6 +52,7 @@ class EmployeeUpdate(BaseModel):
 class EmployeeOut(EmployeeBase):
     id: int
     pos_id: int | None = None
+    face_image: str | None = None
     addresses: List["AddressOut"] = []
     model_config = ConfigDict(from_attributes=True)
 
