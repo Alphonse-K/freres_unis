@@ -282,7 +282,10 @@ def list_salaries(
     return SalaryService.list(db, pagination)
 
 
-@employee_router.get("/salaries/employee/{employee_id}", response_model=list[SalaryOut])
+@employee_router.get(
+    "/salaries/employee/{employee_id}", 
+    response_model=Paginated
+)
 def list_salaries_by_employee(
     employee_id: int,
     db: DB,

@@ -6,7 +6,7 @@ from src.core.database import get_db
 from src.core.permissions import Permissions
 from src.core.auth_dependencies import require_permission
 from src.services.employee_service import SalaryService
-from src.schemas.employee import SalaryCreate, SalaryUpdate, SalaryOut
+from src.schemas.employee import SalaryCreate, SalaryUpdate, SalaryOut, PaginatedSalaryOut
 from src.schemas.users import PaginationParams
 from src.schemas.employee import SalaryCreate, SalaryUpdate, SalaryOut, SalaryReject
 
@@ -61,19 +61,20 @@ def reject_salary(
 
 @salary_router.get(
     "/salaries", 
-    response_model=list[SalaryOut]
+    response_model=PaginatedSalaryOut
 )
 def list_salaries(
     db: DB, 
     current_user: CanReadEmployee, 
     pagination: PaginationParams = Depends()
 ):
-    return SalaryService.list(db, pagination)
+    total, items = SalaryService.list(db, pagination)
+    return {"total": total, "items": items}
 
 
 @salary_router.get(
     "/salaries/employee/{employee_id}", 
-    response_model=list[SalaryOut]
+    response_model=PaginatedSalaryOut
 )
 def list_salaries_by_employee(
     employee_id: int, 
@@ -81,7 +82,8 @@ def list_salaries_by_employee(
     current_user: CanReadEmployee, 
     pagination: PaginationParams = Depends()
 ):
-    return SalaryService.list_by_employee(db, employee_id, pagination)
+    total, items = SalaryService.list_by_employee(db, employee_id, pagination)
+    return {"total": total, "items": items}
 
 
 @salary_router.get(

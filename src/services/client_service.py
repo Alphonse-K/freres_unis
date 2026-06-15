@@ -53,6 +53,7 @@ from ulid import ULID
 from pathlib import Path
 from uuid import UUID
 from src.services.account_service import FundTransferService
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MEDIA_DIR = BASE_DIR / "media"
 
@@ -91,6 +92,7 @@ class ClientService:
         data: ClientUpdate,
         actor_id: int,
     ) -> Client:
+        
         client = ClientService.get(db, client_id)
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(client, field, value)
@@ -107,6 +109,7 @@ class ClientService:
         status,
         actor_id: int,
     ) -> Client:
+        
         client = ClientService.get(db, client_id)
         client.status = status
         db.commit()
@@ -335,7 +338,8 @@ class ClientService:
         except Exception:
             db.rollback()
             raise
-        
+    
+    @staticmethod
     def increment_partner_client_balances_with_scheduler(db: Session, client_id: int):
         clients = db.query(Client).filter(
             Client.type == "partner_client",
@@ -345,6 +349,7 @@ class ClientService:
             client.current_balance += client.approval.company.card_amount
             audit_log("Balance increment", "client", client.id)
 
+    @staticmethod
     def create_client_request(db: Session, client_id: int, request: ClientRequestBase):
         client = db.query(Client).filter_by(id=client_id).first()
         if not client:
@@ -361,6 +366,7 @@ class ClientService:
         db.refresh(request)
         return request
     
+    @staticmethod
     def update_client_request(db: Session, request_id: int, data: ClientRequestUpdate):
         request = db.query(ClientRequest).filter_by(id=request_id).first()
         if not request:
@@ -374,6 +380,7 @@ class ClientService:
         db.commit()
         return request
 
+    @staticmethod
     def reply_client_request(db: Session, request_id: int, replied_by: int, data: ClientRequestReply):
         request = db.query(ClientRequest).filter_by(id=request_id).first()
         if not request:
@@ -388,6 +395,7 @@ class ClientService:
         db.commit()
         return request
 
+    @staticmethod
     def client_reply_request_update(db: Session, request_id: int, data: ClientRequestReplyUpdate):
         request = db.query(ClientRequest).filter_by(id=request_id).first()
         if not request:
@@ -401,8 +409,7 @@ class ClientService:
         db.commit()
         return request
     
-    # In ClientService
-
+    # In ClientService to reuse company-based client filtering logic
     @staticmethod
     def list_by_company(db: Session, company: str, pagination: PaginationParams):
         query = (

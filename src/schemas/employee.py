@@ -52,10 +52,6 @@ class EmployeeUpdate(BaseModel):
 class EmployeeOut(EmployeeBase):
     id: int
     pos_id: int | None = None
-    # contracts: List["ContractOut"] = []
-    # attendances: List["AttendanceOut"] = []
-    # leaves: List["LeaveRequestOut"] = []
-    # salaries: List["SalaryOut"] = []
     addresses: List["AddressOut"] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -103,10 +99,11 @@ class ContractOut(ContractBase):
 # -------------------------------
 # ATTENDANCE SCHEMAS
 # -------------------------------
+
 class AttendanceBase(BaseModel):
     attendance_date: date
-    check_in: Optional[datetime] = None
-    check_out: Optional[datetime] = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
 
 
 class AttendanceCreate(AttendanceBase):
@@ -114,9 +111,9 @@ class AttendanceCreate(AttendanceBase):
 
 
 class AttendanceUpdate(BaseModel):
-    attendance_date: Optional[date] = None
-    check_in: Optional[datetime] = None
-    check_out: Optional[datetime] = None
+    attendance_date: date | None = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
 
 
 class AttendanceOut(AttendanceBase):
@@ -125,7 +122,6 @@ class AttendanceOut(AttendanceBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# -------------------------------
 # LEAVE REQUEST SCHEMAS
 # -------------------------------
 class LeaveRequestBase(BaseModel):
@@ -187,7 +183,6 @@ class SalaryUpdate(BaseModel):
 
 
 class SalaryOut(BaseModel):
-    employee: EmployeeSimple
     registration_number: str
     position: str
     month_of_function: str
@@ -202,15 +197,22 @@ class SalaryOut(BaseModel):
     gross_total: Decimal
     total_held: Decimal
     net_salary_to_be_paid: Decimal
-
     status: str
     rejection_reason: str | None
     created_by_id: int
     reviewed_by_id: int | None
     reviewed_at: datetime | None
+    employee: EmployeeSimple
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class PaginatedSalaryOut(BaseModel):
+    total: int
+    items: List[SalaryOut]
+
+    # model_config = ConfigDict(from_attributes=True)
+    
 
 class SalaryReject(BaseModel):
     reason: str | None = None

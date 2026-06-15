@@ -3,7 +3,6 @@ from src.models.employee import Employee, Contract, Attendance, LeaveRequest, Sa
 from src.schemas.employee import (
     EmployeeCreate, 
     EmployeeUpdate,
-    EmployeeOut,
     ContractCreate,
     ContractUpdate,
     AttendanceCreate,
