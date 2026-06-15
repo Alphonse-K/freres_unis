@@ -280,7 +280,7 @@ class SalaryService:
         d = data.model_dump()
 
         pos_user = db.query(POSUser).get(created_by_id)
-        print(f"POS User: {pos_user.username}")
+        
         if not pos_user:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, 
