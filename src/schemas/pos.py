@@ -1,4 +1,3 @@
-# src/schemas/pos.py
 from datetime import datetime, time, date
 from decimal import Decimal
 from typing import Optional, List
@@ -7,8 +6,7 @@ from src.schemas.inventory import WarehouseOut
 from src.schemas.catalog import ProductVariantOut
 from enum import Enum
 from pydantic import BaseModel
-import re
-
+from src.schemas.common import ClientSimple
 from src.models.pos import PosType
 
 
@@ -283,7 +281,7 @@ class SaleOut(SaleBase):
     status: SaleStatus
     created_at: datetime
     items: List[SaleItemOut] = Field(default_factory=list)
-    customer: dict | None = None
+    customer: ClientSimple | None = None
     counter_customer: CustomerInfoOut | None = None
 
     pos: POSMini | None = None
