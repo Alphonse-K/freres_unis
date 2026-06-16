@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict
 from src.models.clients import (
     ClientType, 
     ClientStatus, 
@@ -14,6 +14,7 @@ from src.models.clients import (
     CardPriceStatus
 )
 from uuid import UUID
+
 
 
 class ClientBase(BaseModel):

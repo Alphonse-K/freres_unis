@@ -109,9 +109,9 @@ class Salary(Base):
     status = Column(String, default="pending")
     rejection_reason = Column(String, nullable=True)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)
-    reviewed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
     employee = relationship("Employee", back_populates="salaries")
     created_by = relationship("POSUser", foreign_keys=[created_by_id])
-    reviewed_by = relationship("User", foreign_keys=[reviewed_by_id])
+    reviewed_by = relationship("POSUser", foreign_keys=[reviewed_by_id])
