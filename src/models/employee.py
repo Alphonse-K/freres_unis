@@ -32,6 +32,7 @@ class Employee(Base):
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
     first_name = Column(String(120))
     last_name = Column(String(120))
+    registration_number = Column(String(120), nullable=True)
     gender = Column(Enum(Gender))
     birth_date = Column(Date)
     phone = Column(String(30))

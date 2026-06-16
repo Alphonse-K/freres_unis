@@ -293,7 +293,7 @@ class SalaryService:
     @staticmethod
     def create(db: Session, data: SalaryCreate, created_by_id: int):
         d = data.model_dump()
-
+        employee = EmployeeService.get(data.employee_id)
         pos_user = db.query(POSUser).get(created_by_id)
         
         if not pos_user:
@@ -316,6 +316,7 @@ class SalaryService:
 
         salary = Salary(
             **d,
+            registration_number=employee.registration_number,
             gross_total=gross_total,
             total_held=total_held,
             net_salary_to_be_paid=net_salary_to_be_paid,
@@ -333,6 +334,12 @@ class SalaryService:
         if not salary:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Salary not found")
 
+        if salary.created_by_id == reviewer_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="You cannot approve salary you created"
+            )
+        
         # Idempotency
         if salary.status == "approved":
             return salary

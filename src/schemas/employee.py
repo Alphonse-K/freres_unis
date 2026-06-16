@@ -27,6 +27,7 @@ class EmployeeBase(BaseModel):
     first_name: str
     last_name: str
     gender: Gender
+    registration_number: str
     birth_date: date
     phone: str
     email: str | None = None
@@ -42,6 +43,7 @@ class EmployeeUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     gender: Gender | None = None
+    registration_number: str | None = None
     birth_date: date | None = None
     phone: str | None = None
     email: str | None = None
@@ -61,6 +63,7 @@ class EmployeeSimple(BaseModel):
     first_name: str 
     last_name: str 
     gender: Gender 
+    registration_number: str
     birth_date: date
     phone: str 
     email: str 
@@ -170,7 +173,7 @@ class SalaryCreate(SalaryBase):
 
 
 class SalaryUpdate(BaseModel):
-    registration_number: str | None = None
+    # registration_number: str | None = None
     position: str | None = None
     month_of_function: str | None = None
     period: str | None = None
