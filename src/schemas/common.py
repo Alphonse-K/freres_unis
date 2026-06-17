@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from decimal import Decimal
+from typing import Annotated
 import enum
 
 
@@ -13,6 +14,9 @@ class ClientStatus(str, enum.Enum):
     BANNED = "banned"
     INACTIVE = "inactive"
     DELETED = "deleted"
+
+Money = Annotated[Decimal, Field(max_digits=12, decimal_places=2, examples=["1500.00"])]
+OptionalMoney = Annotated[Decimal | None, Field(None, max_digits=12, decimal_places=2, examples=["500.00"])]
 
 
 class SimpleWarehouse(BaseModel):

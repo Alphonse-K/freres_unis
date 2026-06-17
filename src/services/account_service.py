@@ -362,7 +362,6 @@ class FundTransferService:
             transfer_type=TransferType.TREASURY_TRANSFER,
             status=TransferStatus.APPROVED,
             note="Card issuance fee",
-
             created_by_pos_user_id=None,
             approved_by_user_id=created_by_user_id,
             approved_at=datetime.now(timezone.utc)

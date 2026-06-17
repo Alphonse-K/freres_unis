@@ -251,7 +251,7 @@ def transfer_balance(
     db: Session = Depends(get_db),
     current_client: Client = Depends(get_current_account)
 ):
-    result = ClientService.balance_transfert_between_client(
+    result = ClientService.balance_transfer_between_client(
         db=db,
         client_id=current_client["account"].id,
         phone=payload.phone,

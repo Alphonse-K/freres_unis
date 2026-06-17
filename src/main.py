@@ -6,12 +6,11 @@ from pathlib import Path
 from src.core.database import Base, engine, SessionLocal
 from src.core.seed_permissions import seed_permissions, seed_role
 from src.routes import register_routers
-
 import src.models
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(application: FastAPI):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -21,12 +20,12 @@ async def lifespan(app: FastAPI):
         db.close()
     yield
 
-
 app = FastAPI(
     title="Freres Unis API",
     version="1.0.0",
     lifespan=lifespan
 )
+
 
 IS_DOCKER = Path("/app").exists()
 UPLOAD_DIR = Path("/app/uploads") if IS_DOCKER else Path("uploads")

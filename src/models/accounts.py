@@ -38,8 +38,21 @@ class Account(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False, unique=True)
-    type = Column(Enum(AccountType), nullable=False)
-    sub_type = Column(Enum(AccountSubType), nullable=True, default=AccountSubType.OTHER)
+    type = Column(
+        Enum(
+            AccountType,
+            values_callable=lambda x: [e.value for e in x]
+        ), 
+        nullable=False
+    )
+    sub_type = Column(
+        Enum(
+            AccountSubType,
+            values_callable=lambda x: [e.value for e in x]
+        ),
+        nullable=True,
+        default=AccountSubType.OTHER
+    )
     account_number = Column(String(120), nullable=False, unique=True)
     remark = Column(String(255), nullable=True)
     balance = Column(Numeric(18, 2), nullable=False, default=0)

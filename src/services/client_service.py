@@ -239,7 +239,7 @@ class ClientService:
         return client
 
     @staticmethod
-    def balance_transfert_between_client(
+    def balance_transfer_between_client(
         db: Session, 
         client_id: int, 
         phone: str, 

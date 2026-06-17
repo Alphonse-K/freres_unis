@@ -4,6 +4,8 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, ConfigDict
 from src.schemas.location import AddressOut
 import enum
+from typing import Annotated
+from src.schemas.common import Money, OptionalMoney
 
 
 # -------------------------------
@@ -154,18 +156,19 @@ class LeaveRequestOut(LeaveRequestBase):
 # -------------------------------
 # SALARY SCHEMAS
 # -------------------------------
+
 class SalaryBase(BaseModel):
     registration_number: str
     position: str
     month_of_function: str
     period: str
-    base_salary: Decimal
-    additional_hours: Decimal | None = None
-    compensations: Decimal | None = None
-    cnss_insurances: Decimal
-    income_tax: Decimal
-    other_taxes: Decimal | None = None
-    bonus: Decimal | None = None
+    base_salary: Money
+    additional_hours: OptionalMoney
+    compensations: OptionalMoney
+    cnss_insurances: Money
+    income_tax: OptionalMoney
+    other_taxes: OptionalMoney
+    bonus: OptionalMoney
 
 
 class SalaryCreate(SalaryBase):
@@ -173,7 +176,6 @@ class SalaryCreate(SalaryBase):
 
 
 class SalaryUpdate(BaseModel):
-    # registration_number: str | None = None
     position: str | None = None
     month_of_function: str | None = None
     period: str | None = None
@@ -191,16 +193,16 @@ class SalaryOut(BaseModel):
     position: str
     month_of_function: str
     period: str
-    base_salary: Decimal
-    additional_hours: Decimal | None
-    compensations: Decimal | None
-    cnss_insurances: Decimal
-    income_tax: Decimal
-    other_taxes: Decimal | None
-    bonus: Decimal | None
-    gross_total: Decimal
-    total_held: Decimal
-    net_salary_to_be_paid: Decimal
+    base_salary: Money
+    additional_hours: OptionalMoney
+    compensations: OptionalMoney
+    cnss_insurances: Money
+    income_tax: Money
+    other_taxes: OptionalMoney
+    bonus: OptionalMoney
+    gross_total: Money
+    total_held: Money
+    net_salary_to_be_paid: Money
     status: str
     rejection_reason: str | None
     created_by_id: int

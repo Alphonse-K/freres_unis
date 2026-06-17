@@ -1,5 +1,5 @@
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional
+from typing import Annotated
 from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from src.services.auth_service import AuthService 
@@ -10,15 +10,16 @@ from src.core.permissions import Permissions
 
 security = HTTPBearer()
 
+DB = Annotated[Session, Depends(get_db)]
 
 def get_current_account(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security), 
-    db: Session = Depends(get_db)
+    db: DB,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
 ) -> dict:
     """
         Returns:
         {
-            "account_type": "user" | "client" | "posuser",
+            "account_type": "user" | "client" | "POSUser",
             "account": SQLAlchemy instance
         }
     """
@@ -39,9 +40,9 @@ def get_current_account(
 
 
 def get_api_key(
+        db: DB,
         x_api_key: str = Header(..., alias="X-API-Key"),
-        x_api_secret: str = Header(..., alias="X-API-Secret"),
-        db: Session = Depends(get_db)
+        x_api_secret: str = Header(..., alias="X-API-Secret")
 ) -> APIKey:
     api_key = AuthService.validate_api_key(db, x_api_key, x_api_secret)
 
