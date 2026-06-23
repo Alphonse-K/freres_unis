@@ -187,7 +187,10 @@ class ClientPayment(Base):
     )
     payment_date = Column(DateTime(timezone=True), nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
-    payment_method = Column(PgEnum(PaymentMethod), nullable=False)
+    payment_method = Column(PgEnum(
+        PaymentMethod,
+        values_callable=lambda x: [e.value for e in x]
+    ), nullable=False)
     reference = Column(String(100))
     notes = Column(String(255))
     client = relationship("Client", back_populates="payments")

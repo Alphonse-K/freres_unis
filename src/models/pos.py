@@ -171,7 +171,10 @@ class Sale(Base):
     customer_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
     subtotal_amount = Column(Numeric(12, 2), nullable=False)
     total_amount = Column(Numeric(12, 2), nullable=False)
-    payment_mode = Column(Enum(PaymentMethod), nullable=False)
+    payment_mode = Column(Enum(
+        PaymentMethod,
+        values_callable=lambda x: [e.value for e in x]
+    ), nullable=False)
     status = Column(Enum(SaleStatus), default=SaleStatus.COMPLETED)
     transaction_date = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
