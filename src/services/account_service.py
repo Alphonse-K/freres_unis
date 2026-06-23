@@ -247,7 +247,7 @@ class FundTransferService:
             status=TransferStatus.PENDING,
             created_by_pos_user_id=current_user["account"].id
         )
-
+        
         db.add(transfer)
         db.commit()
         db.refresh(transfer)

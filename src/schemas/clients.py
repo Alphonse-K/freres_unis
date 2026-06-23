@@ -97,11 +97,20 @@ class ClientApprovalCreate(ClientApprovalBase):
 
 
 class ClientApprovalUpdate(BaseModel):
-    status: Optional[ApprovalStatus] = None
-    rejection_reason: Optional[str] = None
-    reviewed_by_id: Optional[int] = None
+    type: ClientType | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    id_type_id: int | None = None
+    id_number: str | None = None
+    employee_company: str | None = None
+    magnetic_card_number: str | None = None
+    company_address: str | None = None
+    company_id: int | None = None
+    status: ApprovalStatus | None = None
+    rejection_reason: str | None = None
+    reviewed_by_id: int | None = None
 
-    model_config = ConfigDict(from_attributes=True)
 
 class ClientApprovalResponse(ClientApprovalBase):
     id: int

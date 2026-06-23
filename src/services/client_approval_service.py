@@ -66,10 +66,11 @@ class ClientApprovalService:
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, 
                 detail="Already reviewed"
             )
-
-        approval.status = review.status
-        approval.rejection_reason = review.rejection_reason
-        approval.reviewed_by_id = reviewer_id
+        for k, v in review.model_dump(exclude_unset=True).items():
+            setattr(approval, k, v)
+        # approval.status = review.status
+        # approval.rejection_reason = review.rejection_reason
+        # approval.reviewed_by_id = reviewer_id
         approval.reviewed_at = datetime.now(timezone.utc)
 
         if review.status == ApprovalStatus.APPROVED:

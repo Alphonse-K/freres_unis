@@ -36,37 +36,19 @@ PositiveIntId = Annotated[
 # =========================
 
 class AccountCreate(BaseModel):
-    name: Annotated[
-        str,
-        Field(min_length=2, max_length=255)
-    ]
+    name: Annotated[str, Field(min_length=2, max_length=255)]
     type: AccountType
-    sub_type: Optional[AccountSubType] = AccountSubType.OTHER
-    account_number: Annotated[
-        str,
-        Field(min_length=2, max_length=120)
-    ]
-    remark: Optional[
-        Annotated[str, Field(max_length=255)]
-    ] = None
+    sub_type: AccountSubType | None = AccountSubType.OTHER
+    account_number: Annotated[str, Field(min_length=2, max_length=120)]
+    remark: Annotated[str, Field(max_length=255)] | None = None
     balance: NonNegativeAmount = Decimal("0")
 
 
 class AccountUpdate(BaseModel):
-    name: Optional[
-        Annotated[str, Field(min_length=2, max_length=255)]
-    ] = None
-
-    sub_type: Optional[AccountSubType] = None
-
-    account_number: Optional[
-        Annotated[str, Field(min_length=2, max_length=120)]
-    ] = None
-
-    remark: Optional[
-        Annotated[str, Field(max_length=255)]
-    ] = None
-
+    name: Annotated[str, Field(min_length=2, max_length=255)] = None
+    sub_type: AccountSubType | None = None
+    account_number: Annotated[str, Field(min_length=2, max_length=120)] = None
+    remark: Annotated[str, Field(max_length=255)]= None
     is_active: Optional[bool] = None
 
 
@@ -74,14 +56,13 @@ class AccountResponse(BaseModel):
     id: int
     name: str
     type: AccountType
-    sub_type: Optional[AccountSubType]
+    sub_type: AccountSubType | None
     account_number: str
-    remark: Optional[str]
+    remark: str | None
     balance: Decimal
     is_active: bool
     added_by_id: int
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -91,23 +72,16 @@ class AccountResponse(BaseModel):
 
 class FundTransferResponse(BaseModel):
     id: int
-
-    source_account_id: Optional[int]
+    source_account_id: int | None
     destination_account_id: int
-
     transfer_type: TransferType
     status: TransferStatus
-
     amount: Decimal
-    note: Optional[str]
-
-    created_by_pos_user_id: Optional[int]
-
-    approved_by_user_id: Optional[int]
-
+    note: str | None
+    created_by_pos_user_id: int | None
+    approved_by_user_id: int | None
     created_at: datetime
-    approved_at: Optional[datetime]
-
+    approved_at: datetime | None
     model_config = ConfigDict(from_attributes=True)
 
 # =========================
@@ -116,12 +90,8 @@ class FundTransferResponse(BaseModel):
 
 class POSToAccountTransferCreate(BaseModel):
     destination_account_id: PositiveIntId
-
     amount: PositiveAmount
-
-    note: Optional[
-        Annotated[str, Field(max_length=255)]
-    ] = None
+    note: Annotated[str, Field(max_length=255)]= None
 
 
 # =========================
@@ -130,14 +100,9 @@ class POSToAccountTransferCreate(BaseModel):
 
 class AccountToAccountTransferCreate(BaseModel):
     source_account_id: PositiveIntId
-
     destination_account_id: PositiveIntId
-
     amount: PositiveAmount
-
-    note: Optional[
-        Annotated[str, Field(max_length=255)]
-    ] = None
+    note: Annotated[str, Field(max_length=255)] = None
 
 
 # =========================
