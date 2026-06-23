@@ -1,20 +1,23 @@
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
+from fastapi import HTTPException, status
 from typing import List, Optional, Dict, Any, Tuple
+
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
 import logging
 
 from src.models.pos import (
-    Sale, SaleItem, SaleReturn, SaleCustomerInfo, SaleStatus, PaymentMethod
+    Sale, SaleItem, SaleReturn, SaleCustomerInfo, SaleStatus, PaymentMethod,
+    POSLedger
 )
-from src.models.pos import POS, POSUser
+from src.models.pos import POS
 from src.schemas.users import PaginationParams
-from src.models.clients import Client
+from src.models.clients import Client, LedgerEntry
 from src.models.catalog import ProductVariant
 from src.schemas.pos import (
-    SaleCreate, SaleItemCreate, SaleUpdate, 
-    SaleReturnCreate, CustomerInfoCreate
+    SaleCreate, SaleUpdate,
+    SaleReturnCreate
 )
 from src.models.ecommerce import OrderStatus, Order, OrderItem
 from src.services.inventory import InventoryService
@@ -61,58 +64,65 @@ class SaleService:
     # ================================
     # SALE CREATION & MANAGEMENT
     # ================================
-    
+
     @staticmethod
-    def create_sale(db: Session, data: SaleCreate) -> Sale:
-        """Create a new sale with inventory reservation and final deduction"""
-        
+    def create_sale(db: Session, data: SaleCreate):
         try:
-            # 1️Verify POS
+            # Verify pos
             pos = POSService.get_pos(db, data.pos_id)
             if not pos:
-                raise SaleValidationException(f"POS {data.pos_id} not found")
+                raise HTTPException(
+                    status_codes=status.HTTP_404_NOT_FOUND,
+                    detail=f"POS {data.pos_id}"
+                )
 
-            # 2️Verify POS user
+            # Get POS user
             user = POSUserService.get_pos_user_by_id(db, data.created_by_id)
             if not user:
-                raise SaleValidationException(f"User {data.created_by_id} not found")
-            
-            # 3️Verify customer if provided
+                raise HTTPException(
+                    status_codes=status.HTTP_404_NOT_FOUND,
+                    detail=f"POS user {data.created_by_id} not found"
+                )
+
+            # Verify customer is provided
             customer = None
             if data.customer_id:
-                customer = db.query(Client).filter(
-                    Client.id == data.customer_id
-                ).first()
-
+                customer = db.get(Client, data.customer_id)
                 if not customer:
-                    raise SaleValidationException(
-                        f"Customer {data.customer_id} not found"
+                    raise HTTPException(
+                        status_codes=status.HTTP_404_NOT_FOUND,
+                        detail=f"Client {data.customer_id} not found"
                     )
 
-            # 4️Validate sale items
-            if not data.items or len(data.items) == 0:
-                raise SaleValidationException("Sale must contain at least one item")
+            # Validate sales items
+            if not data.items:
+                raise HTTPException(
+                    status_codes=status.HTTP_400_BAD_REQUEST,
+                    detail="Sales must contain at least one items"
+                )
 
             for item in data.items:
                 if item.qty <= 0:
-                    raise SaleValidationException(
-                        f"Invalid quantity for product {item.product_variant_id}"
+                    raise HTTPException(
+                        status_codes=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid quantity for {item.product_variant_id}"
                     )
 
-            # 5️Calculate totals
-            subtotal = sum(
-                item.qty * item.unit_price
-                for item in data.items
-            )
-
+            # Calculate totals
+            subtotal = sum(item.qty * item.unit_price for item in data.items)
             tax_rate = data.tax_rate or Decimal("0")
             tax = subtotal * tax_rate / 100
-
             discount = data.discount_amount or Decimal("0")
-
             total_amount = subtotal + tax - discount
 
-            # 6️Create sale
+            # If registered client, check if they have sufficient balance
+            if customer.current_balance < total_amount:
+                raise HTTPException(
+                    status_codes=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Client insufficient balance - available {customer.current_balance}; require {total_amount}"
+                )
+
+            # Create Sale
             sale = Sale(
                 pos_id=data.pos_id,
                 created_by_id=data.created_by_id,
@@ -122,7 +132,7 @@ class SaleService:
                 discount_amount=discount,
                 total_amount=total_amount,
                 payment_mode=data.payment_mode,
-                status=SaleStatus.COMPLETED,
+                status=SaleStatus.PENDING,
                 transaction_date=data.transaction_date or datetime.now(timezone.utc),
                 notes=data.notes,
                 payment_operator_name=data.payment_operator_name,
@@ -131,102 +141,107 @@ class SaleService:
             )
 
             db.add(sale)
-            db.flush()  # generates sale.id
+            db.flush()
 
-            # 7️Create sale items
+            # Create sale items
             sale_items_data = []
-
             for item in data.items:
-
-                sale_item = SaleItem(
+                db.add(SaleItem(
                     sale_id=sale.id,
                     product_variant_id=item.product_variant_id,
                     qty=item.qty,
                     unit_price=item.unit_price
+                    )
                 )
-
-                db.add(sale_item)
 
                 sale_items_data.append({
                     "product_variant_id": item.product_variant_id,
                     "quantity": item.qty
                 })
 
-            # 8️Store customer info (for walk-in customers)
+            # Store walk-in customer
             if data.customer_info:
-
-                customer_info = SaleCustomerInfo(
+                db.add(SaleCustomerInfo(
                     sale_id=sale.id,
                     first_name=data.customer_info.first_name,
                     last_name=data.customer_info.last_name,
                     phone=data.customer_info.phone
-                )
+                ))
 
-                db.add(customer_info)
-
-            # 9️Reserve inventory
+            # Reserve inventory
             try:
-
-                InventoryService.process_sale_items(
-                    db,
-                    data.pos_id,
-                    sale_items_data,
-                    user
-                )
-
+               InventoryService.process_sale_items(
+                   db, data.pos_id, sale_items_data, user
+               )
             except Exception as e:
                 db.rollback()
-                raise SaleValidationException(
-                    f"Stock reservation failed: {str(e)}"
+                raise HTTPException(
+                    status_codes=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Stock reservation failed {str(e)}"
                 )
 
-            # Finalize sale (deduct reserved stock)
+            # Finalize inventory - deduct reserved stock
             try:
-
                 InventoryService.finalize_sale(
-                    db,
-                    sale.id,
-                    data.pos_id,
-                    sale_items_data
+                    db, sale.id, data.pos_id, sale_items_data
                 )
-
-                sale.status = SaleStatus.COMPLETED
 
             except Exception as e:
-
-                # release reserved stock
                 InventoryService.cancel_sale_reservations(
-                    db,
-                    data.pos_id,
-                    sale_items_data
+                    db, data.pos_id, sale_items_data
                 )
+                pass
 
-                db.rollback()
+            # Credit POS balance + plus write POS ledger entry
+            pos_balance_before = pos.balance
+            pos_balance_after = pos.balance + total_amount
+            pos.balance = pos_balance_after
 
-                raise SaleValidationException(
-                    f"Sale finalization failed: {str(e)}"
-                )
+            db.add(POSLedger(
+                pos_id=pos.id,
+                entry_type=data.payment_mode,
+                amount=total_amount,
+                balance_before=pos_balance_before,
+                balance_after=pos_balance_after,
+                reference_id=f"sale-{sale.id}",  # safe now — flush happened above
+                reason="Vente POS"
+            ))
 
+            # If registered client: debit client balance + write to client ledger entry
+            if customer:
+                client_balance_before = customer.current_balance
+                client_balance_after = customer.current_balance - total_amount
+                customer.current_balance = client_balance_after
+
+                db.add(LedgerEntry(
+                    client_id=customer.id,
+                    amount=total_amount,
+                    entry_type="debit",
+                    balance_before=client_balance_before,
+                    balance_after=client_balance_after,
+                    reference_id=f"sale-{sale.id}",
+                    reason=f"Achat POS {pos.id}"
+                ))
+
+            # Make sale complete and commit
+            sale.status = SaleStatus.COMPLETED
             db.commit()
             db.refresh(sale)
 
-            logger.info(f"Sale created successfully: {sale.id}")
-
+            logging.info(f"Sale created successfully: {sale.id}")
             return sale
 
-        except SaleException:
+        except SaleException as e:
             db.rollback()
             raise
-
         except Exception as e:
             db.rollback()
+            logging.error(f"Unexpected error creating sale {str(e)}")
+            raise HTTPException(
+                status_codes=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Unexpected error creating sale {str(e)}"
+            )
 
-            logger.error(f"Unexpected error creating sale: {str(e)}")
-
-            raise SaleValidationException(
-                f"Error creating sale: {str(e)}"
-            )    
-        
 
     @staticmethod
     def get_sale(db: Session, sale_id: int) -> Sale:
@@ -248,7 +263,8 @@ class SaleService:
             raise SaleNotFoundException(f"Sale {sale_id} not found")
         
         return sale
-    
+
+
     @staticmethod
     def create_qr_debit_sale(
         db: Session,
@@ -341,7 +357,8 @@ class SaleService:
             db.rollback()
             logger.error(f"Error creating QR debit sale: {str(e)}")
             raise SaleValidationException(f"Error creating QR debit sale: {str(e)}")
-    
+
+
     @staticmethod
     def update_sale(db: Session, sale_id: int, data: SaleUpdate) -> Sale:
         """Update sale information (limited updates allowed)"""
@@ -379,7 +396,8 @@ class SaleService:
             db.rollback()
             logger.error(f"Error updating sale {sale_id}: {str(e)}")
             raise SaleValidationException(f"Error updating sale: {str(e)}")
-    
+
+
     @staticmethod
     def cancel_sale(db: Session, sale_id: int, reason: str = None) -> Sale:
         """Cancel a sale (only for pending/partial sales)"""
