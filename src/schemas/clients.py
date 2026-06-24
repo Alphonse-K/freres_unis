@@ -333,6 +333,7 @@ class ClientResponseLight(BaseModel):
     last_name: str
     phone: str
     status: ClientStatus
+    current_balance: str
     approval: ClientApprovalInfo | None = None
     model_config = ConfigDict(from_attributes=True)
 

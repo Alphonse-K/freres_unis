@@ -226,7 +226,7 @@ def increment_client_balance(
     client_phone: str, 
     amount: Decimal, 
     db: Session = Depends(get_db),
-    current_account: Client = Depends(get_current_account)
+    current_account = Depends(require_permission(Permissions.INCREMENT_CLIENT_BALANCE))
 ):
     pos_id = get_pos_id_or_none(current_account)
     return ClientService.increment_client_balance(db, client_phone, amount, pos_id)
