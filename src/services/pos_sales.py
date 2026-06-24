@@ -64,7 +64,7 @@ class SaleService:
     # ================================
     # SALE CREATION & MANAGEMENT
     # ================================
-
+    
     @staticmethod
     def create_sale(db: Session, data: SaleCreate):
         try:
