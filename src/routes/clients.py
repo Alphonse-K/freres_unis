@@ -81,7 +81,8 @@ from src.core.security import SecurityUtils
 from src.core.auth_dependencies import (
     optional_permission_for_client, 
     require_permission, 
-    get_current_account
+    get_current_account,
+    get_pos_id_or_none
 )
 from src.core.permissions import Permissions
 from decimal import Decimal
@@ -227,7 +228,8 @@ def increment_client_balance(
     db: Session = Depends(get_db),
     current_account: Client = Depends(get_current_account)
 ):
-    return ClientService.increment_client_balance(db, client_phone, amount)
+    pos_id = get_pos_id_or_none(current_account)
+    return ClientService.increment_client_balance(db, client_phone, amount, pos_id)
 
 @client_router.put(
     "/card-opening-balance/{client_id}/set",
@@ -291,11 +293,10 @@ def review_client_approval(
 )
 def get_client(
     client_id: int,
-    currrent_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT)),
+    current_user = Depends(optional_permission_for_client(Permissions.READ_CLIENT)),
     db: Session = Depends(get_db),
 ):
     return ClientService.get(db, client_id)
-
 
 @client_router.get(
     "",
@@ -519,7 +520,7 @@ def checkout(
         "/orders/{client_id}/client",
         response_model=list[OrderOut]
 )
-def client_oders(
+def client_orders(
     client_id: int, 
     offset: int | None = 1, 
     limit: int | None = 20, 
@@ -693,7 +694,6 @@ def approve_client_return(
         return_id=return_id,
         approver_by=current_user
     )
-
 
 @client_router.post(
     "/client-returns/{return_id}/reject",

@@ -132,7 +132,7 @@ class SaleService:
                 discount_amount=discount,
                 total_amount=total_amount,
                 payment_mode=data.payment_mode,
-                status=SaleStatus.PENDING,
+                status=SaleStatus.COMPLETED,
                 transaction_date=data.transaction_date or datetime.now(timezone.utc),
                 notes=data.notes,
                 payment_operator_name=data.payment_operator_name,

@@ -42,7 +42,7 @@ from src.core.security import generate_card_token, verify_card_token, hash_token
 from src.models.inventory import Warehouse
 from src.models.ecommerce import Cart, CartItem, CartStatus, OrderStatus, OrderBeneficiaryInfo, Order, OrderItem
 from src.schemas.ecommerce import OrderBeneficiaryInfoCreate
-from src.models.pos import POS
+from src.models.pos import POS, POSLedger
 from src.models.catalog import ProductVariant, PriceType
 from decimal import Decimal
 from src.schemas.users import PaginationParams
@@ -179,7 +179,7 @@ class ClientService:
             raise
 
     @staticmethod
-    def increment_client_balance(db: Session, phone: str, amount: Decimal):
+    def increment_client_balance(db: Session, phone: str, amount: Decimal, pos_id: int):
         try:
             client = (
                 db.query(Client)
@@ -194,11 +194,26 @@ class ClientService:
             if amount <= Decimal("0"):
                 raise HTTPException(400, "Amount must be greater than zero")
 
+            if not pos_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="POS ID is a must"
+                )
+
+            pos = db.get(POS, pos_id)
+            if not pos:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="POS not found"
+                )
+
+            pos_balance_before = pos.balance
+            pos_balance_after = pos_balance_before - amount
+
             balance_before = client.current_balance
             client.current_balance += amount
 
             LoanService.apply_repayment(db, client)
-
             reference_id = f"DEP{str(ULID())}"
 
             ledger = LedgerEntry(
@@ -210,6 +225,16 @@ class ClientService:
                 reason="Balance top-up",
                 reference_id=reference_id
             )
+
+            db.add(POSLedger(
+                pos_id=pos.id,
+                entry_type="debit",
+                amount=amount,
+                balance_before=pos_balance_before,
+                balance_after=pos_balance_after,
+                reference_id=reference_id,
+                reason="balance increment"
+            ))
 
             db.add(ledger)
             db.commit()
@@ -233,6 +258,7 @@ class ClientService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Client not a partner client"
             )
+
         client.card_opening_balance += amount
         db.commit()
         db.refresh(client)

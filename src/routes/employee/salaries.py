@@ -1,4 +1,3 @@
-# src/routes/employee/salaries.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Annotated
@@ -35,7 +34,7 @@ def create_salary(
 
 
 @salary_router.post(
-    "/salaries/{salary_id}/approve", 
+    "/salaries/{salary_id}/approve",
     response_model=SalaryOut
 )
 def approve_salary(
