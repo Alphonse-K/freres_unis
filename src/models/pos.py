@@ -184,6 +184,8 @@ class Sale(Base):
     notes = Column(String(255), nullable=True)
     payment_operator_name = Column(String(255), nullable=True)
     payment_operator_reference = Column(String(255), nullable=True)
+    card_number = Column(String(255), nullable=True)
+    company_name = Column(String(255), nullable=True)
 
     # relationships
     pos = relationship("POS", back_populates="sales")

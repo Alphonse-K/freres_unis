@@ -256,6 +256,8 @@ class SaleBase(BaseModel):
     notes: str | None = None
     payment_operator_name: str | None = None
     payment_operator_reference: str | None = None
+    card_number: str | None = None
+    company_name: str | None = None
 
 
 class SaleCreate(SaleBase):

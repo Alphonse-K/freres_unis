@@ -141,6 +141,8 @@ class SaleService:
                 notes=data.notes,
                 payment_operator_name=data.payment_operator_name,
                 payment_operator_reference=data.payment_operator_reference,
+                card_number=data.card_number,
+                company_name=data.company_name,
                 created_at=datetime.now(timezone.utc)
             )
 
