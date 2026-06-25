@@ -281,21 +281,7 @@ class ProcurementService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Not authorized to update this procurement"
                 )
-        # try:
-        #     # Update fields
-        #     update_data = data.model_dump(exclude_unset=True)
-        #     for field, value in update_data.items():
-        #         setattr(procurement, field, value)
-            
-        #     procurement.updated_at = datetime.now(timezone.utc)
-        #     db.commit()
-        #     db.refresh(procurement)            
-        #     logger.info(f"Procurement updated: {procurement_id}")
-        #     return procurement            
-        # except Exception as e:
-        #     db.rollback()
-        #     logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
-        #     raise
+
         try:
             update_data = data.model_dump(exclude_unset=True)
             
@@ -384,22 +370,7 @@ class ProcurementService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Not authorized to update this procurement"
                 )
-            
-        # try:
-        #     # Update fields
-        #     update_data = data.model_dump(exclude_unset=True)
-        #     for field, value in update_data.items():
-        #         setattr(procurement, field, value)
-            
-        #     procurement.updated_at = datetime.now(timezone.utc)
-        #     db.commit()
-        #     db.refresh(procurement)            
-        #     logger.info(f"Procurement updated: {procurement_id}")
-        #     return procurement            
-        # except Exception as e:
-        #     db.rollback()
-        #     logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
-        #     raise
+
         try:
             update_data = data.model_dump(exclude_unset=True)
             

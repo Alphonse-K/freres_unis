@@ -1,4 +1,3 @@
-# src/routes/procurements.py
 from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -106,12 +105,7 @@ def update_procurement(
     current_user: POSUser = Depends(require_permission(Permissions.UPDATE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
-    """
-    Update procurement (mainly delivery information)
-    
-    - Only certain fields can be updated
-    - Mostly used for delivery information
-    """
+
     procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
     
     if not procurement:

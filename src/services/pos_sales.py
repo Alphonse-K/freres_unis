@@ -64,7 +64,7 @@ class SaleService:
     # ================================
     # SALE CREATION & MANAGEMENT
     # ================================
-    
+
     @staticmethod
     def create_sale(db: Session, data: SaleCreate):
         try:
@@ -116,11 +116,15 @@ class SaleService:
             total_amount = subtotal + tax - discount
 
             # If registered client, check if they have sufficient balance
-            if customer.current_balance < total_amount:
-                raise HTTPException(
-                    status_codes=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Client insufficient balance - available {customer.current_balance}; require {total_amount}"
-                )
+            if customer:
+                if customer.current_balance < total_amount:
+                    raise HTTPException(
+                        status_codes=status.HTTP_400_BAD_REQUEST,
+                        detail=(f"Client insufficient balance"
+                               f"- available {customer.current_balance};"
+                               f"require {total_amount}"
+                        )
+                    )
 
             # Create Sale
             sale = Sale(

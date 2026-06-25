@@ -274,6 +274,7 @@ class SaleUpdate(BaseModel):
     status: SaleStatus | None = None
     items: List[SaleItemUpdate] | None = None
 
+
 class SaleOut(SaleBase):
     id: int
     subtotal_amount: Decimal
@@ -289,6 +290,7 @@ class SaleOut(SaleBase):
     created_by: POSUserOut | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 # -------------------------------
 # SALE RETURN SCHEMAS
