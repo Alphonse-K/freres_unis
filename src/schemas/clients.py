@@ -317,6 +317,7 @@ class ClientSchema(BaseModel):
 class ClientLedgerResponse(BaseModel):
     id: int
     client_id: int
+    pos_id: int | None = None
     amount: Decimal
     entry_type: str
     balance_before: Decimal

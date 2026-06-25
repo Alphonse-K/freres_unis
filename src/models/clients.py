@@ -248,6 +248,7 @@ class LedgerEntry(Base):
     __tablename__ = "client_ledger_entries"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"))
+    pos_id = Column(Integer, ForeignKey("pos.id", ondelete="CASCADE"), nullable=True)
     amount = Column(Numeric(14, 2), nullable=False)
     entry_type = Column(String(10), nullable=False)
     balance_before = Column(Numeric(14, 2), nullable=False)
@@ -256,6 +257,7 @@ class LedgerEntry(Base):
     reference_id = Column(String(100), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     client = relationship("Client", back_populates="ledgers")
+    pos = relationship("Pos", back_populates="ledger_entries")
 
 
 class ClientRequest(Base):

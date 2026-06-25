@@ -121,6 +121,7 @@ class POS(Base):
     provider = relationship("Provider", back_populates="linked_pos", uselist=False)
     ledgers = relationship("POSLedger", back_populates="pos")
     employees = relationship("Employee", back_populates="pos")
+    ledger_entries = relationship("LedgerEntry", back_populates="pos")
 
 
 class POSUser(Base):

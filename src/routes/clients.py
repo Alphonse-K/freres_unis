@@ -214,9 +214,11 @@ def validate_card(
     card_number: str, 
     amount: Decimal,
     db: Session = Depends(get_db),
-    current_account: Client = Depends(get_current_account)
+    current_account = Depends(require_permission(Permissions.VALIDATE_CLIENT_CARD))
 ):
-    return ClientService.validate_card(db, card_number, amount)
+
+    current_account_id = current_account["account"].id
+    return ClientService.validate_card(db, current_account_id, card_number, amount)
 
 @client_router.post(
     "/balance/{client_phone}/increment",

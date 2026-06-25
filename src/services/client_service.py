@@ -118,7 +118,7 @@ class ClientService:
         return client
 
     @staticmethod
-    def validate_card(db: Session, card_number: str, amount: Decimal):
+    def validate_card(db: Session, current_account_id: int, card_number: str, amount: Decimal):
         try:
             client_approval = (
                 db.query(ClientApproval)
@@ -162,12 +162,13 @@ class ClientService:
 
             ledger = LedgerEntry(
                 client_id=client.id,
+                pos_id=current_account_id,
                 amount=amount,
-                entry_type="credit",
+                entry_type="card validation",
                 balance_before=balance_before,
                 balance_after=client.current_balance,
                 reason="Card validation",
-                reference_id=reference_id
+                reference_id=reference_id,
             )
 
             db.add(ledger)
