@@ -257,7 +257,7 @@ class LedgerEntry(Base):
     reference_id = Column(String(100), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     client = relationship("Client", back_populates="ledgers")
-    pos = relationship("Pos", back_populates="ledger_entries")
+    pos = relationship("POS", back_populates="ledger_entries")
 
 
 class ClientRequest(Base):
