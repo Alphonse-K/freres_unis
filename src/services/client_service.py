@@ -2,7 +2,7 @@ from fastapi import status, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from src.models.clients import Client
+
 from src.schemas.clients import (
     ClientInvoiceCreate, 
     ClientUpdate, 
@@ -160,11 +160,14 @@ class ClientService:
             LoanService.apply_repayment(db, client)
             reference_id = f"CARD{str(ULID())}"
 
+            client.card_validation_count += 1
+
             ledger = LedgerEntry(
                 client_id=client.id,
                 pos_id=current_account_id,
                 amount=amount,
                 entry_type="card validation",
+                card_validation_count=client.card_validation_count,
                 balance_before=balance_before,
                 balance_after=client.current_balance,
                 reason="Card validation",

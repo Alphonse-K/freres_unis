@@ -64,6 +64,7 @@ class ClientHeirInfo(BaseModel):
 
 class ClientResponse(ClientBase):
     id: int
+    card_validation_count: int | None = None
     submitted_at: Optional[datetime] = None
     approval: ClientApprovalInfo
     heir: list [ClientHeirInfo]
@@ -320,6 +321,7 @@ class ClientLedgerResponse(BaseModel):
     pos_id: int | None = None
     amount: Decimal
     entry_type: str
+    card_validation_count: int | None = None
     balance_before: Decimal
     balance_after: Decimal
     reason: str | None = None

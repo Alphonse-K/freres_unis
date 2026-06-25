@@ -216,8 +216,8 @@ def validate_card(
     db: Session = Depends(get_db),
     current_account = Depends(require_permission(Permissions.VALIDATE_CLIENT_CARD))
 ):
-
-    current_account_id = current_account["account"].id
+    print("current account: " , current_account)
+    current_account_id = current_account.id
     return ClientService.validate_card(db, current_account_id, card_number, amount)
 
 @client_router.post(
