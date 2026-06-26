@@ -12,7 +12,6 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from models import POS
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse
 from src.models.clients import (
