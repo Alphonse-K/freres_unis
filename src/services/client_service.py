@@ -737,7 +737,7 @@ class LedgerService:
         if date_to:
             query = query.filter(func.date(LedgerEntry.created_at) <= date_to)
 
-        rows = query.group_by(LedgerEntry.pos_id, POS.name).all()
+        rows = query.group_by(LedgerEntry.pos_id, POS.pos_business_name).all()
 
         breakdown = [
             {

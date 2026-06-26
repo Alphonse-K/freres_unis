@@ -14,8 +14,8 @@ from src.schemas.clients import (
 
 
 DB = Annotated[Session, Depends(get_db)]
-FROM_DATE = Annotated[date | None, Query(None, description="Start date YYYY-MM-DD")]
-DATE_TO = Annotated[date | None, Query(None, description="End date YYYY-MM-DD")]
+FROM_DATE = Annotated[date | None, Query(description="Start date YYYY-MM-DD")]
+DATE_TO = Annotated[date | None, Query(description="End date YYYY-MM-DD")]
 CanReadLedger = Annotated[Any, require_permission(Permissions.LEDGER_READ)]
 
 
@@ -26,8 +26,8 @@ ledger_route = APIRouter(prefix="/ledger", tags=["Ledger Stats"])
 def client_validations(
     db: DB,
     client_id: int,
-    date_from: FROM_DATE,
-    date_to: DATE_TO,
+    date_from: FROM_DATE = None,
+    date_to: DATE_TO = None,
     current_user = CanReadLedger
 ):
     return LedgerService.get_client_validations(db, client_id, date_from, date_to)
@@ -37,8 +37,8 @@ def client_validations(
 def pos_validations(
     db: DB,
     pos_id: int,
-    date_from: FROM_DATE,
-    date_to: DATE_TO,
+    date_from: FROM_DATE = None,
+    date_to: DATE_TO = None,
     current_user = CanReadLedger
 ):
     return LedgerService.get_pos_validations(db, pos_id, date_from, date_to)
@@ -47,8 +47,8 @@ def pos_validations(
 @ledger_route.get("/pos/validations", response_model=AllPOSValidationResponse)
 def all_pos_validations(
     db: DB,
-    date_from: FROM_DATE,
-    date_to: DATE_TO,
+    date_from: FROM_DATE = None,
+    date_to: DATE_TO = None,
     current_user = CanReadLedger
 ):
     return LedgerService.get_all_pos_validations(db, date_from, date_to)
