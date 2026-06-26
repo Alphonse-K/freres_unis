@@ -11,6 +11,8 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 from typing import Optional
+
+from models import POS
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse
 from src.models.clients import (
@@ -217,8 +219,8 @@ def validate_card(
     current_account = Depends(require_permission(Permissions.VALIDATE_CLIENT_CARD))
 ):
     print("current account: " , current_account)
-    current_account_id = current_account.id
-    return ClientService.validate_card(db, current_account_id, card_number, amount)
+    current_account = current_account
+    return ClientService.validate_card(db, current_account.pos.id, card_number, amount)
 
 @client_router.post(
     "/balance/{client_phone}/increment",
@@ -230,8 +232,8 @@ def increment_client_balance(
     db: Session = Depends(get_db),
     current_account = Depends(require_permission(Permissions.INCREMENT_CLIENT_BALANCE))
 ):
-    pos_id = get_pos_id_or_none(current_account)
-    return ClientService.increment_client_balance(db, client_phone, amount, pos_id)
+    pos_user = get_pos_id_or_none(current_account)
+    return ClientService.increment_client_balance(db, client_phone, amount, pos_user.pos.id)
 
 @client_router.put(
     "/card-opening-balance/{client_id}/set",
