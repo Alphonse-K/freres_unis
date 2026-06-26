@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 from src.models.clients import (
     ClientType, 
@@ -477,4 +477,54 @@ class ClientWithDebtResponse(BaseModel):
     balance: Decimal
     total_outstanding_loans: Decimal
     net_position: Decimal
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Client validations ────────────────────────────────────────────────────────
+
+class ClientValidationResponse(BaseModel):
+    client_id: int
+    total_validations: int
+    total_validation_count: int
+    total_amount: Decimal
+    date_from: date | None = None
+    date_to: date | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── POS validations ───────────────────────────────────────────────────────────
+
+class POSValidationResponse(BaseModel):
+    pos_id: int
+    total_validations: int
+    total_validation_count: int
+    total_amount: Decimal
+    date_from: date | None = None
+    date_to: date | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── All POS validations ───────────────────────────────────────────────────────
+
+class POSValidationBreakdown(BaseModel):
+    pos_id: int
+    pos_name: str
+    total_validations: int
+    total_validation_count: int
+    total_amount: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AllPOSValidationResponse(BaseModel):
+    total_pos: int
+    grand_total_validations: int
+    grand_total_validation_count: int
+    grand_total_amount: Decimal
+    date_from: date | None = None
+    date_to: date | None = None
+    breakdown: List[POSValidationBreakdown]
+
     model_config = ConfigDict(from_attributes=True)

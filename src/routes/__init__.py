@@ -20,6 +20,7 @@ from .notifications import notification_router
 from .cash_register import cash_register_route
 from .accounts import router as accounts_router
 from . import files
+from .ledgers import ledger_route
 
 API_PREFIX = "/api/v1"
 
@@ -33,6 +34,7 @@ def register_routers(app: FastAPI):
     app.include_router(inventory_router, prefix=API_PREFIX)
     app.include_router(tax_router, prefix=API_PREFIX)
     app.include_router(sales_router, prefix=API_PREFIX)
+    app.include_router(ledger_route, prefix=API_PREFIX)
     app.include_router(expenses_router, prefix=API_PREFIX)
     app.include_router(procurement_router, prefix=API_PREFIX)
     app.include_router(provider_router, prefix=API_PREFIX)

@@ -46,7 +46,7 @@ from src.models.pos import POS, POSLedger
 from src.models.catalog import ProductVariant, PriceType
 from decimal import Decimal
 from src.schemas.users import PaginationParams
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import uuid, qrcode
 from src.core.audit import audit_log
 from ulid import ULID
@@ -160,14 +160,14 @@ class ClientService:
             LoanService.apply_repayment(db, client)
             reference_id = f"CARD{str(ULID())}"
 
-            client.card_validation_count += 1
+            card_validation_count = 1
 
             ledger = LedgerEntry(
                 client_id=client.id,
                 pos_id=current_account_id,
                 amount=amount,
                 entry_type="card validation",
-                card_validation_count=client.card_validation_count,
+                card_validation_count=card_validation_count,
                 balance_before=balance_before,
                 balance_after=client.current_balance,
                 reason="Card validation",
@@ -181,6 +181,7 @@ class ClientService:
         except Exception:
             db.rollback()
             raise
+
 
     @staticmethod
     def increment_client_balance(db: Session, phone: str, amount: Decimal, pos_id: int):
@@ -644,6 +645,120 @@ class LedgerService:
             .all()
         )
         return total, items
+
+    @staticmethod
+    def get_client_validations(
+            db: Session,
+            client_id: int,
+            date_from: date | None = None,
+            date_to: date | None = None,
+    ) -> dict:
+        """Total validations for a specific client, optionally filtered by date."""
+        query = db.query(
+            func.count(LedgerEntry.id).label("total_validations"),
+            func.sum(LedgerEntry.card_validation_count).label("total_validation_count"),
+            func.sum(LedgerEntry.amount).label("total_amount")
+        ).filter(
+            LedgerEntry.client_id == client_id,
+            LedgerEntry.card_validation_count > 0
+        )
+
+        if date_from:
+            query = query.filter(func.date(LedgerEntry.created_at) >= date_from)
+        if date_to:
+            query = query.filter(func.date(LedgerEntry.created_at) <= date_to)
+
+        result = query.one()
+
+        return {
+            "client_id": client_id,
+            "total_validations": result.total_validations or 0,
+            "total_validation_count": result.total_validation_count or 0,
+            "total_amount": result.total_amount or 0,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+
+    @staticmethod
+    def get_pos_validations(
+            db: Session,
+            pos_id: int,
+            date_from: date | None = None,
+            date_to: date | None = None,
+    ) -> dict:
+        """Total validations a specific POS has done, optionally filtered by date."""
+        query = db.query(
+            func.count(LedgerEntry.id).label("total_validations"),
+            func.sum(LedgerEntry.card_validation_count).label("total_validation_count"),
+            func.sum(LedgerEntry.amount).label("total_amount")
+        ).filter(
+            LedgerEntry.pos_id == pos_id,
+            LedgerEntry.card_validation_count > 0
+        )
+
+        if date_from:
+            query = query.filter(func.date(LedgerEntry.created_at) >= date_from)
+        if date_to:
+            query = query.filter(func.date(LedgerEntry.created_at) <= date_to)
+
+        result = query.one()
+
+        return {
+            "pos_id": pos_id,
+            "total_validations": result.total_validations or 0,
+            "total_validation_count": result.total_validation_count or 0,
+            "total_amount": result.total_amount or 0,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+
+    @staticmethod
+    def get_all_pos_validations(
+            db: Session,
+            date_from: date | None = None,
+            date_to: date | None = None,
+    ) -> dict:
+        """Validations broken down per POS across all POS, optionally filtered by date."""
+        query = db.query(
+            LedgerEntry.pos_id,
+            POS.pos_business_name.label("pos_name"),
+            func.count(LedgerEntry.id).label("total_validations"),
+            func.sum(LedgerEntry.card_validation_count).label("total_validation_count"),
+            func.sum(LedgerEntry.amount).label("total_amount")
+        ).join(
+            POS, POS.id == LedgerEntry.pos_id
+        ).filter(
+            LedgerEntry.pos_id.isnot(None),
+            LedgerEntry.card_validation_count > 0
+        )
+
+        if date_from:
+            query = query.filter(func.date(LedgerEntry.created_at) >= date_from)
+        if date_to:
+            query = query.filter(func.date(LedgerEntry.created_at) <= date_to)
+
+        rows = query.group_by(LedgerEntry.pos_id, POS.name).all()
+
+        breakdown = [
+            {
+                "pos_id": row.pos_id,
+                "pos_name": row.pos_name,
+                "total_validations": row.total_validations or 0,
+                "total_validation_count": row.total_validation_count or 0,
+                "total_amount": row.total_amount or 0,
+            }
+            for row in rows
+        ]
+
+        return {
+            "total_pos": len(breakdown),
+            "grand_total_validations": sum(r["total_validations"] for r in breakdown),
+            "grand_total_validation_count": sum(r["total_validation_count"] for r in breakdown),
+            "grand_total_amount": sum(r["total_amount"] for r in breakdown),
+            "date_from": date_from,
+            "date_to": date_to,
+            "breakdown": breakdown
+        }
 
 
 class CartService:

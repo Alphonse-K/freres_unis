@@ -267,6 +267,11 @@ class Permissions(str, Enum):
     REJECT_EMPLOYEE_SALARY = "REJECT_EMPLOYEE_SALARY"
 
     # =========================
+    # LEDGER
+    # =========================
+    LEDGER_READ = "ledger:read"
+
+    # =========================
     # SUPER ADMIN
     # =========================
     SYSTEM_ADMIN = "system:admin"
