@@ -184,6 +184,42 @@ class ClientService:
 
 
     @staticmethod
+    def change_card_status(
+            db: Session,
+            client_id: int,
+            card_status: MagneticCardStatus,
+    ):
+        client = db.get(Client, client_id)
+
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Client {client_id} not found"
+            )
+
+        client.magnetic_card_status = card_status
+
+        if card_status in [
+            MagneticCardStatus.TAKEN_EXPIRED,
+            MagneticCardStatus.TAKEN_NON_EXPIRED,
+        ]:
+            client.card_retrieve_date = datetime.now(timezone.utc)
+            client.card_opening_balance = 0
+
+        elif card_status in [
+            MagneticCardStatus.HELD_NOBALANCE,
+            MagneticCardStatus.EXPIRED_HELD,
+        ]:
+            client.card_opening_balance = 0
+
+
+        db.commit()
+        db.refresh(client)
+
+        return client
+
+
+    @staticmethod
     def increment_client_balance(db: Session, phone: str, amount: Decimal, pos_id: int):
         try:
             client = (

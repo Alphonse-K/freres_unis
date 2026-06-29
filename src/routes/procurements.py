@@ -25,7 +25,11 @@ from src.services.procurement_service import (
 procurement_router = APIRouter(prefix="/procurements", tags=["POS Procurements"])
 
 
-@procurement_router.post("/", response_model=ProcurementResponse, status_code=status.HTTP_201_CREATED)
+@procurement_router.post(
+    "/",
+    response_model=ProcurementResponse,
+    status_code=status.HTTP_201_CREATED
+)
 def create_procurement(
     data: ProcurementCreate,
     current_user: POSUser = Depends(require_permission(Permissions.CREATE_PROCUREMENT)),
@@ -60,6 +64,7 @@ def list_procurements(
     - POS users can only see their POS's procurements unless admin
     - Supports pagination
     """
+
     # Convert status string to enum
     status_enum = None
     if procurement_status:
@@ -78,7 +83,10 @@ def list_procurements(
         offset=offset
     )
 
-@procurement_router.get("/{procurement_id}", response_model=ProcurementResponse)
+@procurement_router.get(
+    "/{procurement_id}",
+    response_model=ProcurementResponse
+)
 def get_procurement(
     procurement_id: int,
     current_user: POSUser = Depends(require_permission(Permissions.READ_PROCUREMENT)),
@@ -87,7 +95,11 @@ def get_procurement(
     """
     Get procurement details by ID
     """
-    procurement = ProcurementService.get_procurement(db, procurement_id, current_user)
+    procurement = ProcurementService.get_procurement(
+        db,
+        procurement_id,
+        current_user
+    )
     
     if not procurement:
         raise HTTPException(
@@ -98,7 +110,10 @@ def get_procurement(
     return procurement
 
 
-@procurement_router.put("/{procurement_id}", response_model=ProcurementResponse)
+@procurement_router.put(
+    "/{procurement_id}",
+    response_model=ProcurementResponse
+)
 def update_procurement(
     procurement_id: int,
     data: ProcurementUpdate,
@@ -106,7 +121,12 @@ def update_procurement(
     db: Session = Depends(get_db)
 ):
 
-    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
+    procurement = ProcurementService.get_procurement(
+        db,
+        procurement_id,
+        current_user,
+        include_details=False
+    )
     
     if not procurement:
         raise HTTPException(
@@ -114,17 +134,30 @@ def update_procurement(
             detail="Procurement not found"
         )
     
-    return ProcurementService.update_procurement(db, procurement_id, current_user, data)
+    return ProcurementService.update_procurement(
+        db,
+        procurement_id,
+        current_user,
+        data
+    )
 
 
-@procurement_router.patch("/external_procurement/{procurement_id}", response_model=ProcurementResponse)
+@procurement_router.patch(
+    "/external_procurement/{procurement_id}",
+    response_model=ProcurementResponse
+)
 def update_procurement(
     procurement_id: int,
     data: ProcurementUpdate,
     current_user: POSUser = Depends(require_permission(Permissions.UPDATE_PROCUREMENT)),
     db: Session = Depends(get_db)
 ):
-    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
+    procurement = ProcurementService.get_procurement(
+        db,
+        procurement_id,
+        current_user,
+        include_details=False
+    )
     
     if not procurement:
         raise HTTPException(
@@ -132,7 +165,12 @@ def update_procurement(
             detail="Procurement not found"
         )
     
-    return ProcurementService.update_external_procurement(db, procurement_id, current_user, data)
+    return ProcurementService.update_external_procurement(
+        db,
+        procurement_id,
+        current_user,
+        data
+    )
 
 
 @procurement_router.put(
@@ -155,7 +193,10 @@ def attach_procurement_receipt(
     )
 
 
-@procurement_router.post("/{procurement_id}/cancel", response_model=ProcurementResponse)
+@procurement_router.post(
+    "/{procurement_id}/cancel",
+    response_model=ProcurementResponse
+)
 def cancel_procurement(
     procurement_id: int,
     reason: Optional[str] = None,
@@ -168,7 +209,12 @@ def cancel_procurement(
     - Cannot cancel delivered procurements
     - Requires manager role
     """
-    procurement = ProcurementService.get_procurement(db, procurement_id, current_user, include_details=False)
+    procurement = ProcurementService.get_procurement(
+        db,
+        procurement_id,
+        current_user,
+        include_details=False
+    )
     
     if not procurement:
         raise HTTPException(

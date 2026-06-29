@@ -91,6 +91,7 @@ class Client(Base):
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    card_retrieve_date = Column(DateTime(timezone=True), nullable=True)
     # relationships
     id_type = relationship("IDType")
     addresses = relationship(

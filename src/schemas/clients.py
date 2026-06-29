@@ -16,7 +16,6 @@ from src.models.clients import (
 from uuid import UUID
 
 
-
 class ClientBase(BaseModel):
     type: ClientType = Field(..., description="Client category")
     first_name: str = Field(..., max_length=120)
@@ -44,7 +43,6 @@ class ClientUpdate(BaseModel):
     last_name: Optional[str] = Field(None, max_length=120)
     email: Optional[str] = Field(None, max_length=255)
     status: Optional[ClientStatus] = Field(None)
-    magnetic_card_status: Optional[MagneticCardStatus] = Field(None)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -66,6 +64,7 @@ class ClientResponse(ClientBase):
     id: int
     card_validation_count: int | None = None
     submitted_at: Optional[datetime] = None
+    card_retrieve_date: datetime | None = None
     approval: ClientApprovalInfo
     heir: list [ClientHeirInfo]
 

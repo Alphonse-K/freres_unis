@@ -15,12 +15,11 @@ from typing import Optional
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse
 from src.models.clients import (
-    ClientApproval, 
-    Client, 
-    ClientStatus, 
-    ClientReturn, 
-    ClientRequest,
-    # LoanStatus
+    ClientApproval,
+    Client,
+    ClientStatus,
+    ClientReturn,
+    ClientRequest, MagneticCardStatus,
 )
 from src.models.id import IDType
 from src.models.clients import LedgerEntry
@@ -43,12 +42,8 @@ from src.schemas.clients import (
     ClientRequestUpdate,
     ClientRequestReplyUpdate,
     ClientRequestReply,
-    CardRequestCreate,
     ScanRequest,
     ScanResponse,
-    # ClientCardResponse,
-    # CardApproveRequest,
-    CardRequestResponse,
     CardRequestCreate,
     ClientHeirCreate,
     ClientHeirUpdate,
@@ -220,6 +215,17 @@ def validate_card(
     print("current account: " , current_account)
     current_account = current_account
     return ClientService.validate_card(db, current_account.pos.id, card_number, amount)
+
+@client_router.patch(
+    "/card/status/{client_id}/update",
+    response_model=ClientResponse
+)
+def update_client_card_status(
+    client_id: int,
+    card_status: MagneticCardStatus,
+    db: Session = Depends(get_db),
+):
+    return ClientService.change_card_status(db, client_id, card_status)
 
 @client_router.post(
     "/balance/{client_phone}/increment",
