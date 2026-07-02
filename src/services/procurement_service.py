@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, asc, and_, or_, extract
 import logging
 import uuid
+
 from src.models.procurement import (
     Procurement, ProcurementItem, ProcurementStatus, 
     ProcurementReturn, ProcurementReturnItem, ProcurementReturnStatus
     
 )
 from src.models.providers import ProviderType
-from src.models.pos import POS, POSUser, PosType
+from src.models.pos import POS, PosType, POSLedger
 from src.models.providers import Provider
 from src.models.catalog import ProductVariant
 from src.models.inventory import Inventory
@@ -335,6 +336,12 @@ class ProcurementService:
                 procurement.total_amount = subtotal
 
             procurement.updated_at = datetime.now(timezone.utc)
+
+            new_status = update_data.get("status")
+            if ( new_status != ProcurementStatus.RECEIVED
+                and procurement.status != ProcurementStatus.RECEIVED):
+                ProcurementService._apply_receive_balance_movement(db, procurement)
+
             db.commit()
             db.refresh(procurement)
             logger.info(f"Procurement updated: {procurement_id}")
@@ -363,6 +370,7 @@ class ProcurementService:
                 status.HTTP_403_FORBIDDEN,
                 detail=f"Cannot update procurement with status {procurement.status.value}"
             )
+
         is_super_admin = any(role.name == "SUPER_ADMIN" for role in current_user.roles)
         if not is_super_admin:
             if procurement.pos_id != current_user.pos_id:
@@ -434,9 +442,83 @@ class ProcurementService:
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
 
-    # ================================
-    # PROCUREMENT WORKFLOW
-    # ================================
+    @staticmethod
+    def _apply_receive_balance_movement(db, procurement: Procurement):
+        """
+        Debit receiving POS and credit supplying POS
+        """
+        provider = db.query(Provider).filter(
+            Provider.id == procurement.provider_id
+        ).first()
+
+        if not provider or provider.provider_type != ProviderType.INTERNAL:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Provider {procurement.provider_id} not found or provider is not internal"
+            )
+
+        supplying_pos = db.query(POS).filter(
+            POS.id == provider.linked_pos_id
+        ).with_for_update().first()
+        if not supplying_pos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No supplying pos found"
+            )
+
+        receiving_pos = db.query(POS).filter(
+            POS.id == procurement.pos_id
+        ).with_for_update().first()
+        if not receiving_pos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="POS not found"
+            )
+
+        amount = procurement.total_amount
+
+        if receiving_pos.balance < amount:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    f"Insufficient balance on receiving POS"
+                    f" — available: {receiving_pos.balance}, required: {amount}"
+                )
+            )
+        receiving_balance_before = receiving_pos.balance
+        supplying_balance_before = supplying_pos.balance
+        receiving_pos.balance -= amount
+        supplying_pos.balance += amount
+
+        db.add(POSLedger(
+            pos_id=receiving_pos.id,
+            entry_type="debit",
+            amount=amount,
+            balance_before=receiving_balance_before,
+            balance_after=receiving_pos.balance,
+            reference_id=f"procurement-{receiving_pos.id}",
+            reason="procurement"
+        ))
+
+        db.add(POSLedger(
+            pos_id=supplying_pos.id,
+            entry_type="credit",
+            amount=amount,
+            balance_before=supplying_balance_before,
+            balance_after=supplying_pos.balance,
+            reference_id=f"RETURN-{supplying_pos.id}",
+            reason="procurement"
+        ))
+
+        db.commit()
+
+        logger.info(
+            f"Balance movement applied | procurement={procurement.reference} "
+            f"| receiving_pos={receiving_pos.id} debited {amount} "
+            f"| supplying_pos={supplying_pos.id} credited {amount}"
+        )
+
+
     @staticmethod
     def attach_procurement_receipt(
             db: Session,

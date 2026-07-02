@@ -1716,3 +1716,120 @@ class LoanService:
         return client_loans
 
 
+class SetOpeningBalancesService:
+
+    @staticmethod
+    def set_positive_opening_balance(db: Session, phone: str, amount: Decimal, pos_id: int):
+        try:
+            client = (
+                db.query(Client)
+                .filter(Client.phone == phone)
+                .with_for_update()
+                .first()
+            )
+
+            if not client:
+                raise HTTPException(404, f"Phone {phone} not found")
+
+            if client.is_opening_balance_set:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Client's opening balance already set"
+                )
+
+            if amount <= Decimal("0"):
+                raise HTTPException(400, "Amount must be greater than zero")
+
+            if not pos_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="POS ID is a must"
+                )
+
+            pos = db.get(POS, pos_id)
+            if not pos:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="POS not found"
+                )
+
+            pos_balance_before = pos.balance
+            pos_balance_after = pos_balance_before
+
+            balance_before = client.current_balance
+            client.current_balance += amount
+
+            reference_id = f"opening-{str(ULID())}"
+
+            ledger = LedgerEntry(
+                client_id=client.id,
+                amount=amount,
+                entry_type="credit",
+                balance_before=balance_before,
+                balance_after=client.current_balance,
+                reason="opening balance",
+                reference_id=reference_id
+            )
+
+            db.add(POSLedger(
+                pos_id=pos.id,
+                entry_type="neutral",
+                amount=amount,
+                balance_before=pos_balance_before,
+                balance_after=pos_balance_after,
+                reference_id=reference_id,
+                reason="opening balance"
+            ))
+
+            client.is_opening_balance_set = True
+            db.add(ledger)
+            db.commit()
+            db.refresh(client)
+            return client
+        except Exception:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def set_negative_opening_balance(
+        db: Session,
+        client_id: str,
+        amount: Decimal,
+        remaining_amount: Decimal,
+        loan_status: LoanStatus,
+        pos_id: int
+    ):
+
+        client = db.get(Client, client_id)
+
+        if not client:
+            raise HTTPException(404, "Client not found")
+
+        if client.is_opening_balance_set:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Client's opening balance already set"
+            )
+
+        loan = ClientLoan(
+            client_id=client_id,
+            amount=amount,
+            remaining_amount=remaining_amount,
+            status=loan_status,
+            approved_by=pos_id,
+            reason="setting negative opening balance"
+        )
+
+        client.is_opening_balance_set = True
+        db.add(loan)
+        db.commit()
+        db.refresh(loan)
+        net_position = client.current_balance - loan.remaining_amount
+
+        return {
+            "id": client.id,
+            "balance": client.current_balance,
+            "total_outstanding_loans": loan.remaining_amount,
+            "net_position": net_position,
+        }
+

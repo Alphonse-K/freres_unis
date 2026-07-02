@@ -63,6 +63,7 @@ class ClientHeirInfo(BaseModel):
 class ClientResponse(ClientBase):
     id: int
     card_validation_count: int | None = None
+    is_opening_balance_set: bool
     submitted_at: Optional[datetime] = None
     card_retrieve_date: datetime | None = None
     approval: ClientApprovalInfo

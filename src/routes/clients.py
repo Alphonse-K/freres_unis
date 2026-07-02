@@ -1,13 +1,13 @@
 from fastapi import (
-    APIRouter, 
-    Depends, 
-    status, 
-    Query, 
-    HTTPException, 
-    Form, 
-    UploadFile, 
-    File, 
-    Request
+    APIRouter,
+    Depends,
+    status,
+    Query,
+    HTTPException,
+    Form,
+    UploadFile,
+    File,
+    Request, Body
 )
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -19,7 +19,7 @@ from src.models.clients import (
     Client,
     ClientStatus,
     ClientReturn,
-    ClientRequest, MagneticCardStatus,
+    ClientRequest, MagneticCardStatus, LoanStatus,
 )
 from src.models.id import IDType
 from src.models.clients import LedgerEntry
@@ -69,7 +69,8 @@ from src.services.client_service import (
     ClientCardService,
     ClientHeirService,
     CardPriceService,
-    LoanService
+    LoanService,
+    SetOpeningBalancesService
 )
 from src.services.pos import POSService
 from src.services.client_approval_service import ClientApprovalService
@@ -238,7 +239,7 @@ def increment_client_balance(
     current_account = Depends(require_permission(Permissions.INCREMENT_CLIENT_BALANCE))
 ):
     pos_user = get_pos_id_or_none(current_account)
-    return ClientService.increment_client_balance(db, client_phone, amount, pos_user.pos.id)
+    return ClientService.increment_client_balance(db, client_phone, amount, pos_user)
 
 @client_router.put(
     "/card-opening-balance/{client_id}/set",
@@ -983,4 +984,39 @@ def get_financials(client_id: int, db: Session = Depends(get_db)):
     return LoanService.get_client_financials(db, client_id)
 
 
+@client_router.post(
+    "/set-positive-opening-balance/{phone}/",
+    response_model=ClientResponse
+)
+def set_positive_opening_balance(
+    phone: str,
+    amount: Decimal = Body(),
+    current_user = Depends(require_permission(Permissions.CREATE_CLIENT)),
+    db: Session = Depends(get_db),
+):
+    pos_user = get_pos_id_or_none(current_user)
+    if not pos_user:
+        raise HTTPException(status_code=404, detail="POS user not found")
+    return SetOpeningBalancesService.set_positive_opening_balance(
+        db, phone, amount, pos_user
+    )
 
+
+@client_router.post(
+    "/set-negative-opening-balance/{client_id}/",
+    response_model=ClientWithDebtResponse
+)
+def set_negative_opening_balance(
+    client_id: str,
+    amount: Decimal = Body(),
+    remaining_amount: Decimal = Body(),
+    loan_status: LoanStatus = Body(),
+    current_user = Depends(require_permission(Permissions.CREATE_CLIENT)),
+    db: Session = Depends(get_db),
+):
+    pos_user = get_pos_id_or_none(current_user)
+    if not pos_user:
+        raise HTTPException(status_code=404, detail="POS user not found")
+    return SetOpeningBalancesService.set_negative_opening_balance(
+        db, client_id, amount, remaining_amount, loan_status, pos_user
+    )

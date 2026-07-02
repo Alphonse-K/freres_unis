@@ -82,6 +82,7 @@ class Client(Base):
     pin_hash = Column(String(255), nullable=True)
     # Identification
     id_type_id = Column(Integer, ForeignKey("id_types.id"), nullable=False)
+    is_opening_balance_set = Column(Boolean, default=False)
     id_number = Column(String(100), nullable=False, unique=True)
     last_login_ip = Column(String, nullable=True)
     last_login_user_agent = Column(String, nullable=True)
