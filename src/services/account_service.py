@@ -350,8 +350,9 @@ class FundTransferService:
 
         # 3. Balance check
         if client.current_balance < amount:
-            raise BusinessRuleException(
-                "Insufficient client balance"
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Insufficient client balance"
             )
 
         # 4. Create ledger entry
