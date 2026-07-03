@@ -340,13 +340,13 @@ class FundTransferService:
             )
 
         # 2. Idempotency check (prevents double charging)
-        existing_transfer = db.query(FundTransfer).filter(
-            FundTransfer.card_request_id == card_request_id,
-            FundTransfer.transfer_type == TransferType.TREASURY_TRANSFER
-        ).first()
-
-        if existing_transfer:
-            return existing_transfer
+        # existing_transfer = db.query(FundTransfer).filter(
+        #     FundTransfer.card_request_id == card_request_id,
+        #     FundTransfer.transfer_type == TransferType.TREASURY_TRANSFER
+        # ).first()
+        #
+        # if existing_transfer:
+        #     return existing_transfer
 
         # 3. Balance check
         if client.current_balance < amount:
