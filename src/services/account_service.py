@@ -356,7 +356,7 @@ class FundTransferService:
 
         # 4. Create ledger entry
         transfer = FundTransfer(
-            source_account_id=client.account_id,
+            source_account_id=client.id,
             destination_account_id=card_account.id,
             amount=amount,
             transfer_type=TransferType.TREASURY_TRANSFER,
