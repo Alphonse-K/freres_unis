@@ -405,16 +405,7 @@ class ClientService:
         except Exception:
             db.rollback()
             raise
-    
-    @staticmethod
-    def increment_partner_client_balances_with_scheduler(db: Session, client_id: int):
-        clients = db.query(Client).filter(
-            Client.type == "partner_client",
-            Client.magnetic_card_status == "held_valid"
-        ).all()
-        for client in clients:
-            client.current_balance += client.approval.company.card_amount
-            audit_log("Balance increment", "client", client.id)
+
 
     @staticmethod
     def create_client_request(db: Session, client_id: int, request: ClientRequestBase):
@@ -1141,10 +1132,8 @@ class OrderService:
             ))
 
             order.status = OrderStatus.COMPLETED
-
             db.commit()
             db.refresh(order)
-
             return order
 
         except Exception:

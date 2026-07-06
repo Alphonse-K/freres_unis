@@ -59,41 +59,63 @@ class ProcurementService:
         try:
             pos = db.query(POS).filter(POS.id == pos_id).first()
             if not pos:
-                raise NotFoundException(f"POS {pos_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="POS {pos_id} not found"
+                )
 
             provider = db.query(Provider).filter(
                 Provider.id == data.provider_id
             ).first()
 
             if not provider:
-                raise NotFoundException(f"Provider {data.provider_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Provider {data.provider_id} not found"
+                )
 
             if not provider.is_active:
-                raise BusinessRuleException("Provider is inactive")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Provider is inactive"
+                )
 
             # --- Internal provider rules ---
             if provider.provider_type == ProviderType.INTERNAL:
                 if not provider.linked_pos_id:
-                    raise BusinessRuleException("Internal provider must be linked to a POS")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Internal provider must be linked to a POS"
+                    )
                 
                 supplying_pos = db.query(POS).filter(
                     POS.id == provider.linked_pos_id
                 ).first()
                 if not supplying_pos:
-                    raise NotFoundException(f"Linked POS {provider.linked_pos_id} not found")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Linked POS {provider.linked_pos_id} not found"
+                    )
                 
                 # Cannot procure from self
                 if supplying_pos.id == pos.id:
-                    raise BusinessRuleException("POS cannot procure from itself")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="POS cannot procure from itself"
+                    )
 
                 # Only Central or Regional can supply
                 if supplying_pos.type not in [PosType.CENTRAL, PosType.REGIONAL]:
-                    raise BusinessRuleException("This POS cannot supply products")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="This POS cannot supply products"
+                    )
 
                 # Central cannot request
                 if pos.type == PosType.CENTRAL:
-                    raise BusinessRuleException(
-                        "Central POS cannot request procurement"
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Central POS cannot request procurement"
                     )
 
             # --- Verify all product variants exist ---
@@ -102,8 +124,9 @@ class ProcurementService:
                     ProductVariant.id == item.product_variant_id
                 ).first()
                 if not product_variant:
-                    raise NotFoundException(
-                        f"Product variant {item.product_variant_id} not found"
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Product variant {item.product_variant_id} not found"
                     )
 
             po_number = ProcurementService.generate_po_number(db, pos_id)
@@ -118,8 +141,9 @@ class ProcurementService:
             for item in data.items:
                 variant = variant_map.get(item.product_variant_id)
                 if not variant:
-                    raise NotFoundException(
-                        f"Variant {item.product_variant_id} not found"
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Variant {item.product_variant_id} not found"
                     )
                 
                 purchase_price = variant.purchase_price
