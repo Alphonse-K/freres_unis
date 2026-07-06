@@ -318,8 +318,9 @@ class ProcurementService:
                 for item_data in items_data:
                     variant = variant_map.get(item_data["product_variant_id"])
                     if not variant:
-                        raise NotFoundException(
-                            f"Variant {item_data['product_variant_id']} not found"
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Variant {item_data['product_variant_id']} not found"
                         )
                     purchase_price = variant.purchase_price
                     subtotal += item_data["qty"] * purchase_price
@@ -409,8 +410,9 @@ class ProcurementService:
                 for item_data in items_data:
                     variant = variant_map.get(item_data["product_variant_id"])
                     if not variant:
-                        raise NotFoundException(
-                            f"Variant {item_data['product_variant_id']} not found"
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Variant {item_data['product_variant_id']} not found"
                         )
                     purchase_price = variant.purchase_price
                     subtotal += item_data["qty"] * purchase_price
@@ -436,7 +438,6 @@ class ProcurementService:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
-
 
     @staticmethod
     def _apply_receive_balance_movement(db, procurement: Procurement):
@@ -485,7 +486,7 @@ class ProcurementService:
             reason="procurement"
         ))
 
-        # ── Credit supplying side — POS or external provider ─────────────────
+        # ── Credit supplying side + stock movement ───────────────────────────
         if provider.provider_type == ProviderType.INTERNAL:
             supplying_pos = db.query(POS).filter(
                 POS.id == provider.linked_pos_id
@@ -497,6 +498,26 @@ class ProcurementService:
                     detail="Supplying POS not found"
                 )
 
+            # ── Check stock availability BEFORE any movement ─────────────
+            for item in procurement.items:
+                availability = InventoryService.check_stock_availability(
+                    db,
+                    warehouse_id=supplying_pos.warehouse_id,
+                    product_variant_id=item.product_variant_id,
+                    quantity=item.qty,
+                    current_user=None
+                )
+                if not availability["is_available"]:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"Insufficient stock for product variant {item.product_variant_id} "
+                            f"in supplying POS warehouse — "
+                            f"available: {availability['available']}, required: {item.qty}"
+                        )
+                    )
+
+            # ── All checks passed — apply balance movement ────────────────
             supplying_balance_before = supplying_pos.balance
             supplying_pos.balance += amount
 
@@ -510,19 +531,45 @@ class ProcurementService:
                 reason="procurement"
             ))
 
+            # ── Apply stock movement ──────────────────────────────────────
+            for item in procurement.items:
+                InventoryService.decrease_stock(
+                    db,
+                    warehouse_id=supplying_pos.warehouse_id,
+                    product_variant_id=item.product_variant_id,
+                    quantity=item.qty,
+                    reserve_first=False
+                )
+                InventoryService.increase_stock(
+                    db,
+                    warehouse_id=receiving_pos.warehouse_id,
+                    product_variant_id=item.product_variant_id,
+                    quantity=item.qty,
+                    source=f"procurement_{procurement.reference}"
+                )
+
             logger.info(
-                f"Balance movement applied | procurement={procurement.reference} "
+                f"Balance + stock movement applied | procurement={procurement.reference} "
                 f"| receiving_pos={receiving_pos.id} debited {amount} "
                 f"| supplying_pos={supplying_pos.id} credited {amount}"
             )
 
         else:
-            # EXTERNAL provider — credit their current_balance
+            # ── EXTERNAL provider — credit balance, increase receiving stock only ──
             provider_balance_before = provider.current_balance
             provider.current_balance += amount
 
+            for item in procurement.items:
+                InventoryService.increase_stock(
+                    db,
+                    warehouse_id=receiving_pos.warehouse_id,
+                    product_variant_id=item.product_variant_id,
+                    quantity=item.qty,
+                    source=f"procurement_{procurement.reference}"
+                )
+
             logger.info(
-                f"Balance movement applied | procurement={procurement.reference} "
+                f"Balance + stock movement applied | procurement={procurement.reference} "
                 f"| receiving_pos={receiving_pos.id} debited {amount} "
                 f"| external_provider={provider.id} credited {amount} "
                 f"| provider_balance {provider_balance_before} → {provider.current_balance}"
@@ -593,7 +640,6 @@ class ProcurementService:
         """
         Change procurement status.
         """
-
         procurement = (
             db.query(Procurement)
             .filter(Procurement.id == procurement_id)
@@ -602,19 +648,24 @@ class ProcurementService:
         )
 
         if not procurement:
-            raise NotFoundException(f"Procurement {procurement_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Procurement {procurement_id} not found"
+            )
 
         if procurement.status in [
             ProcurementStatus.CANCELLED,
             ProcurementStatus.RECEIVED
         ]:
-            raise BusinessRuleException(
-                "Procurement is already delivered or cancelled"
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Procurement is already delivered or cancelled"
             )
 
         if not procurement.pos or not procurement.pos.warehouse_id:
-            raise BusinessRuleException(
-                f"POS {procurement.pos_id} has no associated warehouse"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="POS {procurement.pos_id} has no associated warehouse"
             )
 
         try:
@@ -640,7 +691,6 @@ class ProcurementService:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
             raise
-
 
     @staticmethod
     def cancel_procurement(

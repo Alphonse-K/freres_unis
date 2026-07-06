@@ -870,14 +870,21 @@ class InventoryService:
             .first()
         )
         if not procurement:
-            raise NotFoundException(f"Procurement with {procurement_id} not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Procurement with {procurement_id} not found."
+            )
 
         if procurement.status == ProcurementStatus.CANCELLED:
-            raise BusinessRuleException("Cannot receive cancelled procurement.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cannot receive cancelled procurement."
+            )
 
         if procurement.status != ProcurementStatus.SHIPPED:
-            raise BusinessRuleException(
-                "Procurement must be SHIPPED before it's received."
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Procurement must be SHIPPED before it's received."
             )
 
         warehouse = db.query(Warehouse).filter(
@@ -885,8 +892,9 @@ class InventoryService:
         ).first()
 
         if not warehouse:
-            raise NotFoundException(
-                f"Warehouse with ID {warehouse_id} not found"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Warehouse with ID {warehouse_id} not found"
             )
 
         results = []

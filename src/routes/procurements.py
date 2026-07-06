@@ -172,6 +172,30 @@ def update_procurement(
         data
     )
 
+@procurement_router.patch(
+    "/change_procurement_status/{procurement_id}",
+    response_model=ProcurementResponse
+)
+def receive_procurement(
+    procurement_id: int,
+    new_status: ProcurementStatus,
+    delivery_notes: str | None = None,
+    driver_name: str | None = None,
+    driver_phone: str | None = None,
+    current_user = Depends(require_permission(Permissions.RECEIVE_PROCUREMENT)),
+    db: Session = Depends(get_db)
+    ):
+
+    return ProcurementService.change_procurement_status(
+        db,
+        procurement_id,
+        new_status,
+        current_user.id,
+        delivery_notes,
+        driver_name,
+        driver_phone
+    )
+
 
 @procurement_router.put(
     "/{procurement_id}/add/receipt",
