@@ -23,7 +23,7 @@ celery_app.conf.update(
     beat_schedule={
         "increment-partner-balances-midnight": {
             "task": "src.tasks.scheduled_tasks.increment_partner_balances",
-            "schedule": crontab(hour=20, minute=3),
+            "schedule": crontab(hour=0, minute=5),
         }
     }
 )
