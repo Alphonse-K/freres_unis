@@ -7,9 +7,18 @@ from src.core.config import settings
 # -----------------------------------------------------
 DATABASE_URL = settings.DATABASE_URL
 
+# engine = create_engine(
+#     DATABASE_URL,
+#     echo=settings.SQL_ECHO
+# )
+
 engine = create_engine(
     DATABASE_URL,
-    echo=settings.SQL_ECHO
+    echo=settings.SQL_ECHO,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    pool_size=20,
+    max_overflow=40,
 )
 
 SessionLocal = sessionmaker(
