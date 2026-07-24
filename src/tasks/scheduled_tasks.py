@@ -41,7 +41,7 @@ def increment_partner_balances():
             db.add(LedgerEntry(
                 client_id=client.id,
                 amount=client.approval.company.card_amount,
-                entry_type="card validation",
+                entry_type="midnight_validation",
                 card_validation_count=1,
                 balance_before=balance_before,
                 balance_after=client.current_balance,
