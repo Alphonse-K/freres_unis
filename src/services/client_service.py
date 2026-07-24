@@ -173,7 +173,6 @@ class ClientService:
                 reason="Card validation",
                 reference_id=reference_id,
             )
-
             db.add(ledger)
             db.commit()
             db.refresh(ledger)

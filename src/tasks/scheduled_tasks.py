@@ -21,15 +21,23 @@ def increment_partner_balances():
 
         updated = 0
         for client in clients:
+
             if not client.approval or not client.approval.company:
                 logger.warning(f"[scheduler] Client {client.id} has no company — skipping")
                 continue
+
             if not client.card_opening_balance:
                 continue
+
+            if client.card_opening_balance < client.approval.company.card_amount:
+                continue
+
             client.card_opening_balance -= client.approval.company.card_amount
             balance_before = client.current_balance
             client.current_balance += client.approval.company.card_amount
+
             audit_log("Balance increment", "client", client.id, None)
+
             db.add(LedgerEntry(
                 client_id=client.id,
                 amount=client.approval.company.card_amount,
