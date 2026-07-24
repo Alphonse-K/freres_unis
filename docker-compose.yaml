@@ -45,7 +45,7 @@ services:
       dockerfile: docker/app/Dockerfile
     container_name: freres_unis_worker
 #    command: celery -A src.core.celery worker --loglevel=info -Q Client_balance
-    command: celery -A src.core.celery worker --loglevel=info -Q balance_incremental
+    command: celery -A src.core.celery worker --loglevel=info -Q balance_incremental --concurrency=4
     env_file: .env
     environment:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
