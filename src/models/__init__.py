@@ -1,5 +1,3 @@
-# src/models/__init__.py
-
 from .users import *
 from .employee import *
 from .clients import *
@@ -18,4 +16,4 @@ from .taxes import *
 from .role import *
 from .rbac_assiciation import *
 from .permission import *
-# import every model file here
+from .employee_card import *

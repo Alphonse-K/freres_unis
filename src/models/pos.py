@@ -288,7 +288,7 @@ class POSLedger(Base):
     id = Column(Integer, primary_key=True)
     pos_id = Column(Integer, ForeignKey("pos.id", ondelete="CASCADE"))
     amount = Column(Numeric(14, 2), nullable=False)
-    entry_type = Column(String(10), nullable=False)
+    entry_type = Column(String(30), nullable=False)
     balance_before = Column(Numeric(14, 2), nullable=False)
     balance_after = Column(Numeric(14, 2), nullable=False)
     reason = Column(String(255), nullable=False)

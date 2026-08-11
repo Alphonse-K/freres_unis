@@ -9,6 +9,7 @@ from fastapi import (
     File,
     Request, Body
 )
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -181,18 +182,36 @@ def list_client_approvals(db: Session = Depends(get_db), current_user = Depends(
 
 
 @client_router.get(
-        "/phone/{phone}",
+        "/lookup",
         response_model=ClientResponseLight
 )
-def get_client_by_number(
-    phone: str,
-    db: Session = Depends(get_db), 
+def lookup_client(
+    phone: str | None = None,
+    magnetic_card_number: str | None = None,
+    db: Session = Depends(get_db),
 ):
-    client = db.query(Client).filter_by(phone=phone).first()
+    conditions = []
+    if phone is not None:
+        conditions.append(Client.phone == phone)
+    if magnetic_card_number is not None:
+        conditions.append(ClientApproval.magnetic_card_number == magnetic_card_number)
+
+    if not conditions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="phone or magnetic_card_number must be provided"
+        )
+
+    client = (
+        db.query(Client)
+        .outerjoin(ClientApproval, ClientApproval.client_id == Client.id)
+        .filter(or_(*conditions))
+        .first()
+    )
     if not client:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Client with {phone} not found"
+            detail=f"Client with {phone or magnetic_card_number} not found"
         )
     
     if not client.approval:

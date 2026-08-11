@@ -244,7 +244,7 @@ class SaleService:
             db.rollback()
             logging.error(f"Unexpected error creating sale {str(e)}")
             raise HTTPException(
-                status_codes=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Unexpected error creating sale {str(e)}"
             )
 
