@@ -44,7 +44,6 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     container_name: freres_unis_worker
-#    command: celery -A src.core.celery worker --loglevel=info -Q Client_balance
     command: celery -A src.core.celery worker --loglevel=info -Q balance_incremental --concurrency=1
     env_file: .env
     environment:
