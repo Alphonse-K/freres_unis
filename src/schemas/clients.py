@@ -39,6 +39,7 @@ class ClientCreate(ClientBase):
 
 
 class ClientUpdate(BaseModel):
+    type: ClientType | None = None
     first_name: str | None = Field(None, max_length=120)
     last_name: str | None = Field(None, max_length=120)
     phone: str | None = Field(None, max_length=40)
