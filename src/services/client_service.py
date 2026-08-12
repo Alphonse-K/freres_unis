@@ -85,6 +85,8 @@ class ClientService:
         )
         return total, items
 
+    APPROVAL_FIELDS = {"employee_company", "magnetic_card_number", "company_address", "company_id"}
+
     @staticmethod
     def update(
         db: Session,
@@ -92,12 +94,32 @@ class ClientService:
         data: ClientUpdate,
         actor_id: int,
     ) -> Client:
-        
+
         client = ClientService.get(db, client_id)
-        for field, value in data.model_dump(exclude_unset=True).items():
+        updates = data.model_dump(exclude_unset=True)
+        approval_updates = {k: updates.pop(k) for k in list(updates) if k in ClientService.APPROVAL_FIELDS}
+
+        for field, value in updates.items():
             setattr(client, field, value)
 
-        db.commit()
+        if approval_updates:
+            if not client.approval:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Approval not found"
+                )
+            for field, value in approval_updates.items():
+                setattr(client.approval, field, value)
+
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Phone, ID number, or card number already in use"
+            )
+
         db.refresh(client)
         audit_log("UPDATE", "Client", client.id, actor_id)
         return client

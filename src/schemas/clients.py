@@ -39,10 +39,17 @@ class ClientCreate(ClientBase):
 
 
 class ClientUpdate(BaseModel):
-    first_name: Optional[str] = Field(None, max_length=120)
-    last_name: Optional[str] = Field(None, max_length=120)
-    email: Optional[str] = Field(None, max_length=255)
-    status: Optional[ClientStatus] = Field(None)
+    first_name: str | None = Field(None, max_length=120)
+    last_name: str | None = Field(None, max_length=120)
+    phone: str | None = Field(None, max_length=40)
+    email: str | None = Field(None, max_length=255)
+    id_number: str | None = Field(None, max_length=100)
+    id_type_id: int | None = None
+    status: ClientStatus | None = Field(None)
+    employee_company: str | None = Field(None, max_length=255)
+    magnetic_card_number: str | None = Field(None, max_length=120)
+    company_address: str | None = Field(None, max_length=255)
+    company_id: int | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -64,7 +71,7 @@ class ClientResponse(ClientBase):
     id: int
     card_validation_count: int | None = None
     is_opening_balance_set: bool
-    submitted_at: Optional[datetime] = None
+    submitted_at: datetime | None = None
     card_retrieve_date: datetime | None = None
     approval: ClientApprovalInfo
     heir: list [ClientHeirInfo]
