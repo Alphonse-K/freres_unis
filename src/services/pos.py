@@ -69,7 +69,9 @@ class POSService:
             
             logger.info(f"POS created: {pos.id} - {pos.pos_business_name}")
             return pos
-            
+
+        except (HTTPException, NotFoundException, ValidationException, BusinessRuleException):
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating POS: {str(e)}")
@@ -299,7 +301,7 @@ class POSService:
             low_stock_count = 0
             if pos.warehouse_id:
                 low_stock_items = InventoryService.get_low_stock_items(db, warehouse_id=pos.warehouse_id)
-                print(pos.pos_business_name)
+                logger.debug(f"Computing low stock count for {pos.pos_business_name}")
                 low_stock_count = len(low_stock_items)
 
             # Pending procurements

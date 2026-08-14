@@ -1,6 +1,10 @@
 # services/audit_service.py
 from src.models.audit import AuditLog
 from sqlalchemy.orm import Session
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class AuditService:
     

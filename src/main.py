@@ -1,12 +1,22 @@
+import logging
+
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+from src.core.logging_config import setup_logging
+
+setup_logging()
+
 from src.core.database import Base, engine, SessionLocal
 from src.core.seed_permissions import seed_permissions, seed_role
+from src.core.middleware import RequestLoggingMiddleware
+from src.core.exception_handlers import register_exception_handlers
 from src.routes import register_routers
 import src.models
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -18,13 +28,18 @@ async def lifespan(application: FastAPI):
         seed_role(db)
     finally:
         db.close()
+    logger.info("Application startup complete")
     yield
+    logger.info("Application shutting down")
 
 app = FastAPI(
     title="Freres Unis API",
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.add_middleware(RequestLoggingMiddleware)
+register_exception_handlers(app)
 
 
 IS_DOCKER = Path("/app").exists()

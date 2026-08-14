@@ -1,9 +1,12 @@
+import logging
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from fastapi import HTTPException, status
 
 from src.models.users import UnitedCompany
 from src.schemas.users import CompanyCreate, CompanyUpdate
+
+logger = logging.getLogger(__name__)
 
 
 class CompanyService:

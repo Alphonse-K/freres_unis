@@ -2,6 +2,7 @@ from fastapi import status, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+import logging
 
 from src.schemas.clients import (
     ClientInvoiceCreate, 
@@ -53,6 +54,8 @@ from ulid import ULID
 from pathlib import Path
 from uuid import UUID
 from src.services.account_service import FundTransferService
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MEDIA_DIR = BASE_DIR / "media"
@@ -113,7 +116,8 @@ class ClientService:
 
         try:
             db.commit()
-        except IntegrityError:
+        except IntegrityError as e:
+            logger.error(f"Integrity error updating client {client_id}: {e}")
             db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -199,7 +203,10 @@ class ClientService:
             db.commit()
             db.refresh(ledger)
             return ledger
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error validating card for account {current_account_id}: {e}")
             db.rollback()
             raise
 
@@ -302,10 +309,13 @@ class ClientService:
             db.commit()
             db.refresh(ledger)
             return ledger
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error incrementing balance for client with phone {phone}: {e}")
             db.rollback()
             raise
-    
+
     @staticmethod
     def set_card_opening_balance(db: Session, client_id: int, amount: Decimal):
         client = db.get(Client, client_id)
@@ -423,7 +433,10 @@ class ClientService:
                 "amount": amount,
                 "message": "Balance transfered successfully"
             }
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error transferring balance from client {client_id} to phone {phone}: {e}")
             db.rollback()
             raise
 
@@ -1000,7 +1013,10 @@ class PricingService:
                 "shipping_fee": shipping_fee,
                 "total": total_amount
             }
+        except HTTPException:
+            raise
         except Exception as e:
+            logger.error(f"Error calculating order total for cart {cart.id}: {e}")
             db.rollback()
             raise
 
@@ -1157,7 +1173,10 @@ class OrderService:
             db.refresh(order)
             return order
 
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error checking out order {order_code}: {e}")
             db.rollback()
             raise
         
@@ -1796,7 +1815,10 @@ class SetOpeningBalancesService:
             db.commit()
             db.refresh(client)
             return client
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error setting positive opening balance for phone {phone}: {e}")
             db.rollback()
             raise
 

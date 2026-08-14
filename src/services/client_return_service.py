@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
@@ -13,6 +15,9 @@ from src.schemas.clients import (
 )
 from src.schemas.users import PaginationParams
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+
 
 class ClientReturnService:
 
@@ -206,8 +211,12 @@ class ClientReturnService:
             db.refresh(client_return)
             return client_return
 
-        except Exception:
+        except HTTPException:
             db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error approving return {return_id}: {e}")
             raise
 
     # =========================
@@ -247,7 +256,7 @@ class ClientReturnService:
         - POS: sees returns for orders in their warehouse
         """
         query = db.query(ClientReturn)
-        print(current_user)
+        logger.debug(f"list_returns called by account_type={current_user.get('account_type')}")
 
         if current_user.get("account_type") == "user":
             pass

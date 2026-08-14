@@ -1,11 +1,14 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from src.models.role import Role 
+from src.models.role import Role
 from src.models.permission import Permission
 from typing import List
 from src.models.clients import Client
 from src.models.users import User
 from src.models.pos import POSUser
+import logging
+
+logger = logging.getLogger(__name__)
 
 MODEL_MAP = {
     "CLIENT": Client,

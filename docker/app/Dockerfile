@@ -15,9 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user (must be done BEFORE chown)
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Create uploads folder and give permissions to appuser
-RUN mkdir -p /app/uploads && \
-    chown -R appuser:appuser /app/uploads
+# Create uploads/logs folders and give permissions to appuser
+RUN mkdir -p /app/uploads /app/logs && \
+    chown -R appuser:appuser /app/uploads /app/logs
 
 # Install Python dependencies
 COPY requirements.txt .

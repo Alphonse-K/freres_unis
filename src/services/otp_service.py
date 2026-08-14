@@ -83,16 +83,15 @@ class OTPService:
         Verify OTP for User (by email) or POSUser (by email or phone)
         """
         identifier = identifier.strip().lower()
-        
-        print(f"DEBUG verify_otp: identifier='{identifier}', purpose='{purpose}'")
-        
+
+        logger.debug(f"verify_otp: identifier='{identifier}', purpose='{purpose}'")
+
         # Strategy: Try all possibilities
-        
+
         # 1. Try User by email
         if "@" in identifier:
             user = db.query(User).filter(User.email.ilike(identifier)).first()
             if user:
-                print(f"DEBUG: Trying User with email: {identifier}")
                 otp_record = db.query(OTPCode).filter(
                     OTPCode.account_type == "user",
                     OTPCode.account_id == user.id,
@@ -101,20 +100,19 @@ class OTPService:
                     OTPCode.is_used == False,
                     OTPCode.expires_at > datetime.now(timezone.utc)
                 ).first()
-                
+
                 if otp_record:
-                    print(f"DEBUG: OTP found for User ID: {user.id}")
+                    logger.debug(f"OTP found for User ID: {user.id}")
                     otp_record.is_used = True
                     otp_record.used_at = datetime.now(timezone.utc)
                     user.last_login = datetime.now(timezone.utc)
                     db.commit()
                     return user
-        
+
         # 2. Try POSUser by email
         if "@" in identifier:
             pos_user = db.query(POSUser).filter(POSUser.email.ilike(identifier)).first()
             if pos_user:
-                print(f"DEBUG: Trying POSUser with email: {identifier}")
                 otp_record = db.query(OTPCode).filter(
                     OTPCode.account_type == "pos",
                     OTPCode.account_id == pos_user.id,
@@ -123,20 +121,19 @@ class OTPService:
                     OTPCode.is_used == False,
                     OTPCode.expires_at > datetime.now(timezone.utc)
                 ).first()
-                
+
                 if otp_record:
-                    print(f"DEBUG: OTP found for POSUser ID: {pos_user.id}")
+                    logger.debug(f"OTP found for POSUser ID: {pos_user.id}")
                     otp_record.is_used = True
                     otp_record.used_at = datetime.now(timezone.utc)
                     pos_user.last_login = datetime.now(timezone.utc)
                     db.commit()
                     return pos_user
-        
+
         # 3. Try POSUser by phone (only for phone identifiers)
         if not "@" in identifier:
             pos_user = db.query(POSUser).filter(POSUser.phone == identifier).first()
             if pos_user:
-                print(f"DEBUG: Trying POSUser with phone: {identifier}")
                 otp_record = db.query(OTPCode).filter(
                     OTPCode.account_type == "pos",
                     OTPCode.account_id == pos_user.id,
@@ -145,14 +142,14 @@ class OTPService:
                     OTPCode.is_used == False,
                     OTPCode.expires_at > datetime.now(timezone.utc)
                 ).first()
-                
+
                 if otp_record:
-                    print(f"DEBUG: OTP found for POSUser ID: {pos_user.id}")
+                    logger.debug(f"OTP found for POSUser ID: {pos_user.id}")
                     otp_record.is_used = True
                     otp_record.used_at = datetime.now(timezone.utc)
                     pos_user.last_login = datetime.now(timezone.utc)
                     db.commit()
                     return pos_user
-        
-        print(f"DEBUG: No valid OTP found for identifier: {identifier}")
+
+        logger.debug(f"No valid OTP found for identifier: {identifier}")
         return None

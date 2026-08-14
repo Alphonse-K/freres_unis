@@ -2,12 +2,12 @@ from fastapi import HTTPException, status
 from src.models.employee import Employee, Contract, Attendance, LeaveRequest, Salary
 from src.models.pos import POSUser
 from src.schemas.employee import (
-    EmployeeCreate, 
+    EmployeeCreate,
     EmployeeUpdate,
     ContractCreate,
     ContractUpdate,
     AttendanceCreate,
-    AttendanceUpdate,   
+    AttendanceUpdate,
     LeaveRequestCreate,
     LeaveRequestUpdate,
     SalaryCreate,
@@ -18,9 +18,12 @@ from src.schemas.employee import (
 from src.utils.file_upload import save_image
 from sqlalchemy.orm import Session
 from datetime import datetime
-from src.schemas.users import PaginationParams    
+from src.schemas.users import PaginationParams
 from datetime import date, timezone
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class EmployeeService:

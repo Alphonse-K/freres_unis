@@ -62,17 +62,17 @@ class SecurityUtils:
             if bcrypt.checkpw(sha, stored_hash.encode()):
                 return True
         except Exception as e:
-            print(f"DEBUG: SHA256+bcrypt check failed: {e}")
-        
+            logger.debug(f"SHA256+bcrypt check failed: {e}")
+
         try:
             if bcrypt.checkpw(password.encode(), stored_hash.encode()):
-                print("DEBUG: Legacy bcrypt verification successful")
+                logger.debug("Legacy bcrypt verification successful")
                 return True
         except Exception as e:
-            print(f"DEBUG: Legacy bcrypt check failed: {e}")
-        
-        print("DEBUG: All password verification methods failed")
-        return False    
+            logger.debug(f"Legacy bcrypt check failed: {e}")
+
+        logger.debug("All password verification methods failed")
+        return False
     
     @staticmethod
     def validate_password_strength(password: str) -> tuple[bool, str]:

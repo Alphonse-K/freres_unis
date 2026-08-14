@@ -72,7 +72,7 @@ class SaleService:
             pos = POSService.get_pos(db, data.pos_id)
             if not pos:
                 raise HTTPException(
-                    status_codes=status.HTTP_404_NOT_FOUND,
+                    status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"POS {data.pos_id}"
                 )
 
@@ -80,7 +80,7 @@ class SaleService:
             user = POSUserService.get_pos_user_by_id(db, data.created_by_id)
             if not user:
                 raise HTTPException(
-                    status_codes=status.HTTP_404_NOT_FOUND,
+                    status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"POS user {data.created_by_id} not found"
                 )
 
@@ -90,21 +90,21 @@ class SaleService:
                 customer = db.get(Client, data.customer_id)
                 if not customer:
                     raise HTTPException(
-                        status_codes=status.HTTP_404_NOT_FOUND,
+                        status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"Client {data.customer_id} not found"
                     )
 
             # Validate sales items
             if not data.items:
                 raise HTTPException(
-                    status_codes=status.HTTP_400_BAD_REQUEST,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Sales must contain at least one items"
                 )
 
             for item in data.items:
                 if item.qty <= 0:
                     raise HTTPException(
-                        status_codes=status.HTTP_400_BAD_REQUEST,
+                        status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Invalid quantity for {item.product_variant_id}"
                     )
 
@@ -119,7 +119,7 @@ class SaleService:
             if customer:
                 if customer.current_balance < total_amount:
                     raise HTTPException(
-                        status_codes=status.HTTP_400_BAD_REQUEST,
+                        status_code=status.HTTP_400_BAD_REQUEST,
                         detail=(f"Client insufficient balance"
                                f"- available {customer.current_balance};"
                                f"require {total_amount}"
@@ -180,9 +180,10 @@ class SaleService:
                    db, data.pos_id, sale_items_data, user
                )
             except Exception as e:
+                logger.error(f"Stock reservation failed for POS {data.pos_id}: {e}")
                 db.rollback()
                 raise HTTPException(
-                    status_codes=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Stock reservation failed {str(e)}"
                 )
 
@@ -193,6 +194,7 @@ class SaleService:
                 )
 
             except Exception as e:
+                logger.error(f"Failed to finalize inventory for sale {sale.id}, cancelling reservations: {e}")
                 InventoryService.cancel_sale_reservations(
                     db, data.pos_id, sale_items_data
                 )
@@ -238,6 +240,9 @@ class SaleService:
             return sale
 
         except SaleException as e:
+            db.rollback()
+            raise
+        except HTTPException:
             db.rollback()
             raise
         except Exception as e:
@@ -698,6 +703,10 @@ class SaleService:
                         source=f"sale_return_{sale_return.id}"
                     )
                 except Exception as e:
+                    logger.error(
+                        f"Failed to restore inventory for product variant "
+                        f"{return_item.product_variant_id} on return for sale {data.sale_id}: {e}"
+                    )
                     raise SaleValidationException(
                         f"Failed to restore inventory for product variant {return_item.product_variant_id}: {str(e)}"
                     )

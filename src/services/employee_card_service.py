@@ -1,4 +1,5 @@
 # services/employee_card_service.py
+import logging
 import uuid
 import qrcode
 from datetime import datetime, timezone, timedelta
@@ -14,6 +15,8 @@ from src.schemas.users import PaginationParams
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MEDIA_DIR = BASE_DIR / "media"
+
+logger = logging.getLogger(__name__)
 
 
 class EmployeeCardService:
@@ -176,7 +179,8 @@ class EmployeeCardService:
     def scan_card(db: Session, token: str, agent_id: int, ip: str):
         try:
             payload = verify_card_token(token)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Employee card token verification failed (agent_id={agent_id}, ip={ip}): {e}")
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
         card = db.get(EmployeeCard, payload["sub"])

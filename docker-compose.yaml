@@ -15,6 +15,7 @@ services:
      - ./alembic:/app/alembic
      - ./uploads:/app/uploads
      - ./media:/app/media
+     - ./logs:/app/logs
   db:
     image: postgres:15
     restart: always
@@ -49,6 +50,9 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
+      # single-concurrency worker: only ever needs one DB connection at a time
+      - DB_POOL_SIZE=2
+      - DB_MAX_OVERFLOW=3
     depends_on:
       - db
       - redis
@@ -56,6 +60,7 @@ services:
       - ./src:/app/src
       - ./uploads:/app/uploads
       - ./media:/app/media
+      - ./logs:/app/logs
     restart: always
 
   beat:
@@ -71,9 +76,15 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
+      # scheduler only -- never queries the DB itself, just enqueues tasks
+      - DB_POOL_SIZE=1
+      - DB_MAX_OVERFLOW=1
     depends_on:
       - redis
       - db
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
     restart: always
 
 volumes:

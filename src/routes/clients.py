@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -12,6 +14,8 @@ from fastapi import (
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from src.core.database import get_db
 from src.schemas.users import PaginationParams, PaginatedResponse
@@ -232,8 +236,7 @@ def validate_card(
     db: Session = Depends(get_db),
     current_account = Depends(require_permission(Permissions.VALIDATE_CLIENT_CARD))
 ):
-    print("current account: " , current_account)
-    current_account = current_account
+    logger.debug(f"validate_card called by account {getattr(current_account, 'id', '?')}")
     return ClientService.validate_card(db, current_account.pos.id, card_number, amount)
 
 @client_router.patch(

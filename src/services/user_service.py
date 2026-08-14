@@ -1,5 +1,6 @@
 # src/services/user_service.py
 
+import logging
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import List, Optional
@@ -7,6 +8,8 @@ from typing import List, Optional
 from src.models.users import User, UserStatus, UserRole
 from src.schemas.users import UserCreate, UserUpdate, PaginationParams, UserFilter
 from src.core.security import SecurityUtils
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:

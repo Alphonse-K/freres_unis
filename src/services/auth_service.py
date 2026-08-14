@@ -31,72 +31,67 @@ class AuthService:
     @staticmethod
     def authenticate(db: Session, identifier: str, secret: str, mode: str, ip: str, ua: str):
         try:
-            print(f"DEBUG authenticate: identifier='{identifier}', mode='{mode}'")
-            
+            logger.debug(f"authenticate: identifier='{identifier}', mode='{mode}'")
+
             # -------- PASSWORD AUTH --------
             if mode == "password":
                 # Try email login first
                 if "@" in identifier:
-                    print(f"DEBUG: Attempting email login for '{identifier}'")
-                    
+                    logger.debug(f"Attempting email login for '{identifier}'")
+
                     # Case-insensitive lookup
                     user = db.query(User).filter(User.email.ilike(identifier)).first()
-                    print(f"DEBUG: User query result: {user}")
-                    
+
                     if not user:
-                        print(f"DEBUG: No user found with email '{identifier}'")
-                        return None
-                        
-                    print(f"DEBUG: User found - ID: {user.id}, Email: {user.email}")
-                    print(f"DEBUG: Password hash exists: {bool(user.password_hash)}")
-                    
-                    if not user.password_hash:
-                        print("DEBUG: User has no password hash")
+                        logger.debug(f"No user found with email '{identifier}'")
                         return None
 
-                    # DEBUG password verification
-                    print(f"DEBUG: Attempting password verification")
+                    logger.debug(f"User found - ID: {user.id}, has password hash: {bool(user.password_hash)}")
+
+                    if not user.password_hash:
+                        logger.debug("User has no password hash")
+                        return None
+
                     is_valid = SecurityUtils.verify_password(secret, user.password_hash)
-                    print(f"DEBUG: Password verification result: {is_valid}")
-                    
+
                     if not is_valid:
-                        print(f"DEBUG: Password verification failed")
+                        logger.debug(f"Password verification failed for user {user.id}")
                         SecurityUtils.register_failed_attempt(user, db)
                         return None
 
-                    print(f"DEBUG: Password verified successfully")
-                    
+                    logger.debug(f"Password verified successfully for user {user.id}")
+
                     # Auto-upgrade legacy bcrypt
                     try:
                         if bcrypt.checkpw(secret.encode(), user.password_hash.encode()):
-                            print("DEBUG: Upgrading legacy password hash")
+                            logger.debug(f"Upgrading legacy password hash for user {user.id}")
                             user.password_hash = SecurityUtils.hash_password(secret)
                             db.commit()
                     except Exception as e:
-                        print(f"DEBUG: Legacy upgrade check failed: {e}")
+                        logger.debug(f"Legacy upgrade check failed: {e}")
 
                     # FIX: Safe call to SecurityUtils methods
                     try:
                         # Enforce policies
                         SecurityUtils.enforce_login_policies(user)
-                        
+
                         # Update metadata
                         SecurityUtils.update_login_metadata(user, ip, ua, db)
                     except sqlalchemy.exc.ArgumentError as e:
                         # Handle boolean comparison error
-                        print(f"WARNING: Fix needed in SecurityUtils methods: {e}")
+                        logger.warning(f"SecurityUtils argument error, falling back to basic metadata update: {e}")
                         # Basic metadata update
                         user.last_login = datetime.now(timezone.utc)
                         user.last_login_ip = ip
                         user.last_login_user_agent = ua
                         user.failed_login_attempts = 0  # Reset on success
                         db.commit()
-                    
-                    print(f"DEBUG: Authentication successful for user {user.id}")
+
+                    logger.debug(f"Authentication successful for user {user.id}")
                     return user
 
-                print(f"DEBUG: '@' not in identifier, trying phone login...")
-                
+                logger.debug("'@' not in identifier, trying phone login...")
+
                 # ---- POSUser / Client login (phone + password) ----
                 for model in (POSUser, Client):
                     account = db.query(model).filter(model.phone == identifier).first()
@@ -131,31 +126,33 @@ class AuthService:
 
             # -------- PIN AUTH --------
             if mode == "pin":
-                print(f"DEBUG: Attempting PIN login for phone '{identifier}'")
-                
+                logger.debug(f"Attempting PIN login for phone '{identifier}'")
+
                 for model in (POSUser, Client):
                     account = db.query(model).filter(model.phone == identifier).first()
                     if not account:
                         continue
-                        
-                    print(f"DEBUG: Found {model.__name__} account: {account.id}")
-                    print(f"DEBUG: PIN hash exists: {bool(getattr(account, 'pin_hash', None))}")
-                    
+
+                    logger.debug(
+                        f"Found {model.__name__} account {account.id}, "
+                        f"has PIN hash: {bool(getattr(account, 'pin_hash', None))}"
+                    )
+
                     if not getattr(account, "pin_hash", None):
-                        print(f"DEBUG: No PIN hash for account")
+                        logger.debug("No PIN hash for account")
                         continue
 
                     if not SecurityUtils.verify_password(secret, account.pin_hash):
-                        print(f"DEBUG: PIN verification failed")
+                        logger.debug(f"PIN verification failed for {model.__name__} {account.id}")
                         SecurityUtils.register_failed_attempt(account, db)
                         return None
 
-                    print(f"DEBUG: PIN verified successfully")
-                    
+                    logger.debug(f"PIN verified successfully for {model.__name__} {account.id}")
+
                     # Auto-upgrade legacy bcrypt PIN
                     try:
                         if bcrypt.checkpw(secret.encode(), account.pin_hash.encode()):
-                            print("DEBUG: Upgrading legacy PIN hash")
+                            logger.debug(f"Upgrading legacy PIN hash for {model.__name__} {account.id}")
                             account.pin_hash = SecurityUtils.hash_password(secret)
                             db.commit()
                     except Exception:
@@ -172,11 +169,11 @@ class AuthService:
                         account.last_login_user_agent = ua
                         account.failed_login_attempts = 0
                         db.commit()
-                    
-                    print(f"DEBUG: PIN authentication successful for {model.__name__} {account.id}")
+
+                    logger.debug(f"PIN authentication successful for {model.__name__} {account.id}")
                     return account
 
-                print(f"DEBUG: No account found with phone '{identifier}' for PIN login")
+                logger.debug(f"No account found with phone '{identifier}' for PIN login")
                 return None
 
             raise HTTPException(400, "Unsupported authentication mode")
@@ -186,13 +183,11 @@ class AuthService:
 
         except sqlalchemy.exc.ArgumentError as e:
             # Catch the specific boolean comparison error
-            logger.error(f"SQLAlchemy argument error: {e}")
-            print(f"ERROR: Fix SecurityUtils methods - replace .ilike() with == for booleans")
+            logger.error(f"SQLAlchemy argument error - replace .ilike() with == for booleans in SecurityUtils: {e}")
             raise HTTPException(500, "Authentication configuration error")
-            
+
         except Exception as e:
             logger.exception("Authentication service error")
-            print(f"ERROR: Authentication failed: {str(e)}")
             raise HTTPException(500, "Authentication failure")
     
     @staticmethod
@@ -520,70 +515,68 @@ class AuthService:
         ip_address: str = "",
     ) -> bool:
         """Change password for any account type"""
-        
-        print(f"=== CHANGE PASSWORD ===")
-        print(f"Account type: {account_type}, Account ID: {account_id}")
-        
+
+        logger.debug(f"change_password called: account_type={account_type}, account_id={account_id}")
+
         # Basic validation
         if new_password != confirm_password:
-            print("DEBUG: New passwords don't match")
+            logger.debug("New passwords don't match")
             return False
-        
+
         if len(new_password) < 8:
-            print("DEBUG: Password must be at least 8 characters")
+            logger.debug("Password must be at least 8 characters")
             return False
-        
+
         # Map account type to model
         model_map = {
             "user": User,
             "pos": POSUser,
             "client": Client,
         }
-        
+
         account_model = model_map.get(account_type)
         if not account_model:
-            print(f"DEBUG: Invalid account type: {account_type}")
+            logger.debug(f"Invalid account type: {account_type}")
             return False
-        
+
         # Get account
         account = db.query(account_model).filter(account_model.id == account_id).first()
         if not account:
-            print(f"DEBUG: Account not found")
+            logger.debug("Account not found")
             return False
-        
+
         # Check if account has password_hash
         if not hasattr(account, "password_hash"):
-            print(f"DEBUG: Account type {account_type} doesn't support password authentication")
+            logger.debug(f"Account type {account_type} doesn't support password authentication")
             return False
-        
+
         current_hash = account.password_hash
         if not current_hash:
-            print(f"DEBUG: No password set for this account")
+            logger.debug("No password set for this account")
             # Allow setting password for the first time
             if old_password:
-                print(f"DEBUG: Old password provided but no password set")
+                logger.debug("Old password provided but no password set")
                 return False
-        
+
         # Verify old password (skip if first-time setup)
         if current_hash:
-            print(f"DEBUG: Verifying old password...")
             if not SecurityUtils.verify_password(old_password, current_hash):
-                print(f"DEBUG: Old password verification failed")
+                logger.debug(f"Old password verification failed for {account_type} {account_id}")
                 return False
-            print(f"DEBUG: Old password verified")
-        
+            logger.debug("Old password verified")
+
         # Set new password
         account.password_hash = SecurityUtils.hash_password(new_password)
-        
+
         # Update metadata
         if hasattr(account, "last_password_change"):
             account.last_password_change = datetime.now(timezone.utc)
-        
+
         if hasattr(account, "require_password_change"):
             account.require_password_change = False
-        
+
         db.commit()
-        print(f"DEBUG: Password changed successfully")
+        logger.debug(f"Password changed successfully for {account_type} {account_id}")
         return True
 
 
@@ -598,77 +591,75 @@ class AuthService:
         ip_address: str = "",
     ) -> bool:
         """Change PIN for POS users and clients only"""
-        
-        print(f"=== CHANGE PIN ===")
-        print(f"Account type: {account_type}, Account ID: {account_id}")
-        
+
+        logger.debug(f"change_pin called: account_type={account_type}, account_id={account_id}")
+
         # Only allow PIN changes for pos and client accounts
         if account_type not in ["pos", "client"]:
-            print(f"DEBUG: PIN change not allowed for account type: {account_type}")
+            logger.debug(f"PIN change not allowed for account type: {account_type}")
             return False
-        
+
         # Basic validation
         if new_pin != confirm_pin:
-            print("DEBUG: New PINs don't match")
+            logger.debug("New PINs don't match")
             return False
-        
+
         # PIN-specific validation
         if not new_pin.isdigit():
-            print("DEBUG: PIN must contain only digits")
+            logger.debug("PIN must contain only digits")
             return False
-        
+
         if len(new_pin) not in [4, 6]:
-            print("DEBUG: PIN must be 4 or 6 digits")
+            logger.debug("PIN must be 4 or 6 digits")
             return False
-        
+
         # Map account type to model
         model_map = {
             "pos": POSUser,
             "client": Client,
         }
-        
+
         account_model = model_map.get(account_type)
         if not account_model:
-            print(f"DEBUG: Invalid account type for PIN change: {account_type}")
+            logger.debug(f"Invalid account type for PIN change: {account_type}")
             return False
-        
+
         # Get account
         account = db.query(account_model).filter(account_model.id == account_id).first()
         if not account:
-            print(f"DEBUG: Account not found")
+            logger.debug("Account not found")
             return False
-        
+
         # Check if account has pin_hash
         if not hasattr(account, "pin_hash"):
-            print(f"DEBUG: Account type {account_type} doesn't support PIN authentication")
+            logger.debug(f"Account type {account_type} doesn't support PIN authentication")
             return False
-        
+
         current_pin_hash = account.pin_hash
         if not current_pin_hash:
-            print(f"DEBUG: No PIN set for this account")
+            logger.debug("No PIN set for this account")
             # Allow setting PIN for the first time
             if old_pin:
-                print(f"DEBUG: Old PIN provided but no PIN set")
+                logger.debug("Old PIN provided but no PIN set")
                 return False
-        
+
         # Verify old PIN (skip if first-time setup)
         if current_pin_hash:
-            print(f"DEBUG: Verifying old PIN...")
             if not SecurityUtils.verify_password(old_pin, current_pin_hash):
-                print(f"DEBUG: Old PIN verification failed")
+                logger.debug(f"Old PIN verification failed for {account_type} {account_id}")
                 return False
-            print(f"DEBUG: Old PIN verified")
-        
+            logger.debug("Old PIN verified")
+
         # Set new PIN
         account.pin_hash = SecurityUtils.hash_password(new_pin)
-        
+
         # Update metadata
         if hasattr(account, "last_pin_change"):
             account.last_pin_change = datetime.now(timezone.utc)
-        
+
         db.commit()
-        print(f"DEBUG: PIN changed successfully")
-        return True    
+        logger.debug(f"PIN changed successfully for {account_type} {account_id}")
+        return True
     
     # -------------- SUCCESSFUL LOGIN METADATA --------------
     @staticmethod
@@ -1132,9 +1123,8 @@ class AuthService:
         Request password reset - send OTP to email or phone
         Returns: (success, message, debug_otp)
         """
-        print(f"=== REQUEST PASSWORD RESET ===")
-        print(f"Email: {email}, Phone: {phone}")
-        
+        logger.debug(f"request_password_reset called: email={email}, phone={phone}")
+
         if not email and not phone:
             return False, "Email or phone required", None
         
@@ -1153,11 +1143,11 @@ class AuthService:
         
         if not account:
             # Security: Don't reveal account doesn't exist
-            print("DEBUG: No account found (security response)")
+            logger.debug("No account found for password reset (security no-op response)")
             return True, "If an account exists, reset instructions have been sent", None
-        
-        print(f"DEBUG: Found {type(account).__name__} account ID: {account.id}")
-        
+
+        logger.debug(f"Found {type(account).__name__} account ID: {account.id} for password reset")
+
         # Generate OTP
         otp = OTPService.generate_otp(db, account, "password_reset")
         
@@ -1178,7 +1168,7 @@ class AuthService:
             user_agent=user_agent,
         )
         
-        print(f"DEBUG: OTP sent: {otp}")
+        logger.debug(f"OTP generated for {type(account).__name__} {account.id} (password_reset)")
         return True, "Reset instructions sent", otp
     
     @staticmethod
@@ -1194,9 +1184,8 @@ class AuthService:
         """
         Verify OTP and reset password
         """
-        print(f"=== VERIFY AND RESET PASSWORD ===")
-        print(f"Email: {email}, Phone: {phone}, OTP: {otp}")
-        
+        logger.debug(f"verify_and_reset_password called: email={email}, phone={phone}")
+
         if not email and not phone:
             return False, "Email or phone required"
         
@@ -1211,9 +1200,9 @@ class AuthService:
         
         if not account:
             return False, "Invalid or expired OTP"
-        
-        print(f"DEBUG: OTP verified for {type(account).__name__} ID: {account.id}")
-        
+
+        logger.debug(f"OTP verified for {type(account).__name__} ID: {account.id}")
+
         # Reset password
         account.password_hash = SecurityUtils.hash_password(new_password)
         
@@ -1238,6 +1227,6 @@ class AuthService:
         )
         
         db.commit()
-        
-        print(f"DEBUG: Password reset successful")
+
+        logger.debug(f"Password reset successful for {type(account).__name__} {account.id}")
         return True, "Password reset successfully"

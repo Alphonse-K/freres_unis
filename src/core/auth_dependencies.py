@@ -6,6 +6,7 @@ from src.services.auth_service import AuthService
 from src.models.security import APIKey
 from src.core.database import get_db
 from src.core.permissions import Permissions
+from src.core.request_context import set_user_id
 
 
 security = HTTPBearer()
@@ -35,7 +36,10 @@ def get_current_account(
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired access token"
-        )    
+        )
+
+    account = account_info.get("account")
+    set_user_id(f"{account_info.get('account_type')}:{getattr(account, 'id', '?')}")
     return account_info
 
 
@@ -51,6 +55,7 @@ def get_api_key(
             status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API Key or secret"
         )
+    set_user_id(f"apikey:{api_key.id}")
     return api_key
 
 

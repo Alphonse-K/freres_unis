@@ -1,11 +1,14 @@
+import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.models.notifications import NotificationTemplate, Notification
 from src.models.clients import Client
 from src.schemas.notifications import (
-    SendNotificationRequest, 
+    SendNotificationRequest,
     NotificationTemplateUpdate
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateEngine:

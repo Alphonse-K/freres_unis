@@ -17,7 +17,7 @@ def increment_partner_balances():
             Client.magnetic_card_status == "HELD_VALID"
         ).all()
 
-        print("Here are the corresponding clients", clients)
+        logger.debug(f"[scheduler] Found {len(clients)} eligible partner clients")
 
         updated = 0
         for client in clients:

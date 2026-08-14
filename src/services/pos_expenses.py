@@ -176,7 +176,7 @@ class ExpenseService:
             )
 
         update_data = data.model_dump(exclude_unset=True)
-        print("updated expense", update_data)
+        logger.debug(f"Updating expense {expense_id}: {update_data}")
         try:
             for field, value in update_data.items():
                 if field == "amount" and value <= Decimal('0'):

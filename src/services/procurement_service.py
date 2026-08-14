@@ -177,10 +177,12 @@ class ProcurementService:
             db.refresh(procurement)            
             logger.info(f"Procurement created: {procurement.reference} for POS {pos_id}")
             return procurement
+        except HTTPException:
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating procurement: {str(e)}")
-            raise    
+            raise
 
 
     @staticmethod
@@ -367,6 +369,8 @@ class ProcurementService:
             logger.info(f"Procurement updated: {procurement_id}")
             return procurement
 
+        except HTTPException:
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")
@@ -458,6 +462,8 @@ class ProcurementService:
             logger.info(f"Procurement updated: {procurement_id}")
             return procurement
 
+        except HTTPException:
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating procurement {procurement_id}: {str(e)}")

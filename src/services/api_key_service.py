@@ -3,6 +3,10 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from src.models.security import APIKey
 from src.core.api_keys import APIKeyUtils
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class APIKeyService:
 

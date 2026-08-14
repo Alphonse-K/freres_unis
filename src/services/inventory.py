@@ -132,6 +132,9 @@ class InventoryService:
         except InventoryException:
             db.rollback()
             raise
+        except HTTPException:
+            db.rollback()
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating warehouse {warehouse_id}: {str(e)}")

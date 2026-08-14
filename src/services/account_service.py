@@ -2,6 +2,7 @@ from typing import Optional, List
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
+import logging
 from src.models.pos import POS
 from src.models.clients import Client
 from src.models.pos import POSUser
@@ -31,6 +32,8 @@ from src.core.custom_exceptions import (
     BusinessRuleException,
     NotFoundException
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AccountService:

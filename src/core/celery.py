@@ -1,6 +1,16 @@
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import setup_logging as celery_setup_logging_signal
+
 from src.core.config import settings
+from src.core.logging_config import setup_logging
+
+
+@celery_setup_logging_signal.connect
+def _configure_celery_logging(*args, **kwargs):
+    """Hand logging config fully to our JSON/rotating-file setup instead of
+    letting Celery install its own stdout-only formatter."""
+    setup_logging()
 
 
 celery_app = Celery(

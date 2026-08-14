@@ -1,9 +1,12 @@
+import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.core.permissions import Permissions
 from src.core.custom_exceptions import *
 from src.schemas.taxes import *
 from src.models.taxes import *
+
+logger = logging.getLogger(__name__)
 
 
 class TaxService:

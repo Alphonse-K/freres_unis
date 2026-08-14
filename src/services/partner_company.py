@@ -1,8 +1,11 @@
+import logging
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 from src.models.partner_company import Company
 from src.schemas.partner_company import *
 from src.models.clients import ClientApproval
+
+logger = logging.getLogger(__name__)
 
 
 class CompanyService:
@@ -25,7 +28,10 @@ class CompanyService:
             db.commit()
             db.refresh(company)
             return company
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating company: {e}")
             db.rollback()
             raise
 
@@ -57,7 +63,10 @@ class CompanyService:
             db.commit()
             db.refresh(company)
             return company
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error updating company {company_id}: {e}")
             db.rollback()
             raise
 
@@ -71,7 +80,10 @@ class CompanyService:
             db.delete(company)
             db.commit()
             return {"message": "Company deleted successfully"}
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting company {company_id}: {e}")
             db.rollback()
             raise
 

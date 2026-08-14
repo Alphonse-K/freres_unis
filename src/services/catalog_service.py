@@ -292,6 +292,7 @@ class ProductPriceService:
             db.refresh(price)
 
         except IntegrityError as e:
+            logger.error(f"Integrity error creating price for variant {data.product_variant_id}: {e}")
             db.rollback()
 
             if "uq_active_price_per_type" in str(e.orig):
@@ -355,6 +356,7 @@ class ProductPriceService:
             db.refresh(price)
 
         except IntegrityError as e:
+            logger.error(f"Integrity error updating price {price_id}: {e}")
             db.rollback()
 
             if "uq_active_price_per_type" in str(e.orig):

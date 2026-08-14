@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import Optional
+import logging
 from src.models.locations import Country, Region, City, Address
 from src.schemas.location import (
     CountryCreate, CountryUpdate,
@@ -8,6 +9,8 @@ from src.schemas.location import (
     CityCreate, CityUpdate,
     AddressCreate, AddressUpdate
 )
+
+logger = logging.getLogger(__name__)
 
 
 # -------------------------------

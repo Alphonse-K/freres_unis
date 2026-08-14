@@ -1,9 +1,13 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
+import logging
 
 from src.models.id import IDType
 from src.schemas.id import IDTypeCreate, IDTypeUpdate
+
+logger = logging.getLogger(__name__)
+
 
 class IDTypeService:
 
@@ -13,8 +17,9 @@ class IDTypeService:
         db.add(id_type)
         try:
             db.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             db.rollback()
+            logger.error(f"Integrity error creating IDType '{data.name}': {e}")
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE,
                 detail="IDType with this name already exists"
@@ -33,8 +38,9 @@ class IDTypeService:
 
         try:
             db.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             db.rollback()
+            logger.error(f"Integrity error updating IDType {id_type_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE,
                 detail="IDType with this name already exists"
