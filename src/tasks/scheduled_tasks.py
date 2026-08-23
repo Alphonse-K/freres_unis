@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 
+from services.client_service import LoanService
 from src.core.celery import celery_app
 from src.core.database import SessionLocal
 from src.core.audit import logger
@@ -35,7 +36,7 @@ def increment_partner_balances():
             client.card_opening_balance -= client.approval.company.card_amount
             balance_before = client.current_balance
             client.current_balance += client.approval.company.card_amount
-
+            LoanService.apply_repayment(db, client)
             audit_log("Balance increment", "client", client.id, None)
 
             db.add(LedgerEntry(
