@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from services.client_service import LoanService
+from src.services.client_service import LoanService
 from src.core.celery import celery_app
 from src.core.database import SessionLocal
 from src.core.audit import logger
