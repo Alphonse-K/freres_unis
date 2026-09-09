@@ -216,6 +216,7 @@ class SaleItem(Base):
     product_variant_id = Column(Integer, ForeignKey("product_variants.id"))
     qty = Column(Numeric(12, 2))
     unit_price = Column(Numeric(12, 2))
+    default_unit_price = Column(Numeric(12, 2), nullable=True)
 
     sale = relationship("Sale", back_populates="items")
     product_variant = relationship("ProductVariant", back_populates="sale_items")

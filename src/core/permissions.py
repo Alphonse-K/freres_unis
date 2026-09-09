@@ -220,6 +220,11 @@ class Permissions(str, Enum):
     RETURN_ORDER = "order:return"
 
     # =========================
+    # PRICING OVERRIDES
+    # =========================
+    OVERRIDE_ITEM_PRICE = "pricing:override_item_price"
+
+    # =========================
     # REPORTS
     # =========================
     VIEW_SALES_REPORT = "report:sales_view"

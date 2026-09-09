@@ -21,6 +21,11 @@ class ProcurementReturnStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class ProcurementDiscountType(str, enum.Enum):
+    FLAT = "flat"
+    PERCENT = "percent"
+
+
 class Procurement(Base):
     __tablename__ = "procurements"    
     id = Column(Integer, primary_key=True)    
@@ -29,9 +34,13 @@ class Procurement(Base):
     pos_id = Column(Integer, ForeignKey("pos.id"), nullable=False)
     # supplying_pos_id = Column(Integer, ForeignKey("pos.id"), nullable=True)
     created_by_id = Column(Integer, ForeignKey("pos_user.id"), nullable=False)    
-    po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  
-    expected_delivery_date = Column(DateTime(timezone=True), nullable=True) 
-    total_amount = Column(Numeric(12, 2), nullable=False)    
+    po_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    expected_delivery_date = Column(DateTime(timezone=True), nullable=True)
+    subtotal_amount = Column(Numeric(12, 2), nullable=False, default=0)
+    discount_type = Column(PgEnum(ProcurementDiscountType), nullable=True)
+    discount_value = Column(Numeric(12, 2), nullable=False, default=0)
+    discount_amount = Column(Numeric(12, 2), nullable=False, default=0)
+    total_amount = Column(Numeric(12, 2), nullable=False)
     status = Column(
         PgEnum(ProcurementStatus),
         default=ProcurementStatus.PENDING,

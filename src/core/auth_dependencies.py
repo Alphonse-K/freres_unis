@@ -80,20 +80,29 @@ def require_role(required_roles: list[str]):
     return checker
 
 
+def account_has_permission(account, permission_name: Permissions) -> bool:
+    """Check whether an account (User/POSUser) holds a permission via its roles."""
+    roles = getattr(account, "roles", [])
+
+    for role in roles:
+        if role.name == "SUPER_ADMIN":
+            return True
+
+    for role in roles:
+        for perm in role.permissions:
+            if perm.name == permission_name.value:
+                return True
+
+    return False
+
+
 def require_permission(permission_name: Permissions):
     def checker(current_user: dict = Depends(get_current_account)):
         account = current_user["account"]
-        roles = getattr(account, "roles", [])
 
-        for role in roles:
-            if role.name == "SUPER_ADMIN":
-                return account
-        
-        for role in roles:
-            for perm in role.permissions:
-                if perm.name == permission_name.value:
-                    return account
-                
+        if account_has_permission(account, permission_name):
+            return account
+
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             detail=f"Required: {permission_name.value}"

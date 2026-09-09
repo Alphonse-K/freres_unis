@@ -9,9 +9,9 @@ import logging
 import uuid
 
 from src.models.procurement import (
-    Procurement, ProcurementItem, ProcurementStatus, 
-    ProcurementReturn, ProcurementReturnItem, ProcurementReturnStatus
-    
+    Procurement, ProcurementItem, ProcurementStatus,
+    ProcurementReturn, ProcurementReturnItem, ProcurementReturnStatus,
+    ProcurementDiscountType
 )
 from src.models.providers import ProviderType
 from src.models.pos import POS, PosType, POSLedger
@@ -47,7 +47,43 @@ class ProcurementService:
         
         next_number = count + 1
         return f"PO-{pos_id:04d}-{year_month}-{next_number:04d}"
-    
+
+    @staticmethod
+    def compute_discount_amount(
+        subtotal: Decimal,
+        discount_type: Optional[ProcurementDiscountType],
+        discount_value: Optional[Decimal]
+    ) -> Decimal:
+        """Resolve a flat/percent discount input into a monetary amount, capped at the subtotal."""
+        discount_value = discount_value or Decimal("0")
+
+        if not discount_type or discount_value == 0:
+            return Decimal("0")
+
+        if discount_value < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Discount value cannot be negative"
+            )
+
+        if discount_type == ProcurementDiscountType.PERCENT:
+            if discount_value > 100:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Percentage discount cannot exceed 100"
+                )
+            discount_amount = (subtotal * discount_value / Decimal("100"))
+        else:
+            discount_amount = discount_value
+
+        if discount_amount > subtotal:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Discount cannot exceed the procurement subtotal"
+            )
+
+        return discount_amount.quantize(Decimal("0.01"))
+
     @staticmethod
     def create_procurement(
         db: Session,
@@ -149,6 +185,10 @@ class ProcurementService:
                 purchase_price = variant.purchase_price
                 subtotal += item.qty * purchase_price
 
+            discount_amount = ProcurementService.compute_discount_amount(
+                subtotal, data.discount_type, data.discount_value
+            )
+
             procurement = Procurement(
                 reference=po_number,
                 pos_id=pos_id,
@@ -156,7 +196,11 @@ class ProcurementService:
                 created_by_id=user_id,
                 expected_delivery_date=data.expected_delivery_date,
                 delivery_notes=data.notes,
-                total_amount=subtotal,
+                subtotal_amount=subtotal,
+                discount_type=data.discount_type,
+                discount_value=data.discount_value or Decimal("0"),
+                discount_amount=discount_amount,
+                total_amount=subtotal - discount_amount,
                 status=ProcurementStatus.PENDING
             )
             db.add(procurement)
@@ -319,6 +363,12 @@ class ProcurementService:
             for field, value in update_data.items():
                 setattr(procurement, field, value)
 
+            recompute_totals = (
+                items_data is not None
+                or "discount_type" in update_data
+                or "discount_value" in update_data
+            )
+
             # Update des items si fournis
             if items_data is not None:
                 # Vérifier que le procurement est encore en PENDING
@@ -359,8 +409,15 @@ class ProcurementService:
                     )
                     db.add(new_item)
 
-                # Recalculer le total
-                procurement.total_amount = subtotal
+                procurement.subtotal_amount = subtotal
+
+            # Recalculer la remise et le total si nécessaire
+            if recompute_totals:
+                discount_amount = ProcurementService.compute_discount_amount(
+                    procurement.subtotal_amount, procurement.discount_type, procurement.discount_value
+                )
+                procurement.discount_amount = discount_amount
+                procurement.total_amount = procurement.subtotal_amount - discount_amount
 
             procurement.updated_at = datetime.now(timezone.utc)
 
@@ -413,6 +470,12 @@ class ProcurementService:
             for field, value in update_data.items():
                 setattr(procurement, field, value)
 
+            recompute_totals = (
+                items_data is not None
+                or "discount_type" in update_data
+                or "discount_value" in update_data
+            )
+
             # Update des items si fournis
             if items_data is not None:
                 # Vérifier que le procurement est encore en PENDING
@@ -453,8 +516,15 @@ class ProcurementService:
                     )
                     db.add(new_item)
 
-                # Recalculer le total
-                procurement.total_amount = subtotal
+                procurement.subtotal_amount = subtotal
+
+            # Recalculer la remise et le total si nécessaire
+            if recompute_totals:
+                discount_amount = ProcurementService.compute_discount_amount(
+                    procurement.subtotal_amount, procurement.discount_type, procurement.discount_value
+                )
+                procurement.discount_amount = discount_amount
+                procurement.total_amount = procurement.subtotal_amount - discount_amount
 
             procurement.updated_at = datetime.now(timezone.utc)
             db.commit()

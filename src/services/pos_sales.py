@@ -23,6 +23,9 @@ from src.models.ecommerce import OrderStatus, Order, OrderItem
 from src.services.inventory import InventoryService
 from src.models.inventory import Warehouse
 from src.services.pos import POSService, POSUserService
+from src.core.permissions import Permissions
+from src.core.auth_dependencies import account_has_permission
+from src.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +69,14 @@ class SaleService:
     # ================================
 
     @staticmethod
-    def create_sale(db: Session, data: SaleCreate):
+    def create_sale(db: Session, data: SaleCreate, current_account=None):
         try:
             # Verify pos
             pos = POSService.get_pos(db, data.pos_id)
             if not pos:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"POS {data.pos_id}"
+                    detail=f"POS {data.pos_id} not found"
                 )
 
             # Get POS user
@@ -106,6 +109,33 @@ class SaleService:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Invalid quantity for {item.product_variant_id}"
+                    )
+
+            # Snapshot the admin-defined default price for each item and detect overrides.
+            # Overriding here only changes what this sale charges/records - it never
+            # touches ProductPrice, so the catalog's default price is untouched.
+            variant_map = {
+                v.id: v for v in db.query(ProductVariant).filter(
+                    ProductVariant.id.in_([item.product_variant_id for item in data.items])
+                ).all()
+            }
+            overridden_items = []
+            for item in data.items:
+                variant = variant_map.get(item.product_variant_id)
+                default_price = variant.sale_price if variant else None
+                if default_price is not None and item.unit_price != default_price:
+                    overridden_items.append({
+                        "product_variant_id": item.product_variant_id,
+                        "default_price": str(default_price),
+                        "charged_price": str(item.unit_price)
+                    })
+
+            if overridden_items:
+                account = getattr(current_account, "account", current_account)
+                if not account or not account_has_permission(account, Permissions.OVERRIDE_ITEM_PRICE):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Required: {Permissions.OVERRIDE_ITEM_PRICE.value}"
                     )
 
             # Calculate totals
@@ -152,11 +182,13 @@ class SaleService:
             # Create sale items
             sale_items_data = []
             for item in data.items:
+                variant = variant_map.get(item.product_variant_id)
                 db.add(SaleItem(
                     sale_id=sale.id,
                     product_variant_id=item.product_variant_id,
                     qty=item.qty,
-                    unit_price=item.unit_price
+                    unit_price=item.unit_price,
+                    default_unit_price=variant.sale_price if variant else None
                     )
                 )
 
@@ -235,6 +267,21 @@ class SaleService:
             sale.status = SaleStatus.COMPLETED
             db.commit()
             db.refresh(sale)
+
+            if overridden_items:
+                account = getattr(current_account, "account", current_account)
+                try:
+                    AuditService.log_action(
+                        db=db,
+                        actor_type=account.__class__.__name__.lower() if account else "unknown",
+                        actor_id=getattr(account, "id", data.created_by_id),
+                        target_type="sale",
+                        target_id=sale.id,
+                        action="override_item_price",
+                        details={"items": overridden_items}
+                    )
+                except Exception as audit_error:
+                    logger.error(f"Failed to log price override audit for sale {sale.id}: {audit_error}")
 
             logging.info(f"Sale created successfully: {sale.id}")
             return sale

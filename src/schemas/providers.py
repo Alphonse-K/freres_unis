@@ -51,6 +51,7 @@ class ProviderResponse(ProviderBase):
 # =========================
 # PROVIDER SUMMARY SCHEMAS
 # =========================
+
 class ProcurementSummaryOut(BaseModel):
     id: int
     reference: str

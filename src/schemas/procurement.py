@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
-from src.models.procurement import ProcurementStatus
+from src.models.procurement import ProcurementStatus, ProcurementDiscountType
 
 
 class ProcurementItemCreate(BaseModel):
@@ -17,6 +17,8 @@ class ProcurementCreate(BaseModel):
     payment_terms: Optional[str] = None
     shipping_terms: Optional[str] = None
     notes: Optional[str] = None
+    discount_type: Optional[ProcurementDiscountType] = None
+    discount_value: Decimal = Field(default=Decimal("0"), ge=0)
 
 
 class ProcurementItemUpdate(BaseModel):
@@ -30,7 +32,9 @@ class ProcurementUpdate(BaseModel):
     delivery_notes: str | None = None
     driver_name: str | None = None
     driver_phone: str | None = None
-    items: list[ProcurementItemUpdate] | None = None 
+    items: list[ProcurementItemUpdate] | None = None
+    discount_type: ProcurementDiscountType | None = None
+    discount_value: Decimal | None = Field(default=None, ge=0)
 
 
 class ProcurementItemResponse(BaseModel):
@@ -50,6 +54,10 @@ class ProcurementResponse(BaseModel):
     pos_name: str | None = None
     po_date: datetime
     expected_delivery_date: datetime | None
+    subtotal_amount: Decimal
+    discount_type: ProcurementDiscountType | None = None
+    discount_value: Decimal
+    discount_amount: Decimal
     total_amount: Decimal
     status: ProcurementStatus
     delivery_date: datetime | None

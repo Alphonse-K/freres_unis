@@ -51,7 +51,7 @@ def create_sale(
     - **notes**: Optional notes
     """
     try:
-        return SaleService.create_sale(db, data)
+        return SaleService.create_sale(db, data, current_account)
     except SaleNotFoundException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except SaleValidationException as e:

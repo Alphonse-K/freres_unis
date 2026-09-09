@@ -62,7 +62,7 @@ class ProviderService:
             
             # Add addresses if provided
             if data.addresses:
-                for addr_data in data.addferences:
+                for addr_data in data.addresses:
                     # Verify geography references exist
                     country = db.query(Country).filter_by(id=addr_data.country_id).first()
                     if not country:
@@ -435,10 +435,12 @@ class ProviderService:
             raise HTTPException(404, "Provider not found")
         
         # Get total invoices (excluding cancelled)
-        total_invoices = db.query(func.coalesce(func.sum(PurchaseInvoice.total_amount), 0)).filter(
+        total_invoices = (db.query(
+            func.coalesce(func.sum(PurchaseInvoice.total_amount), 0))
+                          .filter(
             PurchaseInvoice.provider_id == provider_id,
             PurchaseInvoice.status != PurchaseInvoiceStatus.CANCELLED
-        ).scalar() or Decimal('0')
+        ).scalar() or Decimal('0'))
         
         # Get total payments
         total_payments = db.query(func.coalesce(func.sum(ProviderPayment.amount), 0)).filter(

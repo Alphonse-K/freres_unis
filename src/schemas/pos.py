@@ -237,6 +237,7 @@ class SaleItemCreate(SaleItemBase):
 class SaleItemOut(SaleItemBase):
     id: int
     sale_id: int
+    default_unit_price: Decimal | None = None
     product_variant: Optional[ProductVariantOut] = None
 
     model_config = ConfigDict(from_attributes=True)
