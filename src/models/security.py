@@ -77,6 +77,7 @@ class RefreshToken(Base):
     account_id = Column(Integer, nullable=False)   # id of the user/pos_user/client
     
     token = Column(Text, unique=True, index=True, nullable=False)
+    jti = Column(String(36), unique=True, index=True, nullable=True)
     device_info = Column(JSON)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_active = Column(Boolean, default=True)

@@ -374,7 +374,7 @@ class AuthService:
         }
 
         access_token, access_expires_at, jti = SecurityUtils.create_access_token(token_data)
-        refresh_token, refresh_expires_at = SecurityUtils.create_refresh_token(token_data)
+        refresh_token, refresh_expires_at, refresh_jti = SecurityUtils.create_refresh_token(token_data)
 
         hashed_refresh = SecurityUtils.hash_refresh_token(refresh_token)
 
@@ -382,11 +382,32 @@ class AuthService:
             account_type=account_type,
             account_id=account.id,
             token=hashed_refresh,
+            jti=refresh_jti,
             device_info=device_info,
             expires_at=refresh_expires_at,
         )
 
         db.add(refresh_record)
+
+        # Cap concurrent sessions per account so stale/forgotten tokens can't
+        # accumulate unbounded - each refresh used to bcrypt-verify against
+        # every active token for the account, which becomes catastrophically
+        # slow (and pegs CPU) once that count grows into the hundreds/thousands.
+        MAX_ACTIVE_REFRESH_TOKENS = 5
+        stale_tokens = (
+            db.query(RefreshToken)
+            .filter(
+                RefreshToken.account_type == account_type,
+                RefreshToken.account_id == account.id,
+                RefreshToken.is_active == True,
+            )
+            .order_by(RefreshToken.created_at.desc())
+            .offset(MAX_ACTIVE_REFRESH_TOKENS - 1)
+            .all()
+        )
+        for stale in stale_tokens:
+            stale.is_active = False
+
         db.commit()
         db.refresh(refresh_record)
 
@@ -463,22 +484,29 @@ class AuthService:
 
         account_id = payload["sub"]
         account_type = payload["account_type"]  # 'user', 'pos', or 'client'
+        jti = payload.get("jti")
 
-        # Find all active, non-expired refresh tokens for this account
         now = datetime.now(timezone.utc)
-        tokens = db.query(RefreshToken).filter(
+        base_query = db.query(RefreshToken).filter(
             RefreshToken.account_type == account_type,
             RefreshToken.account_id == account_id,
             RefreshToken.is_active == True,
             RefreshToken.expires_at > now
-        ).all()
+        )
 
-        # Match the provided token against stored hashed tokens
         token_record = None
-        for t in tokens:
-            if SecurityUtils.verify_refresh_token_hash(refresh_token, t.token):
-                token_record = t
-                break
+        if jti:
+            # O(1) indexed lookup for tokens issued after the jti column was added.
+            candidate = base_query.filter(RefreshToken.jti == jti).first()
+            if candidate and SecurityUtils.verify_refresh_token_hash(refresh_token, candidate.token):
+                token_record = candidate
+        else:
+            # Fallback for tokens issued before this fix (no jti stored yet):
+            # bcrypt-verify against each active token until one matches.
+            for t in base_query.all():
+                if SecurityUtils.verify_refresh_token_hash(refresh_token, t.token):
+                    token_record = t
+                    break
 
         if not token_record:
             return None

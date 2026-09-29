@@ -135,12 +135,13 @@ class SecurityUtils:
         return token, expire, jti
 
     @staticmethod
-    def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> tuple[str, datetime]:
+    def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> tuple[str, datetime, str]:
         to_encode = data.copy()
+        jti = str(uuid.uuid4())
         expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
-        to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc), "type": "refresh"})
+        to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc), "jti": jti, "type": "refresh"})
         token = jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
-        return token, expire
+        return token, expire, jti
 
     @staticmethod
     def verify_access_token(token: str) -> Optional[Dict[str, Any]]:
