@@ -57,8 +57,6 @@ class RequestLoggingMiddleware:
             logger.exception(
                 f"{method} {path} -> unhandled exception",
                 extra={"extra_fields": {
-                    "method": method,
-                    "path": path,
                     "duration_ms": duration_ms,
                     "client_ip": client_ip,
                 }},
@@ -70,9 +68,6 @@ class RequestLoggingMiddleware:
         log_fn(
             f"{method} {path} {status_code}",
             extra={"extra_fields": {
-                "method": method,
-                "path": path,
-                "status_code": status_code,
                 "duration_ms": duration_ms,
                 "client_ip": client_ip,
             }},

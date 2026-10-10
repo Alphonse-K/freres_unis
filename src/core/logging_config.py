@@ -1,12 +1,11 @@
 """Centralized logging configuration.
 
-Emits JSON-lines to rotating files (app.log = everything at LOG_LEVEL+,
+Emits plain-text lines to rotating files (app.log = everything at LOG_LEVEL+,
 error.log = ERROR+ only for fast triage) plus stdout (captured by
 `docker logs`). Every record is tagged with the current request id / user
 id (see request_context.py) so a single failing request can be grepped
 out of the noise across all workers.
 """
-import json
 import logging
 import logging.config
 from pathlib import Path
@@ -27,27 +26,25 @@ class RequestContextFilter(logging.Filter):
         return True
 
 
-class JsonFormatter(logging.Formatter):
+class PlainFormatter(logging.Formatter):
+    """Human-readable single-line format, e.g.:
+
+    2026-10-10 14:32:01 INFO  [src.access] req=abc123 user=42 GET /api/v1/sales/ 200 (duration_ms=12.3 client_ip=1.2.3.4)
+    """
+
     def format(self, record: logging.LogRecord) -> str:
-        payload = {
-            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "request_id": getattr(record, "request_id", "-"),
-            "user_id": getattr(record, "user_id", "-"),
-            "module": record.module,
-            "func": record.funcName,
-            "line": record.lineno,
-        }
-        if record.process:
-            payload["process"] = record.process
-        if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+        base = (
+            f"{self.formatTime(record, '%Y-%m-%d %H:%M:%S')} "
+            f"{record.levelname:<5} [{record.name}] "
+            f"req={getattr(record, 'request_id', '-')} user={getattr(record, 'user_id', '-')} "
+            f"{record.getMessage()}"
+        )
         extras = getattr(record, "extra_fields", None)
         if extras:
-            payload.update(extras)
-        return json.dumps(payload, default=str)
+            base += " (" + " ".join(f"{k}={v}" for k, v in extras.items()) + ")"
+        if record.exc_info:
+            base += "\n" + self.formatException(record.exc_info)
+        return base
 
 
 def setup_logging() -> None:
@@ -66,17 +63,17 @@ def setup_logging() -> None:
             "request_context": {"()": RequestContextFilter},
         },
         "formatters": {
-            "json": {"()": JsonFormatter},
+            "plain": {"()": PlainFormatter},
         },
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "formatter": "json",
+                "formatter": "plain",
                 "filters": ["request_context"],
             },
             "app_file": {
                 "class": "logging.handlers.RotatingFileHandler",
-                "formatter": "json",
+                "formatter": "plain",
                 "filters": ["request_context"],
                 "filename": str(LOGS_DIR / "app.log"),
                 "maxBytes": 10 * 1024 * 1024,
@@ -85,7 +82,7 @@ def setup_logging() -> None:
             },
             "error_file": {
                 "class": "logging.handlers.RotatingFileHandler",
-                "formatter": "json",
+                "formatter": "plain",
                 "filters": ["request_context"],
                 "filename": str(LOGS_DIR / "error.log"),
                 "level": "ERROR",
