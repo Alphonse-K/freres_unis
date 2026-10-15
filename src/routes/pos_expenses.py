@@ -1,5 +1,5 @@
 # src/routes/expense.py
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Path
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Path, Body
 from sqlalchemy.orm import Session
 from datetime import date, datetime
 from decimal import Decimal
@@ -52,6 +52,8 @@ def create_expense(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseValidationException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -75,6 +77,8 @@ def get_expense(
         return ExpenseService.get_expense(db, expense_id)
     except ExpenseNotFoundException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -98,6 +102,8 @@ def get_expense_by_reference(
         return ExpenseService.get_expense_by_reference(db, reference)
     except ExpenseNotFoundException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -109,8 +115,8 @@ def get_expense_by_reference(
 )
 def update_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
-    data: POSExpenseUpdate = Depends(),
-    current_account: dict = Depends(require_permission(Permissions.CREATE_POS_EXPENSE)),
+    data: POSExpenseUpdate = Body(...),
+    current_account: dict = Depends(require_permission(Permissions.UPDATE_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -133,6 +139,8 @@ def update_expense(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseBusinessRuleException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -164,6 +172,8 @@ def delete_expense(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseBusinessRuleException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except HTTPException:
         raise
     except Exception as e:
@@ -207,6 +217,8 @@ def list_expenses(
             created_by_id, approved_by_id, skip, limit
         )
         return expenses
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -222,7 +234,7 @@ def list_expenses(
 )
 def approve_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
-    data: ExpenseApproveRequest = Depends(),
+    data: ExpenseApproveRequest = Body(...),
     current_account: dict = Depends(require_permission(Permissions.APPROVE_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
@@ -238,6 +250,8 @@ def approve_expense(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseBusinessRuleException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -249,7 +263,7 @@ def approve_expense(
 )
 def reject_expense(
     expense_id: int = Path(..., description="Expense ID", gt=0),
-    data: ExpenseRejectRequest = Depends(),
+    data: ExpenseRejectRequest = Body(default_factory=ExpenseRejectRequest),
     current_account: dict = Depends(require_permission(Permissions.REJECT_POS_EXPENSE)),
     db: Session = Depends(get_db)
 ):
@@ -265,6 +279,8 @@ def reject_expense(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseBusinessRuleException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -290,6 +306,8 @@ def mark_expense_as_paid(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseBusinessRuleException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -319,6 +337,8 @@ def get_expenses_summary(
     """
     try:
         return ExpenseService.get_expenses_summary(db, pos_id, start_date, end_date)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -342,6 +362,8 @@ def get_expenses_trend(
     """
     try:
         return ExpenseService.get_expenses_trend(db, pos_id, days)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -367,6 +389,8 @@ def get_category_breakdown(
     """
     try:
         return ExpenseService.get_category_breakdown(db, pos_id, start_date, end_date)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -392,6 +416,8 @@ def get_monthly_expense_report(
     """
     try:
         return ExpenseService.get_monthly_expense_report(db, pos_id, year, month)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -415,6 +441,8 @@ def compare_with_previous_period(
     """
     try:
         return ExpenseService.compare_with_previous_period(db, pos_id, days)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -441,6 +469,8 @@ def get_recent_expenses_by_pos(
             db, pos_id=pos_id, skip=0, limit=limit
         )
         return expenses
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -462,6 +492,8 @@ def list_expense_categories(
             for category in POSExpenseCategory
         ]
         return categories
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -483,5 +515,7 @@ def list_expense_statuses(
             for status in POSExpenseStatus
         ]
         return statuses
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

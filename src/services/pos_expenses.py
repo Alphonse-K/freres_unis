@@ -4,9 +4,10 @@ from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, asc, and_, or_, extract
+from fastapi import HTTPException
 import logging
 
-from src.models.pos import POSExpense, POSUser, POS, POSExpenseCategory, POSExpenseStatus
+from src.models.pos import POSExpense, POSUser, POS, POSLedger, POSExpenseCategory, POSExpenseStatus
 from src.schemas.pos import (
     POSExpenseCreate, POSExpenseUpdate, POSExpenseFilter
 )
@@ -124,6 +125,9 @@ class ExpenseService:
         except ExpenseException:
             db.rollback()
             raise
+        except HTTPException:
+            db.rollback()
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating expense: {str(e)}")
@@ -218,27 +222,51 @@ class ExpenseService:
     
     @staticmethod
     def approve_expense(db: Session, expense_id: int, approver_id: int) -> POSExpense:
-        """Approve an expense"""
-        expense = ExpenseService.get_expense(db, expense_id)       
+        """Approve an expense: this is the point money actually leaves the POS."""
+        expense = ExpenseService.get_expense(db, expense_id)
         if expense.status != POSExpenseStatus.DRAFT:
             raise ExpenseBusinessRuleException(
                 "Can only approve expenses in draft status"
             )
-        
+
         approver = POSUserService.get_pos_user_by_id(db, approver_id)
-        if not approver:
-            raise ExpenseNotFoundException(
-                f"Approver user {approver_id} not found"
+
+        if approver.pos_id != expense.pos_id:
+            raise ExpenseBusinessRuleException(
+                "Approver does not belong to the POS this expense was raised against"
             )
-        
+
         try:
+            pos = db.query(POS).filter(POS.id == expense.pos_id).with_for_update().first()
+            if not pos:
+                raise ExpenseNotFoundException(f"POS {expense.pos_id} not found")
+
+            if pos.balance < expense.amount:
+                raise ExpenseBusinessRuleException("POS insufficient balance")
+
+            balance_before = pos.balance
+            pos.balance -= expense.amount
+
+            db.add(POSLedger(
+                pos_id=pos.id,
+                entry_type="debit",
+                amount=expense.amount,
+                balance_before=balance_before,
+                balance_after=pos.balance,
+                reference_id=expense.reference,
+                reason=f"Expense: {expense.category.value}"
+            ))
+
             expense.status = POSExpenseStatus.APPROVED
-            expense.approved_by_id = approver_id            
+            expense.approved_by_id = approver_id
             db.commit()
-            db.refresh(expense)            
+            db.refresh(expense)
             logger.info(f"Expense approved: {expense_id} by user {approver_id}")
-            return expense 
-                   
+            return expense
+
+        except ExpenseException:
+            db.rollback()
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error approving expense {expense_id}: {str(e)}")
