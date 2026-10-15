@@ -50,6 +50,7 @@ class Permissions(str, Enum):
     READ_CLIENT_RETURN = "client_return:read"
     APPROVE_CLIENT_RETURN = "client_return:approve"
     REJECT_CLIENT_RETURN = "client_return:reject"
+    CANCEL_CLIENT_RETURN = "client_return:cancel"
     INCREMENT_CLIENT_BALANCE = "client_balance:increment"
     VALIDATE_CLIENT_CARD = "client_card:validate"
 

@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from src.models.clients import (
     ClientType, 
     ClientStatus, 
@@ -277,6 +277,7 @@ class ClientReturnCreate(ClientReturnBase):
     order_id: int
     items: list[ClientReturnItemCreate]
 
+    @model_validator(mode="before")
     @classmethod
     def validate_items(cls, values):
         if not values.get("items"):

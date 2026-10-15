@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from src.models.clients import Client
 from src.models.ecommerce import Order, OrderItem
-from src.models.pos import POS, POSLedger
+from src.models.pos import POS, POSLedger, POSUser
 from src.models.clients import ClientReturn, ClientReturnItem, ReturnStatus, LedgerEntry
 from src.schemas.clients import (
     ClientReturnCreate,
@@ -25,7 +25,18 @@ class ClientReturnService:
     # CREATE RETURN REQUEST
     # =========================
     @staticmethod
-    def create_return(db: Session, data: ClientReturnCreate):
+    def create_return(db: Session, data: ClientReturnCreate, current_user):
+        if current_user.get("account_type") != "client":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only clients can create return requests"
+            )
+
+        if data.client_id != current_user["account"].id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot create a return for another client"
+            )
 
         client = db.query(Client).filter_by(id=data.client_id).first()
         if not client:
@@ -91,17 +102,29 @@ class ClientReturnService:
         return client_return
 
     @staticmethod
-    def cancel_return(db: Session, client_return: ClientReturn, client: Client):
-        if client_return.client_id != client.id:
+    def cancel_return(db: Session, client_return: ClientReturn, actor):
+        """actor must be the POSUser whose warehouse the underlying order belongs to.
+
+        Orders are purchased from a POS, so only that POS can act on returns
+        against it; admin Users (model User) are view-only on this feature.
+        """
+        if not isinstance(actor, POSUser):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Can only cancel your own returns"
+                detail="Only POS users can cancel returns"
             )
-        
+
         if client_return.status != ReturnStatus.PENDING:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot cancel an already processed return"
+            )
+
+        order = db.query(Order).filter_by(id=client_return.order_id).first()
+        if not order or order.warehouse_id != actor.pos.warehouse_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Unauthorized access: return does not belong to your warehouse"
             )
 
         client_return.status = ReturnStatus.CANCELLED
@@ -127,9 +150,21 @@ class ClientReturnService:
             if client_return.status != ReturnStatus.PENDING:
                 raise HTTPException(400, "Return already processed")
 
+            if not isinstance(approver_by, POSUser):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only POS users can approve returns"
+                )
+
             order = db.query(Order).filter_by(id=client_return.order_id).first()
             if not order:
                 raise HTTPException(404, "Order not found")
+
+            if approver_by.pos.warehouse_id != order.warehouse_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Unauthorized access: return does not belong to your warehouse"
+                )
 
             client = db.query(Client)\
                 .filter_by(id=client_return.client_id)\
@@ -235,6 +270,19 @@ class ClientReturnService:
         if client_return.status != ReturnStatus.PENDING:
             raise HTTPException(400, "Return already processed")
 
+        if not isinstance(approver_by, POSUser):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only POS users can reject returns"
+            )
+
+        order = db.query(Order).filter_by(id=client_return.order_id).first()
+        if not order or order.warehouse_id != approver_by.pos.warehouse_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Unauthorized access: return does not belong to your warehouse"
+            )
+
         client_return.status = ReturnStatus.REJECTED
         client_return.approved_by = approver_by.id
         client_return.approved_at = datetime.now(timezone.utc)
@@ -261,18 +309,12 @@ class ClientReturnService:
         if current_user.get("account_type") == "user":
             pass
         elif current_user.get("account_type") == "client":
-            query = query.filter(ClientReturn.client_id == filters.client_id)
+            own_client_id = current_user["account"].id
+            query = query.filter(ClientReturn.client_id == own_client_id)
         elif current_user.get("account_type") == "pos":
             account = current_user.get('account')
             warehouse_id = account.pos.warehouse_id
-            query = query.join(ClientReturn.order)
-            unauthorized = query.filter(Order.warehouse_id != warehouse_id).first()
-            if unauthorized:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Unauthorized access: return does not belong to your warehouse"
-                )  
-            query = query.filter(Order.warehouse_id == warehouse_id)
+            query = query.join(ClientReturn.order).filter(Order.warehouse_id == warehouse_id)
         else: 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
@@ -290,7 +332,7 @@ class ClientReturnService:
     # GET SINGLE RETURN
     # =========================
     @staticmethod
-    def get_return(db: Session, return_id: int):
+    def get_return(db: Session, return_id: int, current_user):
 
         obj = db.query(ClientReturn)\
             .filter(ClientReturn.id == return_id)\
@@ -298,6 +340,29 @@ class ClientReturnService:
 
         if not obj:
             raise HTTPException(404, "Return not found")
+
+        account_type = current_user.get("account_type")
+        if account_type == "user":
+            pass
+        elif account_type == "client":
+            if obj.client_id != current_user["account"].id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Unauthorized access"
+                )
+        elif account_type == "pos":
+            order = db.query(Order).filter_by(id=obj.order_id).first()
+            warehouse_id = current_user["account"].pos.warehouse_id
+            if not order or order.warehouse_id != warehouse_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Unauthorized access: return does not belong to your warehouse"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Unauthorized access"
+            )
 
         return obj
     

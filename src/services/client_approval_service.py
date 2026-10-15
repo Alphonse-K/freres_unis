@@ -23,13 +23,8 @@ class ClientApprovalService:
         Save uploaded KYC files and create ClientApproval record.
         Passwords are NOT handled here.
         """
+        ClientApprovalService._ensure_unique(db, data)
 
-        if db.query(ClientApproval).filter_by(phone=data["phone"]).first():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Phone number already in use"
-            )
-        
         approval = ClientApproval(
             **data,
             face_photo=save_image(files["face_photo"], "face"),
@@ -42,6 +37,48 @@ class ClientApprovalService:
         db.commit()
         db.refresh(approval)
         return approval
+
+    @staticmethod
+    def _ensure_unique(db: Session, data: dict) -> None:
+        """
+        Reject a submission that collides with an existing approval or client.
+
+        - id_number / phone / email: checked against pending/approved
+          ClientApproval rows and against Client, but a REJECTED approval is
+          ignored so a rejected applicant can resubmit.
+        - magnetic_card_number: checked against all ClientApproval rows
+          (rejected included), mirroring the column's unconditional unique
+          constraint at the DB level.
+        """
+        for field, label in (
+            ("id_number", "ID number"),
+            ("phone", "Phone number"),
+            ("email", "Email"),
+        ):
+            value = data.get(field)
+            if not value:
+                continue
+
+            existing_approval = db.query(ClientApproval).filter(
+                ClientApproval.status != ApprovalStatus.REJECTED,
+                getattr(ClientApproval, field) == value,
+            ).first()
+            existing_client = db.query(Client).filter_by(**{field: value}).first()
+
+            if existing_approval or existing_client:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{label} already in use"
+                )
+
+        magnetic_card_number = data.get("magnetic_card_number")
+        if magnetic_card_number and db.query(ClientApproval).filter_by(
+            magnetic_card_number=magnetic_card_number
+        ).first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Magnetic card number already in use"
+            )
 
     @staticmethod
     def review(

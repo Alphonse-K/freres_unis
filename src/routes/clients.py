@@ -657,7 +657,7 @@ def create_client_return(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_account)
 ):
-    return ClientReturnService.create_return(db, payload)
+    return ClientReturnService.create_return(db, payload, current_user)
 
 @client_router.get(
     "/client-returns/{client_id}",
@@ -692,16 +692,17 @@ def get_client_return(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_account)
 ):
-    return ClientReturnService.get_return(db, return_id)
+    return ClientReturnService.get_return(db, return_id, current_user)
 
 
 @client_router.post(
-    "/client-return/{return_id}/cancel"
+    "/client-return/{return_id}/cancel",
+    response_model=ClientReturnResponse,
 )
 def cancel_return(
-    return_id: int, 
-    db: Session = Depends(get_db), 
-    current_user = Depends(get_current_account)
+    return_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission(Permissions.CANCEL_CLIENT_RETURN))
 ):
     client_return = db.query(ClientReturn).filter_by(id=return_id).first()
     if not client_return:
@@ -709,7 +710,7 @@ def cancel_return(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Return not found"
         )
-    return ClientReturnService.cancel_return(db, client_return, client_return.client)
+    return ClientReturnService.cancel_return(db, client_return, current_user)
 
 
 @client_router.post(
