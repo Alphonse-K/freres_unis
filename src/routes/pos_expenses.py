@@ -52,6 +52,8 @@ def create_expense(
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except ExpenseValidationException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except ExpenseBusinessRuleException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except HTTPException:
         raise
     except Exception as e:

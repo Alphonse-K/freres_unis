@@ -80,17 +80,27 @@ class ExpenseService:
             if not pos:
                 raise ExpenseNotFoundException(f"POS {data.pos_id} not found")
             
-            # Verify created_by user exists
+            # Verify created_by user exists and belongs to this POS
             created_by = POSUserService.get_pos_user_by_id(db, data.created_by_id)
             if not created_by:
                 raise ExpenseNotFoundException(f"User {data.created_by_id} not found")
-            
-            # Verify approved_by user exists if provided
+
+            if created_by.pos_id != data.pos_id:
+                raise ExpenseBusinessRuleException(
+                    "created_by user does not belong to the POS this expense is being raised against"
+                )
+
+            # Verify approved_by user exists and belongs to this POS, if provided
             approved_by = None
             if data.approved_by_id:
                 approved_by = POSUserService.get_pos_user_by_id(db, data.approved_by_id)
                 if not approved_by:
                     raise ExpenseNotFoundException(f"User {data.approved_by_id} not found")
+
+                if approved_by.pos_id != data.pos_id:
+                    raise ExpenseBusinessRuleException(
+                        "approved_by user does not belong to the POS this expense is being raised against"
+                    )
             
             # Generate reference number
             reference = ExpenseService.generate_expense_reference(db, data.pos_id)
