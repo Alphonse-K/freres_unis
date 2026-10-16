@@ -21,7 +21,7 @@ from src.models.inventory import Inventory
 from src.schemas.procurement import (
     ProcurementCreate, ProcurementUpdate, ProcurementItemCreate,
 )
-from src.services.inventory import InventoryService, NotFoundException, ValidationException, BusinessRuleException
+from src.services.inventory import InventoryService
 
 logger = logging.getLogger(__name__)
 
@@ -355,10 +355,20 @@ class ProcurementService:
 
         try:
             update_data = data.model_dump(exclude_unset=True)
-            
+
+            if update_data.get("status") == ProcurementStatus.RECEIVED:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Cannot set status to RECEIVED through this endpoint — "
+                        "use PATCH /procurements/change_procurement_status/{procurement_id} "
+                        "so stock and balance movements are applied"
+                    )
+                )
+
             # Extraire les items séparément avant d'update les champs simples
             items_data = update_data.pop("items", None)
-            
+
             # Update des champs simples (status, notes, date...)
             for field, value in update_data.items():
                 setattr(procurement, field, value)
@@ -462,7 +472,17 @@ class ProcurementService:
 
         try:
             update_data = data.model_dump(exclude_unset=True)
-            
+
+            if update_data.get("status") == ProcurementStatus.RECEIVED:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Cannot set status to RECEIVED through this endpoint — "
+                        "use PATCH /procurements/change_procurement_status/{procurement_id} "
+                        "so stock and balance movements are applied"
+                    )
+                )
+
             # Extraire les items séparément avant d'update les champs simples
             items_data = update_data.pop("items", None)
             
@@ -802,30 +822,31 @@ class ProcurementService:
         procurement = db.query(Procurement).filter(
             Procurement.id == procurement_id
         ).with_for_update().first()
-        
+
         if not procurement:
-            raise NotFoundException(f"Procurement {procurement_id} not found")
-        
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Procurement {procurement_id} not found")
+
         # Check if already cancelled
         if procurement.status == ProcurementStatus.CANCELLED:
-            raise BusinessRuleException("Procurement is already cancelled")
-        
-        # Check if already delivered
-        if procurement.status == ProcurementStatus.DELIVERED:
-            raise BusinessRuleException("Cannot cancel delivered procurement")
-        
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Procurement is already cancelled")
+
+        # Check if already received
+        if procurement.status == ProcurementStatus.RECEIVED:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Cannot cancel a received procurement")
+
         try:
             procurement.status = ProcurementStatus.CANCELLED
-            procurement.cancelled_at = datetime.now(timezone.utc)
             if reason:
-                procurement.notes = f"{procurement.notes or ''}\nCancelled: {reason}".strip()
+                procurement.delivery_notes = f"{procurement.delivery_notes or ''}\nCancelled: {reason}".strip()
             procurement.updated_at = datetime.now(timezone.utc)
-            
+
             db.commit()
             db.refresh(procurement)
-            
-            logger.info(f"Procurement cancelled: {procurement.po_number}")
-            return procurement            
+
+            logger.info(f"Procurement cancelled: {procurement.reference}")
+            return procurement
+        except HTTPException:
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error cancelling procurement {procurement_id}: {str(e)}")
@@ -1181,20 +1202,20 @@ class ProcurementService:
             query = query.filter(Procurement.created_at <= end_date)
         
         # Get delivered procurements
-        delivered = query.filter(Procurement.status == ProcurementStatus.DELIVERED).all()
-        
+        delivered = query.filter(Procurement.status == ProcurementStatus.RECEIVED).all()
+
         # Calculate metrics
         total_procurements = len(delivered)
         total_amount = sum(p.total_amount for p in delivered)
-        
+
         # Calculate average delivery time
         avg_delivery_days = None
         if delivered:
             total_days = 0
             count = 0
             for p in delivered:
-                if p.expected_delivery_date and p.delivered_at:
-                    delivery_date = p.delivered_at.date()
+                if p.expected_delivery_date and p.delivery_date:
+                    delivery_date = p.delivery_date.date()
                     expected_date = p.expected_delivery_date
                     if isinstance(expected_date, datetime):
                         expected_date = expected_date.date()
@@ -1268,12 +1289,12 @@ class ProcurementService:
         procurement_id: int
     ) -> Dict[str, Any]:
         """Validate if procurement can be delivered (pre-check)"""
-        procurement = ProcurementService.get_procurement(db, procurement_id, include_details=False)
+        procurement = db.query(Procurement).filter(Procurement.id == procurement_id).first()
         if not procurement:
-            raise NotFoundException(f"Procurement {procurement_id} not found")
-        
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Procurement {procurement_id} not found")
+
         # Check current status
-        if procurement.status == ProcurementStatus.DELIVERED:
+        if procurement.status == ProcurementStatus.RECEIVED:
             return {
                 "can_deliver": False,
                 "reason": "Already delivered",
@@ -1305,7 +1326,7 @@ class ProcurementService:
         return {
             "can_deliver": True,
             "procurement_id": procurement_id,
-            "reference": procurement.po_number,
+            "reference": procurement.reference,
             "pos_id": procurement.pos_id,
             "warehouse_id": pos.warehouse_id,
             "item_count": len(items),
